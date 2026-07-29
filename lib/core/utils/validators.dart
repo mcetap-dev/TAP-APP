@@ -31,12 +31,12 @@ class AppValidators {
     return null;
   }
 
-  /// Name validation: Alphabets, spaces, hyphens, and apostrophes only. Prevents emojis/injection.
+  /// Name validation: Alphabets, spaces, dots, hyphens, and apostrophes only. Prevents emojis/injection.
   static String? name(String? value) {
     if (value == null || value.trim().isEmpty) return 'Name is required';
     if (value.trim().length < 2) return 'Name must be at least 2 characters';
-    if (!RegExp(r"^[a-zA-Z\s'-]+$").hasMatch(value.trim())) {
-      return 'Name can only contain letters, spaces, hyphens, or apostrophes';
+    if (!RegExp(r"^[a-zA-Z\s'\.-]+$").hasMatch(value.trim())) {
+      return 'Name can only contain letters, spaces, dots, hyphens, or apostrophes';
     }
     return null;
   }

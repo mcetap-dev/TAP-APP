@@ -2,7 +2,7 @@ import '../../../auth/domain/entities/user_profile.dart';
 
 abstract class UserManagementRepository {
   Future<void> appointTpo({
-    required String profileId,
+    required String email,
     required String appointedBy,
   });
 
