@@ -13,8 +13,11 @@ enum UserRole {
       case 'faculty_coordinator':
       case 'faculty':
         return UserRole.facultyCoordinator;
-      default:
+      case 'student':
         return UserRole.student;
+      default:
+        // Never silently fall back to student — surface the bad role value
+        throw ArgumentError('Unknown role value: "$value". Check the profiles table.');
     }
   }
 

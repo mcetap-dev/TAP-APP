@@ -6,11 +6,15 @@ import '../providers/auth_provider.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/theme/theme_extensions.dart';
 
+/// Returns the role for a given email based on domain.
+/// - @ms.mcehassan.ac.in  → student
+/// - @mcehassan.ac.in      → faculty (TPO/Admin are appointed later by Admin)
+/// - anything else          → null (rejected)
 String? _roleFromEmail(String email) {
   final lower = email.trim().toLowerCase();
   if (lower.endsWith('@ms.mcehassan.ac.in')) return 'student';
   if (lower.endsWith('@mcehassan.ac.in')) return 'faculty';
-  return null;
+  return null; // All other emails are rejected
 }
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -55,13 +59,12 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   String? _validateEmail(String? v) {
     final base = AppValidators.email(v);
     if (base != null) return base;
-    final role = _roleFromEmail(v ?? '');
-    if (role == null) {
-      return 'Use your college email\n'
-          '(@ms.mcehassan.ac.in for students,\n'
-          ' @mcehassan.ac.in for staff)';
-    }
-    return null;
+    final lower = (v ?? '').trim().toLowerCase();
+    if (lower.endsWith('@ms.mcehassan.ac.in')) return null; // valid student
+    if (lower.endsWith('@mcehassan.ac.in')) return null;    // valid faculty/staff
+    return 'Only MCE Hassan emails are allowed:\n'
+        '• Students: yourname@ms.mcehassan.ac.in\n'
+        '• Faculty/Staff: yourname@mcehassan.ac.in';
   }
 
   String? _validateConfirm(String? v) {

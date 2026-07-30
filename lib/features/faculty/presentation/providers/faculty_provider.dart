@@ -4,9 +4,11 @@ import '../../../auth/domain/entities/user_profile.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/repositories/faculty_repository_impl.dart';
 import '../../domain/repositories/faculty_repository.dart';
+import '../../../audit/domain/repositories/audit_log_repository.dart';
 
 final facultyRepositoryProvider = Provider<FacultyRepository>((ref) {
-  return FacultyRepositoryImpl(Supabase.instance.client);
+  final auditRepo = ref.watch(auditLogRepositoryProvider);
+  return FacultyRepositoryImpl(Supabase.instance.client, auditRepo);
 });
 
 final pendingStudentsProvider = FutureProvider<List<UserProfile>>((ref) async {

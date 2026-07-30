@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../auth/domain/entities/user_profile.dart';
+import '../providers/faculty_provider.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../shared/presentation/widgets/app_bottom_nav_bar.dart';
 
@@ -42,24 +44,25 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
     NavItemData(icon: Icons.person_outline_rounded, selectedIcon: Icons.person_rounded, label: 'Profile'),
   ];
 
-  void _toggleVerify(StudentVerificationItem student, String facultyName) async {
-    setState(() => student.isVerified = !student.isVerified);
+  void _toggleVerify(UserProfile s, String facultyName) async {
+    final isCurrentlyApproved = s.approvalStatus == ApprovalStatus.approved;
     try {
       final user = Supabase.instance.client.auth.currentUser;
       await Supabase.instance.client.from('profiles').update({
-        'approval_status': student.isVerified ? 'approved' : 'pending',
-        'approved_by': student.isVerified ? user?.id : null,
-        'approved_at': student.isVerified ? DateTime.now().toIso8601String() : null,
-      }).eq('usn', student.regNo);
+        'approval_status': !isCurrentlyApproved ? 'approved' : 'pending',
+        'approved_by': !isCurrentlyApproved ? user?.id : null,
+        'approved_at': !isCurrentlyApproved ? DateTime.now().toIso8601String() : null,
+      }).eq('id', s.id);
+      ref.invalidate(pendingStudentsProvider);
     } catch (_) {}
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            student.isVerified
-                ? '✅ Academic details for ${student.name} (${student.regNo}) verified by $facultyName!'
-                : 'Status reset for ${student.name}.',
+            !isCurrentlyApproved
+                ? '✅ Academic details for ${s.name} (${s.usn}) verified by $facultyName!'
+                : 'Status reset for ${s.name}.',
           ),
           behavior: SnackBarBehavior.floating,
         ),
@@ -245,22 +248,22 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(s.name, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 15)),
-                      Text('${s.regNo} · ${s.dept}', style: GoogleFonts.inter(fontSize: 12, color: brandTheme?.textMuted)),
+                      Text('${s.usn} · ${s.department}', style: GoogleFonts.inter(fontSize: 12, color: brandTheme?.textMuted)),
                     ],
                   ),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: s.isVerified ? successColor.withValues(alpha: 0.12) : Colors.amber.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(100),
+                    color: s.approvalStatus == ApprovalStatus.approved ? successColor.withValues(alpha: 0.12) : Colors.amber.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    s.isVerified ? 'Verified' : 'Pending',
+                    s.approvalStatus == ApprovalStatus.approved ? 'Verified' : 'Pending',
                     style: GoogleFonts.inter(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: s.isVerified ? successColor : Colors.amber.shade800,
+                      color: s.approvalStatus == ApprovalStatus.approved ? successColor : Colors.amber.shade800,
                     ),
                   ),
                 ),
@@ -277,7 +280,7 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('Submitted CGPA', style: GoogleFonts.inter(fontSize: 12, color: brandTheme?.textMuted)),
-                  Text(s.cgpa, style: GoogleFonts.ibmPlexMono(fontSize: 14, fontWeight: FontWeight.w600)),
+                  Text(s.cgpa?.toStringAsFixed(2) ?? 'N/A', style: GoogleFonts.ibmPlexMono(fontSize: 14, fontWeight: FontWeight.w600)),
                 ],
               ),
             ),
@@ -288,14 +291,14 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () => _toggleVerify(s, facultyName),
-                    icon: Icon(s.isVerified ? Icons.cancel_outlined : Icons.check_circle_outline, size: 16, color: s.isVerified ? Colors.red : successColor),
+                    icon: Icon(s.approvalStatus == ApprovalStatus.approved ? Icons.cancel_outlined : Icons.check_circle_outline, size: 16, color: s.approvalStatus == ApprovalStatus.approved ? Colors.red : successColor),
                     label: Text(
-                      s.isVerified ? 'Revoke Verification' : 'Verify & Approve',
-                      style: GoogleFonts.inter(fontSize: 13, color: s.isVerified ? Colors.red : successColor, fontWeight: FontWeight.w600),
+                      s.approvalStatus == ApprovalStatus.approved ? 'Revoke Verification' : 'Verify & Approve',
+                      style: GoogleFonts.inter(fontSize: 13, color: s.approvalStatus == ApprovalStatus.approved ? Colors.red : successColor, fontWeight: FontWeight.w600),
                     ),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: s.isVerified ? Colors.red : successColor),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      side: BorderSide(color: s.approvalStatus == ApprovalStatus.approved ? Colors.red : successColor),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                 ),

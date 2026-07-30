@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../domain/entities/user_profile.dart';
+import '../../../audit/domain/entities/audit_log_entry.dart';
+import '../../../audit/domain/repositories/audit_log_repository.dart';
 
 // ── Datasource provider ────────────────────────────────────────────────────
 final authDatasourceProvider = Provider<AuthRemoteDatasource>((ref) {
@@ -30,8 +32,9 @@ final currentProfileProvider = FutureProvider<UserProfile?>((ref) async {
 // ── Auth notifier (actions & active state) ─────────────────────────────────
 class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   final AuthRemoteDatasource _datasource;
+  final AuditLogRepository _auditLogRepo;
 
-  AuthNotifier(this._datasource) : super(const AsyncValue.loading()) {
+  AuthNotifier(this._datasource, this._auditLogRepo) : super(const AsyncValue.loading()) {
     _init();
   }
 
@@ -84,6 +87,12 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
       final userId = response.user?.id;
       if (userId != null) {
         await _loadProfile(userId);
+        
+        // Log the sign in action
+        await _auditLogRepo.logAction(
+          action: AuditAction.login,
+          description: 'Logged in successfully.',
+        );
       } else {
         state = const AsyncValue.data(null);
       }
@@ -133,5 +142,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
 
 final authNotifierProvider =
     StateNotifierProvider<AuthNotifier, AsyncValue<UserProfile?>>((ref) {
-  return AuthNotifier(ref.watch(authDatasourceProvider));
+  final datasource = ref.watch(authDatasourceProvider);
+  final auditLogRepo = ref.watch(auditLogRepositoryProvider);
+  return AuthNotifier(datasource, auditLogRepo);
 });

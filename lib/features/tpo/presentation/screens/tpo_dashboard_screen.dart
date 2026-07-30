@@ -169,7 +169,7 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
-                  onPressed: () => _showCreateDriveSheet(context, brass, brandTheme, theme),
+                  onPressed: () => context.push('/tpo/create-drive'),
                   icon: const Icon(Icons.add_rounded, size: 18),
                   label: Text('New Drive', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
@@ -181,9 +181,9 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
               ],
             ),
             const SizedBox(height: 20),
-            _driveDetailItem('Google India', 'SDE-1', '24.0 LPA', 'CGPA >= 8.0', 'CS, ISE, ECE', 'Aug 15, 2026', brass, theme, brandTheme),
-            _driveDetailItem('Microsoft', 'Software Engineer', '28.0 LPA', 'CGPA >= 8.5', 'All Branches', 'Aug 18, 2026', brass, theme, brandTheme),
-            _driveDetailItem('Amazon AWS', 'Cloud Dev Intern', '80,000/mo', 'CGPA >= 7.5', 'CS, ISE', 'Aug 22, 2026', brass, theme, brandTheme),
+            _driveDetailItem('Google India', 'SDE-1', '24.0 LPA', 'CGPA >= 8.0', 'CS, ISE, ECE', 'Aug 15, 2026', brass, theme, brandTheme, context),
+            _driveDetailItem('Microsoft', 'Software Engineer', '28.0 LPA', 'CGPA >= 8.5', 'All Branches', 'Aug 18, 2026', brass, theme, brandTheme, context),
+            _driveDetailItem('Amazon AWS', 'Cloud Dev Intern', '80,000/mo', 'CGPA >= 7.5', 'CS, ISE', 'Aug 22, 2026', brass, theme, brandTheme, context),
           ],
         ),
       );
@@ -256,16 +256,19 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
         ),
       );
 
-  Widget _driveDetailItem(String company, String role, String ctc, String cgpa, String branches, String deadline, Color brass, ThemeData theme, AppBrandTheme? brandTheme) => Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _driveDetailItem(String company, String role, String ctc, String cgpa, String branches, String deadline, Color brass, ThemeData theme, AppBrandTheme? brandTheme, BuildContext context) => InkWell(
+        onTap: () => context.push('/tpo/applicant-list'),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -290,7 +293,8 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
             ),
           ],
         ),
-      );
+      ),
+    );
 
   Widget _facultyApptCard(String dept, String name, String email, bool isAppointed, Color brass, AppBrandTheme? brandTheme, ThemeData theme) => Container(
         padding: const EdgeInsets.all(14),

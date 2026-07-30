@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/entities/user_profile.dart';
 
@@ -39,6 +40,24 @@ class AuthRemoteDatasource {
         if (rollNumber != null) 'usn': rollNumber,
       },
     );
+
+    final user = response.user;
+    if (user != null) {
+      try {
+        await _client.from('profiles').upsert({
+          'id': user.id,
+          'email': email,
+          'name': fullName,
+          'role': role,
+          if (department != null) 'department': department,
+          if (rollNumber != null) 'usn': rollNumber,
+          'approval_status': role == 'student' ? 'pending' : 'approved',
+        });
+      } catch (e) {
+        // Silently ignore upsert errors here, AuthNotifier handles fallback
+      }
+    }
+
     return response;
   }
 
@@ -81,25 +100,39 @@ class AuthRemoteDatasource {
       if (data != null) {
         return UserProfile.fromMap(data);
       }
-    } catch (_) {
-      // Fallback below
+    } catch (e) {
+      // Log error — do NOT silently swallow and fall back to student
+      debugPrint('[fetchProfile] DB fetch failed for $userId: $e');
     }
 
+    // Fallback: read role from auth metadata only — never default to student
     final user = currentUser;
     if (user != null && user.id == userId) {
       final email = user.email ?? '';
       final metaRole = user.userMetadata?['role'] as String?;
-      final metaName = user.userMetadata?['name'] as String? ?? user.userMetadata?['full_name'] as String? ?? email.split('@').first;
+      final metaName = user.userMetadata?['name'] as String?
+          ?? user.userMetadata?['full_name'] as String?
+          ?? email.split('@').first;
 
-      UserRole role = UserRole.student;
-      if (metaRole != null) {
-        role = UserRole.fromString(metaRole);
+      // Determine role from metadata or email domain — NO student fallback
+      UserRole role;
+      if (metaRole != null && metaRole.isNotEmpty) {
+        try {
+          role = UserRole.fromString(metaRole);
+        } catch (_) {
+          debugPrint('[fetchProfile] Unknown metaRole "$metaRole" for $email. Returning null.');
+          return null;
+        }
       } else if (email.startsWith('admin')) {
         role = UserRole.admin;
       } else if (email.startsWith('tap') || email.startsWith('tpo')) {
         role = UserRole.tpo;
       } else if (email.contains('faculty')) {
         role = UserRole.facultyCoordinator;
+      } else {
+        // Cannot determine role — return null so login fails visibly
+        debugPrint('[fetchProfile] Cannot determine role for $email. Profile not found in DB.');
+        return null;
       }
 
       return UserProfile(
@@ -107,7 +140,9 @@ class AuthRemoteDatasource {
         role: role,
         name: metaName,
         email: email,
-        approvalStatus: role == UserRole.student ? ApprovalStatus.pending : ApprovalStatus.approved,
+        approvalStatus: role == UserRole.student
+            ? ApprovalStatus.pending
+            : ApprovalStatus.approved,
         createdAt: DateTime.tryParse(user.createdAt) ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
