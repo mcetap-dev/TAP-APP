@@ -9,12 +9,12 @@ This document outlines the current state of **Placement Connect** (Flutter + Riv
 | Module / Component | Status | Key Highlights |
 | :--- | :---: | :--- |
 | **Database & Supabase RLS** | 🟢 90% Complete | All core tables, enums, triggers, and RLS policies (00001-00006) defined. |
-| **Auth & Routing** | 🟡 85% Complete | Login, Signup, OTP, Role-based routing, and Pending Approval Gate screen (`PendingApprovalScreen`) ready. |
-| **Admin Module** | 🟡 80% Complete | TPO appointment screen (`TpoAppointmentScreen`), System Settings, Audit logs, and NAAC/NBA PDF/XLSX export screens ready. |
-| **TPO Module** | 🟡 85% Complete | Core repository layer, 3-step Drive Creation Wizard (`DriveCreationWizard`), Faculty appointment UI, Applicant list & CSV shortlist parser ready. |
-| **Faculty Coordinator Module**| 🟡 80% Complete | Student approval queue (`StudentApprovalQueueScreen`), placement stats, and attendance tracking screens ready. |
-| **Student Module** | 🟡 85% Complete | Profile setup wizard (`ProfileSetupScreen`), Consent form (`ConsentFormScreen`), Eligible Drives screen, Application form, and Realtime tracker ready. |
-| **Offline Sync & Infrastructure** | 🟢 90% Complete | Drift local database queue, connectivity monitoring, realtime listeners, 22 unit tests, PDF/XLSX/CSV export packages ready. |
+| **Auth & Routing** | 🟢 90% Complete | Login, Signup, OTP, Role-based routing, Direction A Glass/Glow Login screen, and Pending Approval Gate screen (`PendingApprovalScreen`) ready. |
+| **Admin Module** | 🟡 85% Complete | TPO appointment screen (`TpoAppointmentScreen`), System Settings, Audit logs, and NAAC/NBA PDF/XLSX export screens ready. |
+| **TPO Module** | 🟢 90% Complete | Demo data cleared, PostgREST query bug fixed, 3-step Drive Creation Wizard (`DriveCreationWizard`), Faculty appointment UI, Applicant list & CSV shortlist parser ready. |
+| **Faculty Coordinator Module**| 🟡 85% Complete | Student approval queue (`StudentApprovalQueueScreen`), placement stats, continuous card polish, and attendance tracking screens ready. |
+| **Student Module** | 🟢 90% Complete | Direction A Bento Grid dashboard, Profile setup wizard (`ProfileSetupScreen`), Consent form (`ConsentFormScreen`), Eligible Drives screen, Application form, and Floating Pill Bar ready. |
+| **Offline Sync & Infrastructure** | 🟢 95% Complete | Drift local database queue, connectivity monitoring, realtime listeners, 22 unit tests, PDF/XLSX/CSV export packages, Direction A Theme polish ready. |
 
 ---
 
