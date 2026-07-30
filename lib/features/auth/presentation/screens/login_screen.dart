@@ -227,19 +227,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   // Login Form Card
                   Container(
                     constraints: const BoxConstraints(maxWidth: 400),
-                    padding: const EdgeInsets.all(28),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: brandTheme?.cardBorder ?? theme.colorScheme.outline,
-                        width: 1,
+                    padding: const EdgeInsets.all(24),
+                    decoration: ShapeDecoration(
+                      color: theme.brightness == Brightness.dark
+                          ? const Color(0xFF121417)
+                          : theme.colorScheme.surface,
+                      shape: ContinuousRectangleBorder(
+                        borderRadius: BorderRadius.circular(28),
+                        side: BorderSide(
+                          color: brandTheme?.cardBorder ?? theme.colorScheme.outline,
+                          width: 1,
+                        ),
                       ),
-                      boxShadow: [
+                      shadows: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: theme.brightness == Brightness.dark ? 0.4 : 0.05),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
+                          color: Colors.black.withValues(alpha: theme.brightness == Brightness.dark ? 0.35 : 0.06),
+                          blurRadius: 16,
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),

@@ -32,69 +32,98 @@ class AppBottomNavBar extends StatelessWidget {
     final brandTheme = theme.extension<AppBrandTheme>();
     final brass = brandTheme?.brassPrimary ?? theme.colorScheme.primary;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        border: Border(
-          top: BorderSide(
-            color: brandTheme?.cardBorder ?? theme.colorScheme.outline,
-            width: 1,
-          ),
-        ),
-      ),
-      child: SafeArea(
-        child: Container(
-          height: 64,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(items.length, (index) {
-              final item = items[index];
-              final isSelected = index == currentIndex;
+    final isDark = theme.brightness == Brightness.dark;
+    final navBg = isDark ? const Color(0xFF0B0C0E) : theme.colorScheme.surface;
+    final navBorder = brandTheme?.cardBorder ?? theme.colorScheme.outline;
 
-              return Expanded(
-                child: InkWell(
-                  onTap: () => onTap(index),
-                  borderRadius: BorderRadius.circular(12),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? brass.withValues(alpha: 0.12)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          isSelected ? item.selectedIcon : item.icon,
-                          size: 20,
-                          color: isSelected
-                              ? brass
-                              : brandTheme?.textMuted ?? theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                            color: isSelected
-                                ? brass
-                                : brandTheme?.textMuted ?? theme.colorScheme.onSurface.withValues(alpha: 0.6),
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 16,
+        bottom: 14 + MediaQuery.of(context).padding.bottom,
+      ),
+      child: Container(
+        height: 64,
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+        decoration: BoxDecoration(
+          color: navBg,
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(color: navBorder, width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.65 : 0.16),
+              blurRadius: 30,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: List.generate(items.length, (index) {
+            final item = items[index];
+            final isSelected = index == currentIndex;
+
+            return isSelected
+                ? Expanded(
+                    child: GestureDetector(
+                      onTap: () => onTap(index),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 280),
+                        curve: const Cubic(0.2, 0.8, 0.2, 1.0),
+                        height: 52,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFC89446), Color(0xFF8B5E1E)],
                           ),
+                          borderRadius: BorderRadius.circular(100),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFFA9752F).withValues(alpha: 0.3),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
                         ),
-                      ],
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(item.selectedIcon, size: 20, color: Colors.white),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                item.label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-              );
-            }),
-          ),
+                  )
+                : GestureDetector(
+                    onTap: () => onTap(index),
+                    child: Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDark ? const Color(0xFF1E2024) : const Color(0xFFE9EAEC),
+                      ),
+                      child: Icon(
+                        item.icon,
+                        size: 20,
+                        color: brandTheme?.textMuted ?? theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  );
+          }),
         ),
       ),
     );

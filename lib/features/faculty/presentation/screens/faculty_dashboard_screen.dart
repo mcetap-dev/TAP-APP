@@ -348,12 +348,14 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
       );
 
   Widget _statCard(String num, String label, ThemeData theme, AppBrandTheme? brandTheme) => Container(
-        width: 100,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+        width: 104,
+        padding: const EdgeInsets.all(16),
+        decoration: ShapeDecoration(
+          color: theme.brightness == Brightness.dark ? const Color(0xFF121417) : theme.colorScheme.surface,
+          shape: ContinuousRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -368,10 +370,12 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
   Widget _metricCard(String label, String value, Color accent, ThemeData theme, AppBrandTheme? brandTheme) => Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+        decoration: ShapeDecoration(
+          color: theme.brightness == Brightness.dark ? const Color(0xFF121417) : theme.colorScheme.surface,
+          shape: ContinuousRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

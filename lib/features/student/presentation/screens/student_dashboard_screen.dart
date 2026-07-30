@@ -363,19 +363,109 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: [
-                          _statCard('$appliedCount', 'Applied', theme, brandTheme),
-                          const SizedBox(width: 10),
-                          _statCard('$shortlistedCount', 'Shortlisted', theme, brandTheme),
-                          const SizedBox(width: 10),
-                          _statCard('$interviewCount', 'Interview', theme, brandTheme),
-                          const SizedBox(width: 10),
-                          _statCard('$offersCount', 'Offers', theme, brandTheme),
-                        ],
-                      ),
+                    Row(
+                      children: [
+                        // Bento B1 Hero Tile
+                        Expanded(
+                          flex: 3,
+                          child: Container(
+                            height: 140,
+                            padding: const EdgeInsets.all(16),
+                            decoration: ShapeDecoration(
+                              color: theme.brightness == Brightness.dark ? const Color(0xFF121417) : theme.colorScheme.surface,
+                              shape: ContinuousRectangleBorder(
+                                borderRadius: BorderRadius.circular(26),
+                                side: BorderSide(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+                              ),
+                              shadows: [
+                                BoxShadow(
+                                  color: brass.withValues(alpha: 0.1),
+                                  blurRadius: 16,
+                                  spreadRadius: 1,
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('${apps.length}', style: GoogleFonts.fraunces(fontSize: 34, fontWeight: FontWeight.w600, color: brass)),
+                                    Text('Active applications', style: GoogleFonts.inter(fontSize: 12, color: brandTheme?.textMuted)),
+                                  ],
+                                ),
+                                StatusThreadWidget(
+                                  currentStage: apps.isNotEmpty
+                                      ? (apps.first.status == ApplicationStatus.selected
+                                          ? PlacementStage.offer
+                                          : apps.first.status == ApplicationStatus.interview
+                                              ? PlacementStage.interview
+                                              : apps.first.status == ApplicationStatus.shortlisted
+                                                  ? PlacementStage.shortlisted
+                                                  : PlacementStage.applied)
+                                      : PlacementStage.applied,
+                                  isCompact: true,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        // Bento B2 & B3 Stack
+                        Expanded(
+                          flex: 2,
+                          child: SizedBox(
+                            height: 140,
+                            child: Column(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: ShapeDecoration(
+                                      color: theme.brightness == Brightness.dark ? const Color(0xFF121417) : theme.colorScheme.surface,
+                                      shape: ContinuousRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                        side: BorderSide(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text('$shortlistedCount', style: GoogleFonts.fraunces(fontSize: 22, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface)),
+                                        Text('Shortlisted', style: GoogleFonts.inter(fontSize: 10, color: brandTheme?.textMuted)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: ShapeDecoration(
+                                      color: theme.brightness == Brightness.dark ? const Color(0xFF121417) : theme.colorScheme.surface,
+                                      shape: ContinuousRectangleBorder(
+                                        borderRadius: BorderRadius.circular(20),
+                                        side: BorderSide(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+                                      ),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text('$offersCount', style: GoogleFonts.fraunces(fontSize: 22, fontWeight: FontWeight.w600, color: brandTheme?.statusShortlisted ?? const Color(0xFF2F6B4F))),
+                                        Text('Offers', style: GoogleFonts.inter(fontSize: 10, color: brandTheme?.textMuted)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 24),
                     Text('Your Active Drives', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
@@ -551,12 +641,14 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
       );
 
   Widget _statCard(String num, String label, ThemeData theme, AppBrandTheme? brandTheme) => Container(
-        width: 100,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+        width: 104,
+        padding: const EdgeInsets.all(16),
+        decoration: ShapeDecoration(
+          color: theme.brightness == Brightness.dark ? const Color(0xFF121417) : theme.colorScheme.surface,
+          shape: ContinuousRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -571,10 +663,12 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
   Widget _driveItem(String comp, String details, String deadline, Color brass, ThemeData theme, AppBrandTheme? brandTheme) => Container(
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+        decoration: ShapeDecoration(
+          color: theme.brightness == Brightness.dark ? const Color(0xFF121417) : theme.colorScheme.surface,
+          shape: ContinuousRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,

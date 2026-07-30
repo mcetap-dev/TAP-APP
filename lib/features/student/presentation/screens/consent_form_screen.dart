@@ -44,17 +44,17 @@ class _ConsentFormScreenState extends ConsumerState<ConsentFormScreen> {
             RadioListTile<bool>(
               title: const Text('Yes, I want to participate (Opt-In)'),
               value: true,
-              groupValue: _isOptedIn,
+              selected: _isOptedIn,
               onChanged: (value) {
-                setState(() => _isOptedIn = value!);
+                if (value != null) setState(() => _isOptedIn = value);
               },
             ),
             RadioListTile<bool>(
               title: const Text('No, I do not want to participate (Opt-Out)'),
               value: false,
-              groupValue: _isOptedIn,
+              selected: !_isOptedIn,
               onChanged: (value) {
-                setState(() => _isOptedIn = value!);
+                if (value != null) setState(() => _isOptedIn = value);
               },
             ),
             const SizedBox(height: 24),

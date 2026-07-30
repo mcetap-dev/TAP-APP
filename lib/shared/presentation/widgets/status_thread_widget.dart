@@ -74,7 +74,22 @@ class StatusThreadWidget extends StatelessWidget {
                   widthFactor: progressRatio,
                   child: Container(
                     height: 2,
-                    color: brassColor,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          brassColor,
+                          const Color(0xFFC89446),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(2),
+                      boxShadow: [
+                        BoxShadow(
+                          color: brassColor.withValues(alpha: 0.3),
+                          blurRadius: 6,
+                          spreadRadius: 1,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 // Nodes
@@ -85,8 +100,8 @@ class StatusThreadWidget extends StatelessWidget {
                     final isCurrent = stage.indexValue == currentIdx;
 
                     return Container(
-                      width: 14,
-                      height: 14,
+                      width: 12,
+                      height: 12,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: isDone ? brassColor : Theme.of(context).colorScheme.surface,
@@ -97,8 +112,8 @@ class StatusThreadWidget extends StatelessWidget {
                         boxShadow: isCurrent
                             ? [
                                 BoxShadow(
-                                  color: brassColor.withValues(alpha: 0.3),
-                                  blurRadius: 6,
+                                  color: brassColor.withValues(alpha: 0.4),
+                                  blurRadius: 8,
                                   spreadRadius: 2,
                                 ),
                               ]

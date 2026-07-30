@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'drive_creation_wizard.dart';
+import '../providers/tpo_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../shared/presentation/widgets/status_thread_widget.dart';
@@ -54,6 +55,11 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showCreateDriveSheet(context, brass, brandTheme, theme),
+        icon: const Icon(Icons.add_rounded),
+        label: const Text('New Drive'),
+      ),
       bottomNavigationBar: AppBottomNavBar(
         currentIndex: _currentNavIndex,
         onTap: (index) => setState(() => _currentNavIndex = index),
@@ -65,171 +71,307 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
   Widget _buildTabContent(int tabIndex, String name, Color brass, AppBrandTheme? brandTheme, ThemeData theme) {
     switch (tabIndex) {
       case 0:
-        return _overviewTab(context, name, brass, brandTheme, theme);
+        return _overviewTab(context, ref, name, brass, brandTheme, theme);
       case 1:
-        return _drivesManagementTab(brass, brandTheme, theme);
+        return _drivesManagementTab(ref, brass, brandTheme, theme);
       case 2:
-        return _appointFacultyTab(brass, brandTheme, theme);
+        return _appointFacultyTab(ref, brass, brandTheme, theme);
       case 3:
-        return _offersAndRoundsTab(brass, brandTheme, theme);
+        return _offersAndRoundsTab(ref, brass, brandTheme, theme);
       default:
-        return _overviewTab(context, name, brass, brandTheme, theme);
+        return _overviewTab(context, ref, name, brass, brandTheme, theme);
     }
   }
 
-  Widget _overviewTab(BuildContext context, String name, Color brass, AppBrandTheme? brandTheme, ThemeData theme) => SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Welcome, $name',
-                          style: GoogleFonts.fraunces(fontSize: 22, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 2),
-                      Text('2026-27 Academic Cycle · All Departments',
-                          style: GoogleFonts.inter(fontSize: 13, color: brandTheme?.textMuted),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: brass.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: Text('TPO Officer',
-                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: brass)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
+  Widget _overviewTab(BuildContext context, WidgetRef ref, String name, Color brass, AppBrandTheme? brandTheme, ThemeData theme) {
+    final drivesAsync = ref.watch(tpoDrivesProvider);
 
-            // Stat Row
-            SingleChildScrollView(
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Welcome, $name',
+                        style: GoogleFonts.fraunces(fontSize: 22, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 2),
+                    Text('2026-27 Academic Cycle · All Departments',
+                        style: GoogleFonts.inter(fontSize: 13, color: brandTheme?.textMuted),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: brass.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                child: Text('TPO Officer',
+                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: brass)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Stat Row
+          drivesAsync.when(
+            data: (drives) => SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _statCard('312', 'Total Applicants', theme, brandTheme),
+                  _statCard('${drives.length}', 'Active Drives', theme, brandTheme),
                   const SizedBox(width: 10),
-                  _statCard('6', 'Active Drives', theme, brandTheme),
+                  _statCard('0', 'Total Applicants', theme, brandTheme),
                   const SizedBox(width: 10),
-                  _statCard('41', 'Offers Uploaded', theme, brandTheme),
+                  _statCard('0', 'Offers Uploaded', theme, brandTheme),
                   const SizedBox(width: 10),
-                  _statCard('13.1%', 'Placement Rate', theme, brandTheme),
+                  _statCard('0.0%', 'Placement Rate', theme, brandTheme),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (_, __) => const SizedBox(),
+          ),
+          const SizedBox(height: 24),
 
-            Text('Live Drive Status Overview', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
+          Text('Live Drive Status Overview', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 12),
 
-            _driveStatusCard('Google India', 'SDE-1 (₹24 LPA)', 'Technical Round 2', PlacementStage.interview, brass, brandTheme, theme),
-            const SizedBox(height: 10),
-            _driveStatusCard('Microsoft', 'Software Engineer (₹28 LPA)', 'Shortlisted Candidates', PlacementStage.shortlisted, brass, brandTheme, theme),
-            const SizedBox(height: 10),
-            _driveStatusCard('Razorpay', 'SDE Intern (₹80k/mo)', 'Applications Open', PlacementStage.applied, brass, brandTheme, theme),
-          ],
-        ),
-      );
-
-  Widget _drivesManagementTab(Color brass, AppBrandTheme? brandTheme, ThemeData theme) => SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Onboard Companies & Drives',
-                          style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                      Text('Create drive, CTC, CGPA cutoff & rounds',
-                          style: GoogleFonts.inter(fontSize: 12, color: brandTheme?.textMuted),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                    ],
+          drivesAsync.when(
+            data: (drives) {
+              if (drives.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
                   ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: () => context.push('/tpo/create-drive'),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: Text('New Drive', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: brass,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  child: Center(
+                    child: Text('No active drives. Create a new drive using the button below.',
+                        style: GoogleFonts.inter(color: brandTheme?.textMuted)),
                   ),
+                );
+              }
+              return Column(
+                children: drives.map((drive) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _driveStatusCard(
+                      drive.companyName,
+                      '${drive.roleTitle} (${drive.ctcOrStipend})',
+                      drive.status.toUpperCase(),
+                      PlacementStage.applied,
+                      brass,
+                      brandTheme,
+                      theme,
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Text('Error loading overview drives: $err'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _drivesManagementTab(WidgetRef ref, Color brass, AppBrandTheme? brandTheme, ThemeData theme) {
+    final drivesAsync = ref.watch(tpoDrivesProvider);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Onboard Companies & Drives',
+                        style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                    Text('Create drive, CTC, CGPA cutoff & rounds',
+                        style: GoogleFonts.inter(fontSize: 12, color: brandTheme?.textMuted),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            _driveDetailItem('Google India', 'SDE-1', '24.0 LPA', 'CGPA >= 8.0', 'CS, ISE, ECE', 'Aug 15, 2026', brass, theme, brandTheme, context),
-            _driveDetailItem('Microsoft', 'Software Engineer', '28.0 LPA', 'CGPA >= 8.5', 'All Branches', 'Aug 18, 2026', brass, theme, brandTheme, context),
-            _driveDetailItem('Amazon AWS', 'Cloud Dev Intern', '80,000/mo', 'CGPA >= 7.5', 'CS, ISE', 'Aug 22, 2026', brass, theme, brandTheme, context),
-          ],
-        ),
-      );
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton.icon(
+                onPressed: () => _showCreateDriveSheet(context, brass, brandTheme, theme),
+                icon: const Icon(Icons.add_rounded, size: 18),
+                label: Text('New Drive', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: brass,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          drivesAsync.when(
+            data: (drives) {
+              if (drives.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Text('No placement drives created yet. Tap "New Drive" to post one.',
+                        style: GoogleFonts.inter(color: brandTheme?.textMuted)),
+                  ),
+                );
+              }
+              return Column(
+                children: drives.map((drive) {
+                  return _driveDetailItem(
+                    drive.companyName,
+                    drive.roleTitle,
+                    drive.ctcOrStipend,
+                    'CGPA >= ${drive.cgpaCutoff}',
+                    drive.eligibilityBranches.join(', '),
+                    drive.applicationDeadline.toString().split(' ')[0],
+                    brass,
+                    theme,
+                    brandTheme,
+                    context,
+                  );
+                }).toList(),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Center(child: Text('Error loading live drives: $err')),
+          ),
+        ],
+      ),
+    );
+  }
 
-  Widget _appointFacultyTab(Color brass, AppBrandTheme? brandTheme, ThemeData theme) => SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Appoint Faculty Coordinators', style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600)),
-            Text('Enforced constraint: Exactly 1 coordinator per department', style: GoogleFonts.inter(fontSize: 12, color: brandTheme?.textMuted)),
-            const SizedBox(height: 20),
+  Widget _appointFacultyTab(WidgetRef ref, Color brass, AppBrandTheme? brandTheme, ThemeData theme) {
+    final coordinatorsAsync = ref.watch(facultyCoordinatorsProvider);
 
-            _facultyApptCard('Information Science & Engineering', 'Dr. Ramesh Kumar', 'ramesh.ise@college.edu', true, brass, brandTheme, theme),
-            const SizedBox(height: 10),
-            _facultyApptCard('Computer Science & Engineering', 'Prof. Sunita Sharma', 'sunita.cs@college.edu', true, brass, brandTheme, theme),
-            const SizedBox(height: 10),
-            _facultyApptCard('Electronics & Communication', 'Not Appointed', '—', false, brass, brandTheme, theme),
-            const SizedBox(height: 10),
-            _facultyApptCard('Mechanical Engineering', 'Not Appointed', '—', false, brass, brandTheme, theme),
-          ],
-        ),
-      );
+    final standardDepartments = [
+      'Information Science & Engineering',
+      'Computer Science & Engineering',
+      'Electronics & Communication',
+      'Mechanical Engineering',
+      'Civil Engineering',
+      'Electrical Engineering',
+    ];
 
-  Widget _offersAndRoundsTab(Color brass, AppBrandTheme? brandTheme, ThemeData theme) => SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Round Progression & Offers', style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600)),
-            Text('Advance round status and upload final candidate offer letters', style: GoogleFonts.inter(fontSize: 12, color: brandTheme?.textMuted)),
-            const SizedBox(height: 20),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Appoint Faculty Coordinators', style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600)),
+          Text('Enforced constraint: Exactly 1 coordinator per department', style: GoogleFonts.inter(fontSize: 12, color: brandTheme?.textMuted)),
+          const SizedBox(height: 20),
+          coordinatorsAsync.when(
+            data: (coordinators) {
+              final coordMap = <String, Map<String, dynamic>>{};
+              for (final c in coordinators) {
+                final dept = c['department'] as String?;
+                if (dept != null) coordMap[dept] = c;
+              }
 
-            _offerItem('Sumukha R (4MC23IS001)', 'Google India', 'SDE-1', '24.0 LPA', 'Offer Uploaded', Colors.green, theme, brandTheme),
-            _offerItem('Anagha K S (4MC23IS088)', 'Microsoft', 'Software Engineer', '28.0 LPA', 'Pending Offer Letter', Colors.amber[700]!, theme, brandTheme),
-            _offerItem('Priya Sharma (4MC23CS012)', 'Razorpay', 'Backend Intern', '12.0 LPA', 'Accepted by Student', Colors.green, theme, brandTheme),
-          ],
-        ),
-      );
+              return Column(
+                children: standardDepartments.map((dept) {
+                  final existing = coordMap[dept];
+                  final profile = existing?['profile'] as Map<String, dynamic>?;
+                  final name = profile?['name'] as String? ?? 'Not Appointed';
+                  final email = profile?['email'] as String? ?? '—';
+                  final isAssigned = existing != null;
+
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _facultyApptCard(dept, name, email, isAssigned, brass, brandTheme, theme),
+                  );
+                }).toList(),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Center(child: Text('Error loading coordinators: $err')),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _offersAndRoundsTab(WidgetRef ref, Color brass, AppBrandTheme? brandTheme, ThemeData theme) {
+    final drivesAsync = ref.watch(tpoDrivesProvider);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Round Progression & Offers', style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600)),
+          Text('Advance round status and upload final candidate offer letters', style: GoogleFonts.inter(fontSize: 12, color: brandTheme?.textMuted)),
+          const SizedBox(height: 20),
+          drivesAsync.when(
+            data: (drives) {
+              if (drives.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Text('No offer letters or rounds active yet.',
+                        style: GoogleFonts.inter(color: brandTheme?.textMuted)),
+                  ),
+                );
+              }
+              return Column(
+                children: drives.map((d) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _offerItem(
+                      'Candidate Pool for ${d.roleTitle}',
+                      d.companyName,
+                      d.roleTitle,
+                      d.ctcOrStipend,
+                      'Drive ${d.status.toUpperCase()}',
+                      brass,
+                      theme,
+                      brandTheme,
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => Center(child: Text('Error loading offers: $err')),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _driveStatusCard(String company, String role, String roundInfo, PlacementStage stage, Color brass, AppBrandTheme? brandTheme, ThemeData theme) => Container(
         padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+        decoration: ShapeDecoration(
+          color: theme.brightness == Brightness.dark ? const Color(0xFF121417) : theme.colorScheme.surface,
+          shape: ContinuousRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -258,14 +400,16 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
 
   Widget _driveDetailItem(String company, String role, String ctc, String cgpa, String branches, String deadline, Color brass, ThemeData theme, AppBrandTheme? brandTheme, BuildContext context) => InkWell(
         onTap: () => context.push('/tpo/applicant-list'),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+          decoration: ShapeDecoration(
+            color: theme.brightness == Brightness.dark ? const Color(0xFF121417) : theme.colorScheme.surface,
+            shape: ContinuousRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+              side: BorderSide(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -387,46 +531,9 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
-          top: 20,
-          left: 20,
-          right: 20,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Create Placement Drive', style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 16),
-            TextField(decoration: const InputDecoration(labelText: 'Company Name (e.g. Google India)')),
-            const SizedBox(height: 12),
-            TextField(decoration: const InputDecoration(labelText: 'Role Title (e.g. SDE-1)')),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(child: TextField(decoration: const InputDecoration(labelText: 'CTC / Stipend'))),
-                const SizedBox(width: 12),
-                Expanded(child: TextField(decoration: const InputDecoration(labelText: 'CGPA Cutoff (e.g. 8.0)'))),
-              ],
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(ctx),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: brass,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-                child: Text('Create Drive & Set Rounds', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-              ),
-            ),
-          ],
-        ),
+      builder: (ctx) => SizedBox(
+        height: MediaQuery.of(ctx).size.height * 0.85,
+        child: const DriveCreationWizard(),
       ),
     );
   }

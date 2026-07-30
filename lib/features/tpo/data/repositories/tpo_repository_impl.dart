@@ -49,7 +49,7 @@ class TpoRepositoryImpl implements TpoRepository {
   Future<List<Map<String, dynamic>>> fetchFacultyCoordinators() async {
     final response = await _supabase
         .from('faculty_coordinators')
-        .select('*, profile:profiles(name, email, phone)');
+        .select('*, profile:profiles!faculty_coordinators_profile_id_fkey(name, email, phone)');
     return List<Map<String, dynamic>>.from(response);
   }
 
@@ -114,7 +114,7 @@ class TpoRepositoryImpl implements TpoRepository {
   Future<List<Drive>> getDrives() async {
     final response = await _supabase
         .from('drives')
-        .select('*, company:companies(name, logo_url)');
+        .select('*, company:companies(name)');
     return (response as List).map((map) => Drive.fromMap(map)).toList();
   }
 

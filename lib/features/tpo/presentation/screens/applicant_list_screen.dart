@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:csv/csv.dart';
-import 'dart:typed_data';
 
 class ApplicantListScreen extends ConsumerStatefulWidget {
   const ApplicantListScreen({super.key});

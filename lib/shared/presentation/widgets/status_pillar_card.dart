@@ -49,7 +49,7 @@ class StatusPillarCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(16.0),
             child: IntrinsicHeight(
               child: Row(
-                crossAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Signature Status Pillar Bar
                   Container(

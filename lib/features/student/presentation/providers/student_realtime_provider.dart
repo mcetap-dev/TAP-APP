@@ -1,6 +1,7 @@
+import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/network/realtime_service.dart';
 import '../../domain/entities/application.dart';
 
 part 'student_realtime_provider.g.dart';
@@ -22,27 +23,21 @@ Stream<Application> globalApplicationUpdates(Ref ref) {
 /// This is more efficient than making the UI parse every global update.
 @riverpod
 class StudentRealtimeController extends _$StudentRealtimeController {
-  StreamSubscription? _sub;
-
   @override
   Application? build() {
     // Get the current user's ID to filter updates
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return null;
 
-    // Listen to the global stream
-    _sub = ref.watch(globalApplicationUpdatesProvider).listen((updatedApp) {
-      // If the update belongs to the current student, update the local state
-      if (updatedApp.studentId == userId) {
-        state = updatedApp;
-      }
+    // Listen to the global stream via Riverpod ref.listen
+    ref.listen<AsyncValue<Application>>(globalApplicationUpdatesProvider, (previous, next) {
+      next.whenData((updatedApp) {
+        if (updatedApp.studentId == userId) {
+          state = updatedApp;
+        }
+      });
     });
 
-    // Clean up the subscription when this provider is disposed
-    ref.onDispose(() {
-      _sub?.cancel();
-    });
-
-    return null; // Initial state is null (no updates yet)
+    return null;
   }
 }

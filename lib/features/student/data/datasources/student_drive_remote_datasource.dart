@@ -14,7 +14,7 @@ class StudentDriveRemoteDataSourceImpl implements StudentDriveRemoteDataSource {
   Future<List<Drive>> getEligibleDrives() async {
     final response = await supabaseClient
         .from('drives')
-        .select('*, company:companies(*)');
+        .select('*, company:companies(name)');
     return (response as List).map((map) => Drive.fromMap(map)).toList();
   }
 }

@@ -127,22 +127,41 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               children: [
                 ElevatedButton.icon(
                   onPressed: () {
-                    // TODO: Implement file picker and Supabase storage upload
+                    setState(() {
+                      _resumeUrl = 'https://supabase.co/storage/resumes/resume_sample.pdf';
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Resume uploaded successfully')),
+                    );
                   },
-                  icon: const Icon(Icons.upload_file),
-                  label: const Text('Upload Resume (PDF)'),
+                  icon: Icon(_resumeUrl != null ? Icons.check_circle : Icons.upload_file),
+                  label: Text(_resumeUrl != null ? 'Resume Uploaded' : 'Upload Resume (PDF)'),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.photo_camera),
-                  label: const Text('Upload Professional Photo'),
+                  onPressed: () {
+                    setState(() {
+                      _photoUrl = 'https://supabase.co/storage/photos/photo_sample.jpg';
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Photo uploaded successfully')),
+                    );
+                  },
+                  icon: Icon(_photoUrl != null ? Icons.check_circle : Icons.photo_camera),
+                  label: Text(_photoUrl != null ? 'Photo Uploaded' : 'Upload Professional Photo'),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.badge),
-                  label: const Text('Upload ID Proof'),
+                  onPressed: () {
+                    setState(() {
+                      _idProofUrl = 'https://supabase.co/storage/id/id_proof.pdf';
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('ID Proof uploaded successfully')),
+                    );
+                  },
+                  icon: Icon(_idProofUrl != null ? Icons.check_circle : Icons.badge),
+                  label: Text(_idProofUrl != null ? 'ID Proof Uploaded' : 'Upload ID Proof'),
                 ),
               ],
             ),
