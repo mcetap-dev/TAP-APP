@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -19,9 +18,11 @@ import '../../features/admin/presentation/screens/audit_logs_screen.dart';
 import '../../features/admin/presentation/screens/system_settings_screen.dart';
 import '../../features/faculty/presentation/screens/faculty_dashboard_screen.dart';
 import '../../features/faculty/presentation/screens/student_approval_queue_screen.dart';
+import '../../features/faculty/presentation/screens/faculty_waiting_screen.dart';
 import '../../features/tpo/presentation/screens/tpo_dashboard_screen.dart';
 import '../../features/tpo/presentation/screens/drive_creation_wizard.dart';
 import '../../features/tpo/presentation/screens/applicant_list_screen.dart';
+import '../../features/tpo/presentation/screens/appoint_faculty_coordinator_screen.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
 
@@ -80,6 +81,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return _dashboardPath(profile.role);
         }
         
+        // Enforce strict role-based route authorization
+        if (profile.role == UserRole.faculty && state.matchedLocation.startsWith('/faculty') && state.matchedLocation != '/faculty/waiting') {
+          return '/faculty/waiting';
+        }
+
         // If they are on pending-approval but are no longer pending, redirect to dashboard
         if (state.matchedLocation == '/pending-approval' && 
             (profile.role != UserRole.student || profile.approvalStatus != ApprovalStatus.pending)) {
@@ -144,6 +150,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const StudentApprovalQueueScreen(),
       ),
       GoRoute(
+        path: '/faculty/waiting',
+        name: 'faculty-waiting',
+        builder: (_, __) => const FacultyWaitingScreen(),
+      ),
+      GoRoute(
         path: '/admin',
         name: 'admin',
         builder: (_, __) => const AdminDashboardScreen(),
@@ -183,6 +194,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'tpo-applicant-list',
         builder: (_, __) => const ApplicantListScreen(),
       ),
+      GoRoute(
+        path: '/tpo/appoint-faculty',
+        name: 'tpo-appoint-faculty',
+        builder: (_, __) => const AppointFacultyCoordinatorScreen(),
+      ),
     ],
     errorBuilder: (_, state) => Scaffold(
       body: Center(child: Text('Not found: ${state.uri}')),
@@ -200,10 +216,11 @@ String _dashboardPath(UserRole role) {
       return '/student';
     case UserRole.facultyCoordinator:
       return '/faculty';
+    case UserRole.faculty:
+      return '/faculty/waiting';
     case UserRole.admin:
       return '/admin';
     case UserRole.tpo:
       return '/tpo';
   }
-  // Dart exhaustive switch above handles all cases, no fallback needed
 }

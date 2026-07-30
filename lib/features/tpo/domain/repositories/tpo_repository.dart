@@ -30,11 +30,17 @@ abstract class TpoRepository {
     List<String>? eligibilityBranches,
     double? cgpaCutoff,
     int? backlogLimit,
+    DateTime? applicationDeadline,
     required String status,
     required String createdBy,
   });
 
   Future<List<Drive>> getDrives();
+
+  Future<void> updateDriveStatus({
+    required String driveId,
+    required String status,
+  });
 
   Future<void> updateApplicationStatus({
     required String applicationId,
