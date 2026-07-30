@@ -30,7 +30,6 @@ class AppBottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final brandTheme = theme.extension<AppBrandTheme>();
-    final brass = brandTheme?.brassPrimary ?? theme.colorScheme.primary;
 
     final isDark = theme.brightness == Brightness.dark;
     final navBg = isDark ? const Color(0xFF0B0C0E) : theme.colorScheme.surface;

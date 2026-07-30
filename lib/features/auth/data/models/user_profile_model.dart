@@ -16,9 +16,9 @@ class UserProfileModel with _$UserProfileModel {
     String? department,
     double? cgpa, // ADDED
     String? avatar_url,
-    @JsonKey(name: 'is_email_verified') required bool isEmailVerified,
-    @JsonKey(name: 'created_at') required DateTime createdAt,
-    @JsonKey(name: 'updated_at') DateTime? updatedAt,
+    required bool isEmailVerified,
+    required DateTime createdAt,
+    DateTime? updatedAt,
   }) = _UserProfileModel;
 
   factory UserProfileModel.fromJson(Map<String, dynamic> json) =>
@@ -29,13 +29,12 @@ class UserProfileModel with _$UserProfileModel {
       id: id,
       email: email,
       role: role,
-      fullName: full_name,
+      name: full_name,
       department: department,
       cgpa: cgpa,
-      avatarUrl: avatar_url,
-      isEmailVerified: isEmailVerified,
+      photoUrl: avatar_url,
       createdAt: createdAt,
-      updatedAt: updatedAt,
+      updatedAt: updatedAt ?? DateTime.now(),
     );
   }
 }

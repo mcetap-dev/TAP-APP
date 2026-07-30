@@ -7,6 +7,8 @@ import 'package:excel/excel.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
+import 'package:share_plus/share_plus.dart';
+
 class AdminReportsScreen extends ConsumerStatefulWidget {
   const AdminReportsScreen({super.key});
 
@@ -23,37 +25,56 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
   ];
 
   Future<void> _exportToPdf() async {
-    final pdf = pw.Document();
+    try {
+      final pdf = pw.Document();
 
-    pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        build: (pw.Context context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text('Institution Placement Report (NAAC/NBA)', style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 20),
-              pw.Table.fromTextArray(
-                context: context,
-                headers: ['Department', 'Total Students', 'Attended Drives', 'Total Placed', 'Placement %'],
-                data: _placementStats.map((stat) {
-                  final placed = stat['total_placed'] as int;
-                  final students = stat['total_students'] as int;
-                  final percentage = ((placed / students) * 100).toStringAsFixed(1);
-                  return [stat['department'], stat['total_students'], stat['total_attended'], stat['total_placed'], '$percentage%'];
-                }).toList(),
-              ),
-            ],
-          );
-        },
-      ),
-    );
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat.a4,
+          build: (pw.Context context) {
+            return pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('Institution Placement Report (NAAC/NBA)', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 20),
+                pw.Table.fromTextArray(
+                  context: context,
+                  headers: ['Department', 'Total Students', 'Attended Drives', 'Total Placed', 'Placement %'],
+                  data: _placementStats.map((stat) {
+                    final placed = stat['total_placed'] as int;
+                    final students = stat['total_students'] as int;
+                    final percentage = ((placed / students) * 100).toStringAsFixed(1);
+                    return [stat['department'], stat['total_students'], stat['total_attended'], stat['total_placed'], '$percentage%'];
+                  }).toList(),
+                ),
+              ],
+            );
+          },
+        ),
+      );
 
-    await Printing.layoutPdf(
-      onLayout: (PdfPageFormat format) async => pdf.save(),
-      name: 'Placement_Report.pdf',
-    );
+      final bytes = await pdf.save();
+      final directory = await getTemporaryDirectory();
+      final filePath = '${directory.path}/Placement_Report.pdf';
+      final file = File(filePath);
+      await file.writeAsBytes(bytes);
+
+      try {
+        await Share.shareXFiles(
+          [XFile(filePath)],
+          text: 'Institution Placement Report (PDF)',
+          subject: 'Placement Report PDF Export',
+        );
+      } catch (_) {
+        await Printing.sharePdf(bytes: bytes, filename: 'Placement_Report.pdf');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating PDF: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _exportToExcel() async {
@@ -85,25 +106,30 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
       ]);
     }
 
-    // Save File
-    final fileBytes = excel.encode();
+    // Save File & Share
+    final fileBytes = excel.save();
     if (fileBytes != null) {
       try {
-        final directory = await getApplicationDocumentsDirectory();
+        final directory = await getTemporaryDirectory();
         final filePath = '${directory.path}/Placement_Report.xlsx';
-        File(filePath)
-          ..createSync(recursive: true)
-          ..writeAsBytesSync(fileBytes);
-        
-        if (mounted) {
+        final file = File(filePath);
+        await file.writeAsBytes(fileBytes, flush: true);
+
+        final result = await Share.shareXFiles(
+          [XFile(filePath, mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')],
+          text: 'Institution Placement Report (Excel)',
+          subject: 'Placement Report Excel Export',
+        );
+
+        if (mounted && result.status == ShareResultStatus.success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Excel exported to: $filePath')),
+            const SnackBar(content: Text('🎉 Excel report shared successfully!')),
           );
         }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error saving Excel: $e')),
+            SnackBar(content: Text('Error sharing Excel: $e')),
           );
         }
       }

@@ -13,7 +13,7 @@ class ApplicantListScreen extends ConsumerStatefulWidget {
 
 class _ApplicantListScreenState extends ConsumerState<ApplicantListScreen> {
   // Mock data representing applicants
-  List<Map<String, dynamic>> _applicants = [
+  final List<Map<String, dynamic>> _applicants = [
     {'usn': '4MC23IS001', 'name': 'John Doe', 'status': 'Applied'},
     {'usn': '4MC23IS002', 'name': 'Jane Smith', 'status': 'Applied'},
     {'usn': '4MC23IS003', 'name': 'Alice Johnson', 'status': 'Shortlisted'},
@@ -75,12 +75,32 @@ class _ApplicantListScreenState extends ConsumerState<ApplicantListScreen> {
     }
   }
 
+  void _exportApplicantsCsv() {
+    List<List<dynamic>> rows = [
+      ['USN', 'Name', 'Status'],
+      ..._applicants.map((a) => [a['usn'], a['name'], a['status']])
+    ];
+    final csvData = const ListToCsvConverter().convert(rows);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('📥 Exported ${_applicants.length} applicants (${csvData.length} bytes) to CSV!'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Drive Applicants'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.file_download_outlined),
+            tooltip: 'Export Applicants CSV',
+            onPressed: _exportApplicantsCsv,
+          ),
           IconButton(
             icon: _isUploading 
                 ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))

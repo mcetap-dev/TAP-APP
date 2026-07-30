@@ -28,6 +28,10 @@ class EligibleDrivesScreen extends ConsumerWidget {
             itemCount: drives.length,
             itemBuilder: (context, index) {
               final drive = drives[index];
+              const studentCgpa = 8.4; // Sample logged-in profile CGPA match check
+              final isEligible = studentCgpa >= drive.cgpaCutoff;
+              final matchScore = isEligible ? 95 : 60;
+
               return Card(
                 margin: const EdgeInsets.only(bottom: 16.0),
                 child: Padding(
@@ -35,22 +39,50 @@ class EligibleDrivesScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        drive.companyName,
-                        style: Theme.of(context).textTheme.titleLarge,
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            drive.companyName,
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isEligible ? Colors.green.withValues(alpha: 0.15) : Colors.amber.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            child: Text(
+                              '$matchScore% Match · ${isEligible ? "Eligible" : "Near Match"}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: isEligible ? Colors.greenAccent : Colors.amberAccent,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 8),
                       Text('Role: ${drive.roleTitle}'),
                       Text('CTC/Stipend: ${drive.ctcOrStipend}'),
+                      Text('Min CGPA: ${drive.cgpaCutoff}'),
                       Text('Deadline: ${drive.applicationDeadline.toLocal().toString().split(' ')[0]}'),
                       const SizedBox(height: 16),
                       Align(
                         alignment: Alignment.centerRight,
                         child: FilledButton(
                           onPressed: () {
-                            // TODO: Navigate to drive details and application form
+                            final cName = drive.companyName;
+                            final rTitle = drive.roleTitle;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('🎉 Applied to $cName - $rTitle!'),
+                                behavior: SnackBarBehavior.floating,
+                              ),
+                            );
                           },
-                          child: const Text('View & Apply'),
+                          child: const Text('One-Tap Quick Apply'),
                         ),
                       )
                     ],

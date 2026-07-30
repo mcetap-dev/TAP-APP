@@ -7,6 +7,7 @@ import '../providers/auth_provider.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/theme/theme_extensions.dart';
+import '../../../../core/theme/app_spacing.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -23,23 +24,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   bool _obscurePassword = true;
   bool _isLoading = false;
   bool _isSeeding = false;
-  late AnimationController _animCtrl;
-  late Animation<double> _fadeAnim;
+  late AnimationController _floatAnimCtrl;
 
   @override
   void initState() {
     super.initState();
-    _animCtrl = AnimationController(
+    _floatAnimCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 700),
-    );
-    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
-    _animCtrl.forward();
+      duration: const Duration(seconds: 7),
+    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
-    _animCtrl.dispose();
+    _floatAnimCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
@@ -163,270 +161,310 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final brandTheme = theme.extension<AppBrandTheme>();
-    final brass = brandTheme?.brassPrimary ?? theme.colorScheme.primary;
+    final brandTheme = theme.extension<AppBrandTheme>()!;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: FadeTransition(
-              opacity: _fadeAnim,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Brand Mark
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: brass,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Placement Connect',
-                        style: GoogleFonts.fraunces(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
+        child: Stack(
+          children: [
+            // Top Glow Effect
+            Positioned(
+              top: -60,
+              left: MediaQuery.of(context).size.width / 2 - 140,
+              child: Container(
+                width: 280,
+                height: 280,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      brandTheme.brassSoft,
+                      Colors.transparent,
                     ],
+                    stops: const [0.0, 0.7],
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Sign in to track your placement season',
-                    style: GoogleFonts.inter(
-                      color: brandTheme?.textMuted ?? theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                      fontSize: 14,
+                ),
+              ),
+            ),
+            Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sp6),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: AppSpacing.sp5),
+
+                    // Floating Orb Logo Container
+                    AnimatedBuilder(
+                      animation: _floatAnimCtrl,
+                      builder: (context, child) {
+                        final val = _floatAnimCtrl.value;
+                        final dy = -8 * (1 - (val - 0.5).abs() * 2);
+                        return Transform.translate(
+                          offset: Offset(0, dy),
+                          child: Container(
+                            width: 110,
+                            height: 110,
+                            decoration: BoxDecoration(
+                              gradient: brandTheme.brassGradient,
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(42),
+                                topRight: Radius.circular(68),
+                                bottomLeft: Radius.circular(68),
+                                bottomRight: Radius.circular(46),
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: brandTheme.brassSoft,
+                                  blurRadius: 40,
+                                  offset: const Offset(0, 20),
+                                ),
+                              ],
+                            ),
+                            child: Center(
+                              child: Icon(
+                                Icons.workspace_premium_rounded,
+                                size: 52,
+                                color: brandTheme.onBrass,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 24),
 
-                  // Quick Demo Login Chips
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      _demoChip('Student', 'stud1@ms.mcehassan.ac.in', 'Pass123!word', brass),
-                      _demoChip('TPO', 'tap@mcehassan.ac.in', 'Pass123!word', brass),
-                      _demoChip('Faculty', 'facultycse@mcehassan.ac.in', 'Pass123!word', brass),
-                      _demoChip('Admin', 'admin@mcehassan.ac.in', 'Pass123!word', brass),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
+                    const SizedBox(height: AppSpacing.sp5),
 
-                  // Login Form Card
-                  Container(
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    padding: const EdgeInsets.all(24),
-                    decoration: ShapeDecoration(
-                      color: theme.brightness == Brightness.dark
-                          ? const Color(0xFF121417)
-                          : theme.colorScheme.surface,
-                      shape: ContinuousRectangleBorder(
-                        borderRadius: BorderRadius.circular(28),
-                        side: BorderSide(
-                          color: brandTheme?.cardBorder ?? theme.colorScheme.outline,
-                          width: 1,
-                        ),
+                    // App Title
+                    Text(
+                      'Placement Connect',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.fraunces(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
                       ),
-                      shadows: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: theme.brightness == Brightness.dark ? 0.35 : 0.06),
-                          blurRadius: 16,
-                          offset: const Offset(0, 4),
-                        ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Sign in to track your placement season',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.inter(
+                        color: brandTheme.textMuted,
+                        fontSize: 14,
+                      ),
+                    ),
+
+                    const SizedBox(height: AppSpacing.sp5),
+
+                    // Quick Demo Login Chips
+                    Wrap(
+                      spacing: AppSpacing.sp2,
+                      runSpacing: AppSpacing.sp2,
+                      alignment: WrapAlignment.center,
+                      children: [
+                        _demoChip('Student', 'stud1@ms.mcehassan.ac.in', 'Pass123!word', brandTheme),
+                        _demoChip('TPO', 'tap@mcehassan.ac.in', 'Pass123!word', brandTheme),
+                        _demoChip('Faculty', 'facultycse@mcehassan.ac.in', 'Pass123!word', brandTheme),
+                        _demoChip('Admin', 'admin@mcehassan.ac.in', 'Pass123!word', brandTheme),
                       ],
                     ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            'EMAIL',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.8,
-                              color: brandTheme?.textMuted ?? theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          TextFormField(
-                            controller: _emailCtrl,
-                            keyboardType: TextInputType.emailAddress,
-                            textInputAction: TextInputAction.next,
-                            style: GoogleFonts.inter(
-                              color: theme.colorScheme.onSurface,
-                              fontSize: 14,
-                            ),
-                            validator: AppValidators.email,
-                            decoration: const InputDecoration(
-                              hintText: 'you@mcehassan.ac.in',
-                            ),
-                          ),
-                          const SizedBox(height: 18),
 
-                          Text(
-                            'PASSWORD',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: 0.8,
-                              color: brandTheme?.textMuted ?? theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          TextFormField(
-                            controller: _passwordCtrl,
-                            obscureText: _obscurePassword,
-                            textInputAction: TextInputAction.done,
-                            style: GoogleFonts.inter(
-                              color: theme.colorScheme.onSurface,
-                              fontSize: 14,
-                            ),
-                            onFieldSubmitted: (_) => _submit(),
-                            validator: (v) => v == null || v.isEmpty
-                                ? 'Password is required'
-                                : null,
-                            decoration: InputDecoration(
-                              hintText: '••••••••',
-                              suffixIcon: IconButton(
-                                icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility_off_outlined
-                                      : Icons.visibility_outlined,
-                                  color: brandTheme?.textMuted ?? Colors.grey,
-                                  size: 20,
-                                ),
-                                onPressed: () => setState(
-                                  () => _obscurePassword = !_obscurePassword,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
+                    const SizedBox(height: AppSpacing.sp5),
 
-                          ElevatedButton(
-                            onPressed: _isLoading ? null : _submit,
-                            style: ElevatedButton.styleFrom(
-                              minimumSize: const Size.fromHeight(48),
-                              backgroundColor: brass,
-                              foregroundColor: theme.brightness == Brightness.dark ? const Color(0xFF0A0A0B) : Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: _isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: Colors.white,
-                                    ),
-                                  )
-                                : Text(
-                                    'Sign in',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
+                    // Login Form Card
+                    Container(
+                      constraints: const BoxConstraints(maxWidth: 400),
+                      padding: const EdgeInsets.all(AppSpacing.sp6),
+                      decoration: ShapeDecoration(
+                        color: theme.colorScheme.surface,
+                        shape: ContinuousRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppShapes.radiusHero),
+                          side: BorderSide(
+                            color: brandTheme.cardBorder,
+                            width: 1,
                           ),
-                          const SizedBox(height: 18),
-
-                          // Signature Flourish
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(
-                              4,
-                              (i) => Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 3),
-                                width: 5,
-                                height: 5,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: i < 2 ? brass : brandTheme?.cardBorder ?? Colors.grey.shade300,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
+                        shadows: brandTheme.shadow2,
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'EMAIL',
+                              style: GoogleFonts.ibmPlexMono(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.8,
+                                color: brandTheme.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _emailCtrl,
+                              keyboardType: TextInputType.emailAddress,
+                              textInputAction: TextInputAction.next,
+                              style: GoogleFonts.inter(
+                                color: theme.colorScheme.onSurface,
+                                fontSize: 14,
+                              ),
+                              validator: AppValidators.email,
+                              decoration: const InputDecoration(
+                                hintText: 'you@mcehassan.ac.in',
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.sp4),
 
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "New here? ",
-                        style: GoogleFonts.inter(
-                          color: brandTheme?.textMuted ?? theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                          fontSize: 13,
+                            Text(
+                              'PASSWORD',
+                              style: GoogleFonts.ibmPlexMono(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.8,
+                                color: brandTheme.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _passwordCtrl,
+                              obscureText: _obscurePassword,
+                              textInputAction: TextInputAction.done,
+                              style: GoogleFonts.inter(
+                                color: theme.colorScheme.onSurface,
+                                fontSize: 14,
+                              ),
+                              onFieldSubmitted: (_) => _submit(),
+                              validator: (v) => v == null || v.isEmpty
+                                  ? 'Password is required'
+                                  : null,
+                              decoration: InputDecoration(
+                                hintText: '••••••••',
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                    color: brandTheme.textMuted,
+                                    size: 20,
+                                  ),
+                                  onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.sp6),
+
+                            // Primary Brass Button
+                            GestureDetector(
+                              onTap: _isLoading ? null : _submit,
+                              child: Container(
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  gradient: brandTheme.brassGradient,
+                                  borderRadius: BorderRadius.circular(AppShapes.radiusSmall),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: brandTheme.brassSoft,
+                                      blurRadius: 30,
+                                      offset: const Offset(0, 14),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: _isLoading
+                                      ? SizedBox(
+                                          height: 20,
+                                          width: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: brandTheme.onBrass,
+                                          ),
+                                        )
+                                      : Text(
+                                          'Sign in',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 15,
+                                            fontWeight: FontWeight.w700,
+                                            color: brandTheme.onBrass,
+                                          ),
+                                        ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => context.push('/signup'),
-                        child: Text(
-                          'Create an account',
+                    ),
+                    const SizedBox(height: AppSpacing.sp5),
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "New here? ",
                           style: GoogleFonts.inter(
-                            color: brass,
-                            fontWeight: FontWeight.w600,
+                            color: brandTheme.textMuted,
                             fontSize: 13,
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () => context.push('/signup'),
+                          child: Text(
+                            'Create an account',
+                            style: GoogleFonts.inter(
+                              color: brandTheme.brassPrimary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.sp3),
 
-                  // Dev Seed Helper Action
-                  TextButton.icon(
-                    onPressed: _isSeeding ? null : _seedDemoAccounts,
-                    icon: _isSeeding
-                        ? const SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : Icon(Icons.flash_on_rounded, size: 16, color: brass),
-                    label: Text(
-                      _isSeeding ? 'Creating accounts...' : 'Step 1: Setup Demo Accounts',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: brass,
-                        fontWeight: FontWeight.w500,
+                    // Dev Seed Helper Action
+                    TextButton.icon(
+                      onPressed: _isSeeding ? null : _seedDemoAccounts,
+                      icon: _isSeeding
+                          ? SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: brandTheme.brassPrimary,
+                              ),
+                            )
+                          : Icon(Icons.flash_on_rounded, size: 16, color: brandTheme.brassPrimary),
+                      label: Text(
+                        _isSeeding ? 'Creating accounts...' : 'Step 1: Setup Demo Accounts',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: brandTheme.brassPrimary,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: AppSpacing.sp6),
+                  ],
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _demoChip(String roleName, String email, String password, Color brass) => ActionChip(
-        avatar: Icon(Icons.person_rounded, size: 14, color: brass),
+  Widget _demoChip(String roleName, String email, String password, AppBrandTheme brandTheme) => ActionChip(
+        avatar: Icon(Icons.person_rounded, size: 14, color: brandTheme.brassPrimary),
         label: Text(roleName, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
         onPressed: () => _fillPreset(email, password),
-        backgroundColor: brass.withValues(alpha: 0.1),
-        side: BorderSide(color: brass.withValues(alpha: 0.3)),
+        backgroundColor: brandTheme.brassSoft,
+        side: BorderSide(color: brandTheme.cardBorder),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
       );
 }

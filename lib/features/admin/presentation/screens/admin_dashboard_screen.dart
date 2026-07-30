@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/admin_provider.dart';
 import '../../../../core/theme/theme_extensions.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/presentation/widgets/skeleton_loader.dart';
 
 class AdminDashboardScreen extends ConsumerWidget {
   const AdminDashboardScreen({super.key});
@@ -13,7 +15,7 @@ class AdminDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final profileAsync = ref.watch(authNotifierProvider);
     final theme = Theme.of(context);
-    final brandTheme = theme.extension<AppBrandTheme>();
+    final brandTheme = theme.extension<AppBrandTheme>()!;
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -24,7 +26,7 @@ class AdminDashboardScreen extends ConsumerWidget {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout_rounded, size: 20),
+            icon: Icon(Icons.logout_rounded, size: 20, color: brandTheme.textMuted),
             onPressed: () async {
               await ref.read(authNotifierProvider.notifier).signOut();
               if (context.mounted) context.go('/login');
@@ -34,14 +36,22 @@ class AdminDashboardScreen extends ConsumerWidget {
       ),
       body: profileAsync.when(
         data: (profile) => _body(context, profile?.fullName ?? 'Admin', brandTheme, theme),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => Padding(
+          padding: const EdgeInsets.all(AppSpacing.sp5),
+          child: Column(
+            children: const [
+              SkeletonCardRow(),
+              SkeletonCardRow(),
+            ],
+          ),
+        ),
         error: (e, _) => Center(child: Text('Error: $e')),
       ),
     );
   }
 
-  Widget _body(BuildContext context, String name, AppBrandTheme? brandTheme, ThemeData theme) => SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+  Widget _body(BuildContext context, String name, AppBrandTheme brandTheme, ThemeData theme) => SingleChildScrollView(
+        padding: const EdgeInsets.all(AppSpacing.sp5),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -52,29 +62,47 @@ class AdminDashboardScreen extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('System Control',
-                          style: GoogleFonts.fraunces(fontSize: 22, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface)),
+                      RichText(
+                        text: TextSpan(
+                          text: 'System ',
+                          style: GoogleFonts.fraunces(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: 'Control',
+                              style: GoogleFonts.fraunces(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w600,
+                                color: brandTheme.brassPrimary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       const SizedBox(height: 2),
                       Text('User roles, security audit & database controls',
-                          style: GoogleFonts.inter(fontSize: 13, color: brandTheme?.textMuted),
+                          style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis),
                     ],
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sp2),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF7C3AED).withValues(alpha: 0.12),
+                    color: brandTheme.brassSoft,
                     borderRadius: BorderRadius.circular(100),
                   ),
                   child: Text('Admin',
-                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF7C3AED))),
+                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: brandTheme.brassPrimary)),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.sp5),
 
             // Real-time Stats Header
             Consumer(
@@ -84,87 +112,99 @@ class AdminDashboardScreen extends ConsumerWidget {
                   data: (stats) => Row(
                     children: [
                       Expanded(child: _statCard('${stats.userCount}', 'Users', theme, brandTheme)),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: AppSpacing.sp3),
                       Expanded(child: _statCard('${stats.companyCount}', 'Companies', theme, brandTheme)),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: AppSpacing.sp3),
                       Expanded(child: _statCard('${stats.auditLogCount}', 'Audit Logs', theme, brandTheme)),
                     ],
                   ),
                   loading: () => Row(
                     children: [
                       Expanded(child: _statCard('...', 'Users', theme, brandTheme)),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: AppSpacing.sp3),
                       Expanded(child: _statCard('...', 'Companies', theme, brandTheme)),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: AppSpacing.sp3),
                       Expanded(child: _statCard('...', 'Audit Logs', theme, brandTheme)),
                     ],
                   ),
                   error: (_, __) => Row(
                     children: [
                       Expanded(child: _statCard('0', 'Users', theme, brandTheme)),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: AppSpacing.sp3),
                       Expanded(child: _statCard('0', 'Companies', theme, brandTheme)),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: AppSpacing.sp3),
                       Expanded(child: _statCard('0', 'Audit Logs', theme, brandTheme)),
                     ],
                   ),
                 );
               },
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: AppSpacing.sp6),
 
-            Text('Management Modules', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 12),
+            Text(
+              'MANAGEMENT MODULES',
+              style: GoogleFonts.ibmPlexMono(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.08,
+                color: brandTheme.textMuted,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sp3),
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.4,
+              crossAxisSpacing: AppSpacing.sp3,
+              mainAxisSpacing: AppSpacing.sp3,
+              childAspectRatio: 1.3,
               children: [
-                _card(Icons.people_outline_rounded, 'Users & Roles', const Color(0xFF7C3AED), theme, brandTheme, onTap: () => context.push('/admin/appoint-tpo')),
-                _card(Icons.assessment_outlined, 'Compliance Reports', const Color(0xFF3B82F6), theme, brandTheme, onTap: () => context.push('/admin/reports')),
-                _card(Icons.security_rounded, 'Audit Logs', const Color(0xFF10B981), theme, brandTheme, onTap: () => context.push('/admin/audit-logs')),
-                _card(Icons.settings_suggest_rounded, 'System Settings', const Color(0xFFF59E0B), theme, brandTheme, onTap: () => context.push('/admin/settings')),
+                _card(Icons.people_outline_rounded, 'Users & Roles', brandTheme.brassPrimary, theme, brandTheme, onTap: () => context.push('/admin/appoint-tpo')),
+                _card(Icons.assessment_outlined, 'Compliance Reports', brandTheme.statusPending, theme, brandTheme, onTap: () => context.push('/admin/reports')),
+                _card(Icons.security_rounded, 'Audit Logs', brandTheme.statusShortlisted, theme, brandTheme, onTap: () => context.push('/admin/audit-logs')),
+                _card(Icons.settings_suggest_rounded, 'System Settings', brandTheme.brassA, theme, brandTheme, onTap: () => context.push('/admin/settings')),
               ],
             ),
           ],
         ),
       );
 
-  Widget _statCard(String num, String label, ThemeData theme, AppBrandTheme? brandTheme) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
+  Widget _statCard(String num, String label, ThemeData theme, AppBrandTheme brandTheme) => Container(
+        padding: const EdgeInsets.all(AppSpacing.sp4),
+        decoration: ShapeDecoration(
           color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+          shape: ContinuousRectangleBorder(
+            borderRadius: BorderRadius.circular(AppShapes.radiusStandard),
+            side: BorderSide(color: brandTheme.cardBorder),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(num, style: GoogleFonts.ibmPlexMono(fontSize: 22, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface)),
+            Text(num, style: GoogleFonts.ibmPlexMono(fontSize: 22, fontWeight: FontWeight.w600, color: brandTheme.brassPrimary)),
             const SizedBox(height: 4),
-            Text(label, style: GoogleFonts.inter(fontSize: 11, color: brandTheme?.textMuted)),
+            Text(label, style: GoogleFonts.inter(fontSize: 11, color: brandTheme.textMuted)),
           ],
         ),
       );
 
-  Widget _card(IconData icon, String label, Color color, ThemeData theme, AppBrandTheme? brandTheme, {VoidCallback? onTap}) => InkWell(
+  Widget _card(IconData icon, String label, Color color, ThemeData theme, AppBrandTheme brandTheme, {VoidCallback? onTap}) => InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppShapes.radiusStandard),
         child: Container(
-          decoration: BoxDecoration(
+          decoration: ShapeDecoration(
             color: theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+            shape: ContinuousRectangleBorder(
+              borderRadius: BorderRadius.circular(AppShapes.radiusStandard),
+              side: BorderSide(color: brandTheme.cardBorder),
+            ),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.14), shape: BoxShape.circle),
                 child: Icon(icon, color: color, size: 24),
               ),
               const SizedBox(height: 8),

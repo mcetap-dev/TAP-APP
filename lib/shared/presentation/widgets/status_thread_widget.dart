@@ -1,145 +1,180 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/theme_extensions.dart';
+import 'package:placement_connect/core/theme/theme_extensions.dart';
+import 'package:placement_connect/core/theme/app_spacing.dart';
+import 'package:placement_connect/core/theme/app_motion.dart';
 
-enum PlacementStage {
-  applied,
-  shortlisted,
-  interview,
-  offer,
+class StatusNodeData {
+  final String label;
+  final bool isDone;
+  final bool isCurrent;
+
+  const StatusNodeData({
+    required this.label,
+    this.isDone = false,
+    this.isCurrent = false,
+  });
 }
 
-extension PlacementStageX on PlacementStage {
-  String get displayName {
-    switch (this) {
-      case PlacementStage.applied:
-        return 'Applied';
-      case PlacementStage.shortlisted:
-        return 'Shortlisted';
-      case PlacementStage.interview:
-        return 'Interview';
-      case PlacementStage.offer:
-        return 'Offer';
-    }
-  }
-
-  int get indexValue => index;
-}
-
-/// PlacementConnect Signature UI Element: The Status Thread.
-class StatusThreadWidget extends StatelessWidget {
-  final PlacementStage currentStage;
-  final bool isCompact;
+class StatusThreadWidget extends StatefulWidget {
+  final List<StatusNodeData> nodes;
 
   const StatusThreadWidget({
     super.key,
-    required this.currentStage,
-    this.isCompact = false,
+    required this.nodes,
   });
+
+  @override
+  State<StatusThreadWidget> createState() => _StatusThreadWidgetState();
+}
+
+class _StatusThreadWidgetState extends State<StatusThreadWidget>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fillAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: AppMotion.statusThreadDuration,
+      vsync: this,
+    );
+
+    double progress = 0.0;
+    if (widget.nodes.length > 1) {
+      int lastIndex = 0;
+      for (int i = 0; i < widget.nodes.length; i++) {
+        if (widget.nodes[i].isDone || widget.nodes[i].isCurrent) {
+          lastIndex = i;
+        }
+      }
+      progress = lastIndex / (widget.nodes.length - 1);
+    }
+
+    _fillAnimation = Tween<double>(begin: 0.0, end: progress).animate(
+      CurvedAnimation(parent: _controller, curve: AppMotion.standardEasing),
+    );
+
+    _controller.forward();
+  }
+
+  @override
+  void didUpdateWidget(covariant StatusThreadWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    double progress = 0.0;
+    if (widget.nodes.length > 1) {
+      int lastIndex = 0;
+      for (int i = 0; i < widget.nodes.length; i++) {
+        if (widget.nodes[i].isDone || widget.nodes[i].isCurrent) {
+          lastIndex = i;
+        }
+      }
+      progress = lastIndex / (widget.nodes.length - 1);
+    }
+    _fillAnimation = Tween<double>(begin: _fillAnimation.value, end: progress).animate(
+      CurvedAnimation(parent: _controller, curve: AppMotion.standardEasing),
+    );
+    _controller.forward(from: 0.0);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final brandTheme = theme.extension<AppBrandTheme>();
-    final brassColor = brandTheme?.brassPrimary ?? theme.colorScheme.primary;
-    final borderColor = brandTheme?.cardBorder ?? theme.colorScheme.outline;
-
-    if (isCompact) {
-      return _buildCompactThread(brassColor, borderColor);
-    }
-
-    return _buildFullThread(context, brassColor, borderColor);
-  }
-
-  Widget _buildFullThread(BuildContext context, Color brassColor, Color borderColor) {
-    final stages = PlacementStage.values;
-    final currentIdx = currentStage.indexValue;
-    final progressRatio = currentIdx / (stages.length - 1);
+    final brandTheme = theme.extension<AppBrandTheme>()!;
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final totalWidth = constraints.maxWidth;
+        final count = widget.nodes.length;
+        // Dynamically compute nodeWidth so 4 nodes fit inside compact hero tiles without overflow
+        final nodeItemWidth = (totalWidth / (count > 0 ? count : 1)).clamp(24.0, 60.0);
+        final availableTrackWidth = (totalWidth - nodeItemWidth).clamp(0.0, double.infinity);
+
         return Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                // Track background line
-                Container(
-                  height: 2,
-                  width: double.infinity,
-                  color: borderColor,
-                ),
-                // Filled progress line
-                FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: progressRatio,
-                  child: Container(
-                    height: 2,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          brassColor,
-                          const Color(0xFFC89446),
-                        ],
+            SizedBox(
+              height: 24,
+              child: Stack(
+                children: [
+                  // Track
+                  Positioned(
+                    top: 11,
+                    left: nodeItemWidth / 2,
+                    right: nodeItemWidth / 2,
+                    child: Container(
+                      height: 2,
+                      decoration: BoxDecoration(
+                        color: brandTheme.cardBorder,
+                        borderRadius: BorderRadius.circular(2),
                       ),
-                      borderRadius: BorderRadius.circular(2),
-                      boxShadow: [
-                        BoxShadow(
-                          color: brassColor.withValues(alpha: 0.3),
-                          blurRadius: 6,
-                          spreadRadius: 1,
-                        ),
-                      ],
                     ),
                   ),
-                ),
-                // Nodes
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: stages.map((stage) {
-                    final isDone = stage.indexValue <= currentIdx;
-                    final isCurrent = stage.indexValue == currentIdx;
-
-                    return Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isDone ? brassColor : Theme.of(context).colorScheme.surface,
-                        border: Border.all(
-                          color: isDone || isCurrent ? brassColor : borderColor,
-                          width: 2,
+                  // Fill bar
+                  AnimatedBuilder(
+                    animation: _fillAnimation,
+                    builder: (context, child) {
+                      return Positioned(
+                        top: 11,
+                        left: nodeItemWidth / 2,
+                        child: Container(
+                          width: availableTrackWidth * _fillAnimation.value,
+                          height: 2,
+                          decoration: BoxDecoration(
+                            gradient: brandTheme.brassGradient,
+                            borderRadius: BorderRadius.circular(2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: brandTheme.brassSoft,
+                                blurRadius: 10,
+                              ),
+                            ],
+                          ),
                         ),
-                        boxShadow: isCurrent
-                            ? [
-                                BoxShadow(
-                                  color: brassColor.withValues(alpha: 0.4),
-                                  blurRadius: 8,
-                                  spreadRadius: 2,
-                                ),
-                              ]
-                            : null,
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ],
+                      );
+                    },
+                  ),
+                  // Nodes
+                  Positioned.fill(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: widget.nodes.map((node) {
+                        return SizedBox(
+                          width: nodeItemWidth,
+                          child: Center(
+                            child: _buildNodeDot(context, node, brandTheme),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sp1),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: stages.map((stage) {
-                final isDone = stage.indexValue <= currentIdx;
+              children: widget.nodes.map((node) {
+                final isHighlight = node.isDone || node.isCurrent;
                 return SizedBox(
-                  width: 65,
+                  width: nodeItemWidth,
                   child: Text(
-                    stage.displayName,
+                    node.label,
                     textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: isDone ? FontWeight.w600 : FontWeight.w400,
-                      color: isDone
-                          ? Theme.of(context).colorScheme.onSurface
-                          : Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
+                      fontSize: totalWidth < 180 ? 8.5 : 10,
+                      fontWeight: FontWeight.w600,
+                      color: isHighlight
+                          ? theme.colorScheme.onSurface
+                          : brandTheme.textMuted,
                     ),
                   ),
                 );
@@ -151,26 +186,44 @@ class StatusThreadWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildCompactThread(Color brassColor, Color borderColor) {
-    final stages = PlacementStage.values;
-    final currentIdx = currentStage.indexValue;
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: stages.map((stage) {
-        final isDone = stage.indexValue <= currentIdx;
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2.0),
-          child: Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isDone ? brassColor : borderColor,
+  Widget _buildNodeDot(
+      BuildContext context, StatusNodeData node, AppBrandTheme brandTheme) {
+    if (node.isDone) {
+      return Container(
+        width: 9,
+        height: 9,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: brandTheme.brassGradient,
+        ),
+      );
+    } else if (node.isCurrent) {
+      return Container(
+        width: 9,
+        height: 9,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Theme.of(context).colorScheme.surface,
+          border: Border.all(color: brandTheme.brassPrimary, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: brandTheme.brassSoft,
+              blurRadius: 0,
+              spreadRadius: 3,
             ),
-          ),
-        );
-      }).toList(),
-    );
+          ],
+        ),
+      );
+    } else {
+      return Container(
+        width: 9,
+        height: 9,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Theme.of(context).colorScheme.surface,
+          border: Border.all(color: brandTheme.cardBorder, width: 2),
+        ),
+      );
+    }
   }
 }
