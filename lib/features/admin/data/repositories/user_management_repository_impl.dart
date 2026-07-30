@@ -2,24 +2,67 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../auth/domain/entities/user_profile.dart';
 import '../../domain/repositories/user_management_repository.dart';
 
+import '../../../audit/domain/entities/audit_log_entry.dart';
+import '../../../audit/domain/repositories/audit_log_repository.dart';
+
 class UserManagementRepositoryImpl implements UserManagementRepository {
   final SupabaseClient _supabase;
+  final AuditLogRepository _auditLogRepo;
 
-  UserManagementRepositoryImpl(this._supabase);
+  UserManagementRepositoryImpl(this._supabase, this._auditLogRepo);
 
   @override
   Future<void> appointTpo({
-    required String profileId,
+    required String email,
     required String appointedBy,
   }) async {
-    await _supabase.from('tpo_appointments').insert({
+    if (email.toLowerCase().endsWith('@ms.mcehassan.ac.in')) {
+      throw Exception(
+          'Students cannot be appointed as TPO. Only faculty/staff emails (@mcehassan.ac.in) are allowed.');
+    }
+
+    // 1. Find profile by email (case-insensitive)
+    final response = await _supabase
+        .from('profiles')
+        .select('id, name, role')
+        .ilike('email', email)
+        .maybeSingle();
+
+    if (response == null) {
+      throw Exception(
+          'No user found with email: $email\n'
+          'Make sure this person has signed up on the app first.');
+    }
+
+    final profileId = response['id'] as String;
+    final name = response['name'] as String;
+    final currentRole = response['role'] as String;
+
+    if (currentRole == 'tpo') {
+      throw Exception('$name is already a TPO.');
+    }
+
+    // 2. Use SECURITY DEFINER RPC to bypass RLS and update the role
+    await _supabase.rpc('admin_set_user_role', params: {
+      'p_profile_id': profileId,
+      'p_role': 'tpo',
+    });
+
+    // 3. Insert into tpo_appointments (tracks history, upsert in case already exists)
+    await _supabase.from('tpo_appointments').upsert({
       'profile_id': profileId,
       'appointed_by': appointedBy,
-    });
-    await _supabase
-        .from('profiles')
-        .update({'role': 'tpo'}).eq('id', profileId);
+    }, onConflict: 'profile_id');
+
+    // 4. Log the audit action
+    await _auditLogRepo.logAction(
+      action: AuditAction.roleChange,
+      targetTable: 'profiles',
+      targetId: profileId,
+      description: 'Appointed $name ($email) as TPO.',
+    );
   }
+
 
   @override
   Future<List<UserProfile>> getTpoList() async {

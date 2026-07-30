@@ -4,10 +4,14 @@ import '../../../student/domain/entities/drive.dart';
 import '../../../student/domain/entities/application.dart';
 import '../../domain/repositories/tpo_repository.dart';
 
+import '../../../audit/domain/entities/audit_log_entry.dart';
+import '../../../audit/domain/repositories/audit_log_repository.dart';
+
 class TpoRepositoryImpl implements TpoRepository {
   final SupabaseClient _supabase;
+  final AuditLogRepository _auditLogRepo;
 
-  TpoRepositoryImpl(this._supabase);
+  TpoRepositoryImpl(this._supabase, this._auditLogRepo);
 
   @override
   Future<void> appointFacultyCoordinator({
@@ -86,7 +90,7 @@ class TpoRepositoryImpl implements TpoRepository {
     required String status,
     required String createdBy,
   }) async {
-    await _supabase.from('drives').insert({
+    final response = await _supabase.from('drives').insert({
       'company_id': companyId,
       'role_title': roleTitle,
       'ctc_or_stipend': ctcOrStipend,
@@ -96,7 +100,14 @@ class TpoRepositoryImpl implements TpoRepository {
       'backlog_limit': backlogLimit ?? 0,
       'status': status,
       'created_by': createdBy,
-    });
+    }).select('id').single();
+    
+    await _auditLogRepo.logAction(
+      action: AuditAction.driveCreated,
+      description: 'Created new placement drive: $roleTitle',
+      targetId: response['id'] as String?,
+      targetTable: 'drives',
+    );
   }
 
   @override

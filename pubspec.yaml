@@ -48,6 +48,13 @@ dependencies:
   google_fonts: ^6.1.0
   web_socket_channel: ^3.0.3
 
+  # Added for features
+  csv: ^5.1.1
+  pdf: ^3.10.7
+  printing: ^5.11.1
+  excel: ^4.0.0
+  file_picker: ^8.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

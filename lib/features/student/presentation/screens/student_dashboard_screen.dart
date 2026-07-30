@@ -340,17 +340,13 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                       ],
                     ),
                   ),
-                  Switch(
-                    value: profile?.consentStatus == ConsentStatus.optedIn,
-                    onChanged: (val) async {
-                      try {
-                        final user = Supabase.instance.client.auth.currentUser;
-                        await Supabase.instance.client.from('profiles').update({
-                          'consent_status': val ? 'opted_in' : 'opted_out',
-                        }).eq('id', user?.id ?? '');
-                        ref.invalidate(authNotifierProvider);
-                      } catch (_) {}
-                    },
+                  FilledButton(
+                    onPressed: () => context.push('/student/consent-form'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: theme.colorScheme.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    child: const Text('Update'),
                   ),
                 ],
               ),
@@ -523,11 +519,21 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                   Text('$roll · $dept', style: GoogleFonts.ibmPlexMono(fontSize: 12, color: brandTheme?.textMuted)),
                   const SizedBox(height: 14),
 
-                  // Edit Profile Button
                   OutlinedButton.icon(
                     onPressed: () => _showEditProfileSheet(context, name, dept, roll, brass, brandTheme, theme),
                     icon: Icon(Icons.edit_outlined, size: 16, color: brass),
                     label: Text('Edit Profile Details', style: GoogleFonts.inter(fontSize: 13, color: brass, fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: brass),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Complete Profile Setup Button
+                  OutlinedButton.icon(
+                    onPressed: () => context.push('/student/profile-setup'),
+                    icon: Icon(Icons.check_circle_outline, size: 16, color: brass),
+                    label: Text('Complete Full Profile (Wizard)', style: GoogleFonts.inter(fontSize: 13, color: brass, fontWeight: FontWeight.w600)),
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: brass),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

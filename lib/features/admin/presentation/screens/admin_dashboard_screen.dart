@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../providers/admin_provider.dart';
 import '../../../../core/theme/theme_extensions.dart';
 
 class AdminDashboardScreen extends ConsumerWidget {
@@ -75,14 +76,40 @@ class AdminDashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
 
-            Row(
-              children: [
-                Expanded(child: _statCard('412', 'Users', theme, brandTheme)),
-                const SizedBox(width: 10),
-                Expanded(child: _statCard('24', 'Companies', theme, brandTheme)),
-                const SizedBox(width: 10),
-                Expanded(child: _statCard('1,028', 'Audit Logs', theme, brandTheme)),
-              ],
+            // Real-time Stats Header
+            Consumer(
+              builder: (context, ref, child) {
+                final statsAsync = ref.watch(adminStatsProvider);
+                return statsAsync.when(
+                  data: (stats) => Row(
+                    children: [
+                      Expanded(child: _statCard('${stats.userCount}', 'Users', theme, brandTheme)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _statCard('${stats.companyCount}', 'Companies', theme, brandTheme)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _statCard('${stats.auditLogCount}', 'Audit Logs', theme, brandTheme)),
+                    ],
+                  ),
+                  loading: () => Row(
+                    children: [
+                      Expanded(child: _statCard('...', 'Users', theme, brandTheme)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _statCard('...', 'Companies', theme, brandTheme)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _statCard('...', 'Audit Logs', theme, brandTheme)),
+                    ],
+                  ),
+                  error: (_, __) => Row(
+                    children: [
+                      Expanded(child: _statCard('0', 'Users', theme, brandTheme)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _statCard('0', 'Companies', theme, brandTheme)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _statCard('0', 'Audit Logs', theme, brandTheme)),
+                    ],
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 24),
 
@@ -96,10 +123,10 @@ class AdminDashboardScreen extends ConsumerWidget {
               mainAxisSpacing: 12,
               childAspectRatio: 1.4,
               children: [
-                _card(Icons.people_outline_rounded, 'Users & Roles', const Color(0xFF7C3AED), theme, brandTheme),
-                _card(Icons.business_center_outlined, 'Companies', const Color(0xFF3B82F6), theme, brandTheme),
-                _card(Icons.security_rounded, 'Audit Logs', const Color(0xFF10B981), theme, brandTheme),
-                _card(Icons.settings_suggest_rounded, 'System Settings', const Color(0xFFF59E0B), theme, brandTheme),
+                _card(Icons.people_outline_rounded, 'Users & Roles', const Color(0xFF7C3AED), theme, brandTheme, onTap: () => context.push('/admin/appoint-tpo')),
+                _card(Icons.assessment_outlined, 'Compliance Reports', const Color(0xFF3B82F6), theme, brandTheme, onTap: () => context.push('/admin/reports')),
+                _card(Icons.security_rounded, 'Audit Logs', const Color(0xFF10B981), theme, brandTheme, onTap: () => context.push('/admin/audit-logs')),
+                _card(Icons.settings_suggest_rounded, 'System Settings', const Color(0xFFF59E0B), theme, brandTheme, onTap: () => context.push('/admin/settings')),
               ],
             ),
           ],
@@ -123,23 +150,27 @@ class AdminDashboardScreen extends ConsumerWidget {
         ),
       );
 
-  Widget _card(IconData icon, String label, Color color, ThemeData theme, AppBrandTheme? brandTheme) => Container(
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
-              child: Icon(icon, color: color, size: 24),
-            ),
-            const SizedBox(height: 8),
-            Text(label, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: theme.colorScheme.onSurface)),
-          ],
+  Widget _card(IconData icon, String label, Color color, ThemeData theme, AppBrandTheme? brandTheme, {VoidCallback? onTap}) => InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: brandTheme?.cardBorder ?? theme.colorScheme.outline),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(color: color.withValues(alpha: 0.12), shape: BoxShape.circle),
+                child: Icon(icon, color: color, size: 24),
+              ),
+              const SizedBox(height: 8),
+              Text(label, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: theme.colorScheme.onSurface)),
+            ],
+          ),
         ),
       );
 }

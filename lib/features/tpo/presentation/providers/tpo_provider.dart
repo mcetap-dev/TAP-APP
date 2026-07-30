@@ -4,9 +4,11 @@ import '../../../../shared/domain/entities/company.dart';
 import '../../../student/domain/entities/drive.dart';
 import '../../data/repositories/tpo_repository_impl.dart';
 import '../../domain/repositories/tpo_repository.dart';
+import '../../../audit/domain/repositories/audit_log_repository.dart';
 
 final tpoRepositoryProvider = Provider<TpoRepository>((ref) {
-  return TpoRepositoryImpl(Supabase.instance.client);
+  final auditRepo = ref.watch(auditLogRepositoryProvider);
+  return TpoRepositoryImpl(Supabase.instance.client, auditRepo);
 });
 
 final tpoDrivesProvider = FutureProvider<List<Drive>>((ref) async {

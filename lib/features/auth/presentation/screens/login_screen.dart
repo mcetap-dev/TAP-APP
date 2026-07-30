@@ -151,7 +151,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   void _fillPreset(String email, String password) {
     _emailCtrl.text = email;
     _passwordCtrl.text = password;
-    _submit();
   }
 
   String _friendlyError(String raw) {
