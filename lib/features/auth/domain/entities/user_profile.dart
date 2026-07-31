@@ -2,6 +2,7 @@ enum UserRole {
   admin,
   tpo,
   facultyCoordinator,
+  faculty,
   student;
 
   static UserRole fromString(String value) {
@@ -11,12 +12,12 @@ enum UserRole {
       case 'tpo':
         return UserRole.tpo;
       case 'faculty_coordinator':
-      case 'faculty':
         return UserRole.facultyCoordinator;
+      case 'faculty':
+        return UserRole.faculty;
       case 'student':
         return UserRole.student;
       default:
-        // Never silently fall back to student — surface the bad role value
         throw ArgumentError('Unknown role value: "$value". Check the profiles table.');
     }
   }
@@ -29,6 +30,8 @@ enum UserRole {
         return 'tpo';
       case UserRole.facultyCoordinator:
         return 'faculty_coordinator';
+      case UserRole.faculty:
+        return 'faculty';
       case UserRole.student:
         return 'student';
     }
@@ -42,6 +45,8 @@ enum UserRole {
         return 'TPO Officer';
       case UserRole.facultyCoordinator:
         return 'Faculty Coordinator';
+      case UserRole.faculty:
+        return 'Faculty Member';
       case UserRole.student:
         return 'Student';
     }

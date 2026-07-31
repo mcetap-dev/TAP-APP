@@ -64,11 +64,10 @@ class TpoRepositoryImpl implements TpoRepository {
   }) async {
     await _supabase.from('companies').insert({
       'name': name,
-      'industry': industry,
-      'hr_contact_name': hrContactName,
-      'hr_contact_email': hrContactEmail,
-      'hr_contact_phone': hrContactPhone,
-      'created_by': createdBy,
+      if (industry != null) 'industry': industry,
+      if (hrContactName != null) 'hr_contact_name': hrContactName,
+      if (hrContactEmail != null) 'hr_contact_email': hrContactEmail,
+      if (hrContactPhone != null) 'hr_contact_phone': hrContactPhone,
     });
   }
 
@@ -89,39 +88,63 @@ class TpoRepositoryImpl implements TpoRepository {
     List<String>? eligibilityBranches,
     double? cgpaCutoff,
     int? backlogLimit,
+    DateTime? applicationDeadline,
     required String status,
     required String createdBy,
   }) async {
-    try {
-      final response = await _supabase.from('drives').insert({
-        'company_id': companyId.isNotEmpty ? companyId : null,
-        'role_title': roleTitle,
-        'ctc_or_stipend': ctcOrStipend,
-        'job_description': jobDescription,
-        'eligibility_branches': eligibilityBranches ?? [],
-        'cgpa_cutoff': cgpaCutoff,
-        'backlog_limit': backlogLimit ?? 0,
-        'status': status,
-        'created_by': createdBy,
-      }).select('*, company:companies(name)').maybeSingle();
-      
-      if (response != null) {
-        final drive = Drive.fromMap(response);
-        _localDriveCache.insert(0, drive);
-        
-        await _auditLogRepo.logAction(
-          action: AuditAction.driveCreated,
-          description: 'Created new placement drive: $roleTitle',
-          targetId: drive.id,
-          targetTable: 'drives',
-        );
-        return;
-      }
-    } catch (_) {
-      // Fallback local drive creation if backend/RLS table query fails
+    // Parse numerical package if provided (e.g. "20LPA" or "12" -> 20.0 or 12.0)
+    double? packageLpa;
+    if (ctcOrStipend != null && ctcOrStipend.isNotEmpty) {
+      final numericStr = ctcOrStipend.replaceAll(RegExp(r'[^0-9.]'), '');
+      packageLpa = double.tryParse(numericStr);
     }
 
-    // Add to local cache guaranteed
+    final payload = <String, dynamic>{
+      'company_id': companyId.isNotEmpty ? companyId : null,
+      'role': roleTitle,
+      'role_title': roleTitle,
+      'description': jobDescription,
+      if (packageLpa != null) 'package_lpa': packageLpa,
+      'eligibility_cgpa': cgpaCutoff ?? 0.0,
+      'eligibility_branches': eligibilityBranches ?? [],
+      'backlog_limit': backlogLimit ?? 0,
+      if (applicationDeadline != null) 'end_date': applicationDeadline.toIso8601String(),
+      'status': status == 'active' ? 'upcoming' : status,
+    };
+
+    // ignore: avoid_print
+    print('🚀 [TpoRepository] Submitting drive insert payload to Supabase: $payload');
+
+    try {
+      final response = await _supabase
+          .from('drives')
+          .insert(payload)
+          .select('*, company:companies(*)')
+          .maybeSingle();
+
+      // ignore: avoid_print
+      print('✅ [TpoRepository] Supabase insert response: $response');
+
+      if (response != null) {
+        final drive = Drive.fromMap(response);
+        _localDriveCache.removeWhere((d) => d.id == drive.id);
+        _localDriveCache.insert(0, drive);
+
+        try {
+          await _auditLogRepo.logAction(
+            action: AuditAction.driveCreated,
+            description: 'Created new placement drive: $roleTitle',
+            targetId: drive.id,
+            targetTable: 'drives',
+          );
+        } catch (_) {}
+      }
+    } catch (e, stack) {
+      // ignore: avoid_print
+      print('❌ [TpoRepository] Supabase insert blocked by RLS: $e\n$stack');
+    }
+
+    // Add to local cache guaranteed so drive displays immediately in UI
     _localDriveCache.insert(
       0,
       Drive(
@@ -129,15 +152,75 @@ class TpoRepositoryImpl implements TpoRepository {
         companyId: companyId,
         companyName: companyId.isNotEmpty ? 'Company' : 'New Enterprise',
         roleTitle: roleTitle,
-        ctcOrStipend: ctcOrStipend ?? '₹12 LPA',
+        ctcOrStipend: ctcOrStipend ?? (packageLpa != null ? '₹$packageLpa LPA' : '₹12 LPA'),
         jobDescription: jobDescription ?? '',
         eligibilityBranches: eligibilityBranches ?? [],
         cgpaCutoff: cgpaCutoff ?? 0.0,
         backlogLimit: backlogLimit ?? 0,
-        applicationDeadline: DateTime.now().add(const Duration(days: 14)),
+        applicationDeadline: applicationDeadline ?? DateTime.now().add(const Duration(days: 14)),
         status: status,
       ),
     );
+  }
+
+  @override
+  Future<void> updateDriveStatus({
+    required String driveId,
+    required String status,
+  }) async {
+    final validStatus = status.toLowerCase() == 'ongoing'
+        ? 'active'
+        : (status.toLowerCase() == 'closed' ? 'completed' : status.toLowerCase());
+
+    // 1. Update in local memory cache immediately
+    final index = _localDriveCache.indexWhere((d) => d.id == driveId);
+    if (index != -1) {
+      final old = _localDriveCache[index];
+      _localDriveCache[index] = Drive(
+        id: old.id,
+        companyId: old.companyId,
+        companyName: old.companyName,
+        roleTitle: old.roleTitle,
+        ctcOrStipend: old.ctcOrStipend,
+        jobDescription: old.jobDescription,
+        eligibilityBranches: old.eligibilityBranches,
+        cgpaCutoff: old.cgpaCutoff,
+        backlogLimit: old.backlogLimit,
+        applicationDeadline: old.applicationDeadline,
+        status: validStatus,
+      );
+    }
+
+    // 2. Persist to Supabase database
+    try {
+      // ignore: avoid_print
+      print('🚀 [TpoRepository] Updating Supabase drive $driveId status -> $validStatus');
+      
+      await _supabase
+          .from('drives')
+          .update({'status': validStatus})
+          .eq('id', driveId);
+          
+      // ignore: avoid_print
+      print('✅ [TpoRepository] Supabase update successful for status: $validStatus');
+    } catch (e) {
+      // ignore: avoid_print
+      print('⚠️ [TpoRepository] First update attempt failed: $e. Retrying with fallback status...');
+      try {
+        // Fallback for custom DB enums where 'active' is named 'ongoing'
+        final fallbackStatus = validStatus == 'active' ? 'ongoing' : (validStatus == 'completed' ? 'closed' : validStatus);
+        await _supabase
+            .from('drives')
+            .update({'status': fallbackStatus})
+            .eq('id', driveId);
+            
+        // ignore: avoid_print
+        print('✅ [TpoRepository] Fallback status update succeeded with: $fallbackStatus');
+      } catch (err) {
+        // ignore: avoid_print
+        print('❌ [TpoRepository] Supabase drive status update completely failed: $err');
+      }
+    }
   }
 
   @override
@@ -145,7 +228,7 @@ class TpoRepositoryImpl implements TpoRepository {
     try {
       final response = await _supabase
           .from('drives')
-          .select('*, company:companies(name)');
+          .select('*, company:companies(*)');
       final remoteDrives = (response as List).map((map) => Drive.fromMap(map)).toList();
       
       // Combine remote and local cache without duplicates

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/tpo_provider.dart';
+import '../../../student/domain/entities/drive.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -58,37 +59,71 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
             ),
           ),
 
-          // Floating FAB thumb ergonomic position
-          Positioned(
-            right: AppSpacing.sp5,
-            bottom: 104,
-            child: GestureDetector(
-              onTap: () => context.push('/tpo/create-drive'),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                decoration: BoxDecoration(
-                  gradient: brandTheme.brassGradient,
-                  borderRadius: BorderRadius.circular(AppShapes.radiusFab),
-                  boxShadow: brandTheme.shadow2,
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.add_rounded, color: brandTheme.onBrass, size: 20),
-                    const SizedBox(width: 8),
-                    Text(
-                      'New Drive',
-                      style: GoogleFonts.inter(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: brandTheme.onBrass,
+          // Floating FAB thumb ergonomic position (Drive Management Tab Only)
+          if (_currentNavIndex == 1)
+            Positioned(
+              right: AppSpacing.sp5,
+              bottom: 104,
+              child: GestureDetector(
+                onTap: () => context.push('/tpo/create-drive'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: brandTheme.brassGradient,
+                    borderRadius: BorderRadius.circular(AppShapes.radiusFab),
+                    boxShadow: brandTheme.shadow2,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.add_rounded, color: brandTheme.onBrass, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'New Drive',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: brandTheme.onBrass,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
+
+          // Floating FAB thumb ergonomic position (Faculty Coordinator Tab Only)
+          if (_currentNavIndex == 2)
+            Positioned(
+              right: AppSpacing.sp5,
+              bottom: 104,
+              child: GestureDetector(
+                onTap: () => context.push('/tpo/appoint-faculty'),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: brandTheme.brassGradient,
+                    borderRadius: BorderRadius.circular(AppShapes.radiusFab),
+                    boxShadow: brandTheme.shadow2,
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.person_add_alt_1_rounded, color: brandTheme.onBrass, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'New Faculty Coordinator',
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: brandTheme.onBrass,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
           // Floating Pill Nav Bar
           FloatingPillNavBar(
@@ -343,10 +378,8 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                 children: drives.map((drive) {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.sp3),
-                    child: _driveStatusCard(
-                      drive.companyName,
-                      '${drive.roleTitle} (${drive.ctcOrStipend})',
-                      drive.status.toUpperCase(),
+                    child: _driveCard(
+                      drive,
                       brandTheme,
                       theme,
                     ),
@@ -386,9 +419,7 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Drive Management', style: GoogleFonts.fraunces(fontSize: 24, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Text('Manage active recruitment drives and eligibility', style: GoogleFonts.inter(fontSize: 13, color: brandTheme.textMuted)),
-          const SizedBox(height: AppSpacing.sp5),
+          const SizedBox(height: AppSpacing.sp4),
 
           drivesAsync.when(
             data: (drives) {
@@ -396,11 +427,14 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                 return StateBlockWidget(
                   icon: Icons.work_off_outlined,
                   title: 'No drives created',
-                  message: 'Tap New Drive to configure company details and batch eligibility.',
+                  message: 'Tap New Drive to create a recruitment drive.',
                 );
               }
               return Column(
-                children: drives.map((d) => _driveStatusCard(d.companyName, '${d.roleTitle} · ${d.ctcOrStipend}', d.status, brandTheme, theme)).toList(),
+                children: drives.map((d) => Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sp3),
+                  child: _driveCard(d, brandTheme, theme),
+                )).toList(),
               );
             },
             loading: () => const SkeletonCardRow(),
@@ -417,6 +451,8 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
   }
 
   Widget _appointFacultyTab(WidgetRef ref, AppBrandTheme brandTheme, ThemeData theme) {
+    final coordinatorsAsync = ref.watch(facultyCoordinatorsProvider);
+
     return SingleChildScrollView(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + AppSpacing.sp4,
@@ -429,19 +465,91 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
         children: [
           Text('Faculty Coordinator Appointment', style: GoogleFonts.fraunces(fontSize: 24, fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
-          Text('Assign department verification leads', style: GoogleFonts.inter(fontSize: 13, color: brandTheme.textMuted)),
+          Text('Appointed department leads for student verification queues', style: GoogleFonts.inter(fontSize: 13, color: brandTheme.textMuted)),
           const SizedBox(height: AppSpacing.sp5),
-          StateBlockWidget(
-            icon: Icons.person_add_alt_rounded,
-            title: 'Faculty Appointments',
-            message: 'Appointed department coordinators will manage student verification queues.',
+
+          coordinatorsAsync.when(
+            data: (coordinators) {
+              if (coordinators.isEmpty) {
+                return StateBlockWidget(
+                  icon: Icons.person_add_alt_rounded,
+                  title: 'No coordinators appointed',
+                  message: 'Tap "+ New Faculty Coordinator" to appoint an existing faculty member.',
+                );
+              }
+              return Column(
+                children: coordinators.map((coord) {
+                  final profile = coord['profile'] as Map<String, dynamic>? ?? {};
+                  final name = profile['name'] as String? ?? 'Faculty Member';
+                  final email = profile['email'] as String? ?? 'No email';
+                  final dept = coord['department'] as String? ?? 'General';
+                  final createdAtStr = coord['created_at'] as String?;
+                  final dateStr = createdAtStr != null
+                      ? DateTime.tryParse(createdAtStr)?.toIso8601String().split('T').first ?? ''
+                      : '';
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: AppSpacing.sp3),
+                    padding: const EdgeInsets.all(AppSpacing.sp4),
+                    decoration: ShapeDecoration(
+                      color: theme.colorScheme.surface,
+                      shape: ContinuousRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppShapes.radiusStandard),
+                        side: BorderSide(color: brandTheme.cardBorder),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundColor: brandTheme.brassSoft,
+                          child: Icon(Icons.person, color: brandTheme.brassPrimary),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(name, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15)),
+                              Text(email, style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
+                              if (dateStr.isNotEmpty)
+                                Text('Appointed: $dateStr', style: GoogleFonts.inter(fontSize: 11, color: brandTheme.textMuted)),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: brandTheme.brassSoft,
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          child: Text(
+                            dept.toUpperCase(),
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: brandTheme.brassPrimary),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+            loading: () => const SkeletonCardRow(),
+            error: (e, _) => StateBlockWidget(
+              icon: Icons.error_outline_rounded,
+              title: 'Error loading coordinators',
+              message: e.toString(),
+              isError: true,
+            ),
           ),
         ],
       ),
     );
   }
 
+
   Widget _offersAndRoundsTab(WidgetRef ref, AppBrandTheme brandTheme, ThemeData theme) {
+    final drivesAsync = ref.watch(tpoDrivesProvider);
+
     return SingleChildScrollView(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + AppSpacing.sp4,
@@ -454,19 +562,240 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
         children: [
           Text('Offers & Round Management', style: GoogleFonts.fraunces(fontSize: 24, fontWeight: FontWeight.w600)),
           const SizedBox(height: 4),
-          Text('Upload shortlist CSVs and release offers', style: GoogleFonts.inter(fontSize: 13, color: brandTheme.textMuted)),
+          Text('Change drive status, initiate rounds & upload shortlists', style: GoogleFonts.inter(fontSize: 13, color: brandTheme.textMuted)),
           const SizedBox(height: AppSpacing.sp5),
-          StateBlockWidget(
-            icon: Icons.assignment_turned_in_rounded,
-            title: 'Offer Processing',
-            message: 'Select an active drive to upload interview results or offer letters.',
+
+          drivesAsync.when(
+            data: (drives) {
+              if (drives.isEmpty) {
+                return StateBlockWidget(
+                  icon: Icons.assignment_turned_in_rounded,
+                  title: 'No drives available',
+                  message: 'Create a recruitment drive first to manage rounds and update status.',
+                );
+              }
+              return Column(
+                children: drives.map((drive) => _roundControlCard(drive, brandTheme, theme)).toList(),
+              );
+            },
+            loading: () => const SkeletonCardRow(),
+            error: (e, _) => StateBlockWidget(
+              icon: Icons.error_outline_rounded,
+              title: 'Error loading drives',
+              message: e.toString(),
+              isError: true,
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _driveStatusCard(String company, String details, String statusText, AppBrandTheme brandTheme, ThemeData theme) => Container(
+  Widget _roundControlCard(Drive drive, AppBrandTheme brandTheme, ThemeData theme) {
+    final statusLower = drive.status.toLowerCase();
+    Color statusBg = brandTheme.brassSoft;
+    Color statusText = brandTheme.brassPrimary;
+
+    if (statusLower == 'active' || statusLower == 'ongoing') {
+      statusBg = Colors.greenAccent.withValues(alpha: 0.15);
+      statusText = Colors.greenAccent;
+    } else if (statusLower == 'completed' || statusLower == 'closed') {
+      statusBg = Colors.blueAccent.withValues(alpha: 0.15);
+      statusText = Colors.blueAccent;
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.sp4),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: brandTheme.cardBorder),
+        boxShadow: brandTheme.shadow1,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: Company Name & Status Dropdown Chip
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      drive.companyName.isNotEmpty ? drive.companyName : 'Company',
+                      style: GoogleFonts.fraunces(fontWeight: FontWeight.bold, fontSize: 18),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      drive.roleTitle,
+                      style: GoogleFonts.inter(fontSize: 13, color: brandTheme.brassPrimary, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                decoration: BoxDecoration(
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: statusText.withValues(alpha: 0.4)),
+                ),
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: ['upcoming', 'active', 'completed', 'ongoing', 'closed'].contains(statusLower)
+                        ? (statusLower == 'ongoing' ? 'active' : (statusLower == 'closed' ? 'completed' : statusLower))
+                        : 'upcoming',
+                    dropdownColor: theme.colorScheme.surface,
+                    icon: Icon(Icons.arrow_drop_down_rounded, color: statusText, size: 20),
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 11, color: statusText),
+                    items: const [
+                      DropdownMenuItem(value: 'upcoming', child: Text('UPCOMING')),
+                      DropdownMenuItem(value: 'active', child: Text('ACTIVE')),
+                      DropdownMenuItem(value: 'completed', child: Text('COMPLETED')),
+                    ],
+                    onChanged: (newStatus) async {
+                      if (newStatus == null) return;
+                      final repo = ref.read(tpoRepositoryProvider);
+                      await repo.updateDriveStatus(driveId: drive.id, status: newStatus);
+                      ref.invalidate(tpoDrivesProvider);
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Updated ${drive.companyName} status to ${newStatus.toUpperCase()}')),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 14),
+          const Divider(height: 1),
+          const SizedBox(height: 14),
+
+          // Details row
+          Row(
+            children: [
+              Icon(Icons.payments_outlined, size: 16, color: brandTheme.textMuted),
+              const SizedBox(width: 6),
+              Text(
+                'CTC: ${drive.ctcOrStipend}',
+                style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted),
+              ),
+              const SizedBox(width: 16),
+              Icon(Icons.calendar_today_outlined, size: 16, color: brandTheme.textMuted),
+              const SizedBox(width: 6),
+              Text(
+                'Deadline: ${drive.applicationDeadline.day}/${drive.applicationDeadline.month}/${drive.applicationDeadline.year}',
+                style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 16),
+
+          // Action Buttons (Context-Aware)
+          if (statusLower == 'completed' || statusLower == 'closed') ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: Colors.blueAccent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.check_circle_rounded, size: 18, color: Colors.blueAccent),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Drive Completed & Closed',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueAccent),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            Row(
+              children: [
+                if (statusLower == 'upcoming')
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final repo = ref.read(tpoRepositoryProvider);
+                        await repo.updateDriveStatus(driveId: drive.id, status: 'active');
+                        ref.invalidate(tpoDrivesProvider);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('🚀 Selection rounds initiated! Status: ACTIVE')),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: brandTheme.brassPrimary,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      icon: const Icon(Icons.play_arrow_rounded, size: 18, color: Colors.black),
+                      label: Text(
+                        'Start Rounds',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black),
+                      ),
+                    ),
+                  ),
+                if (statusLower == 'active' || statusLower == 'ongoing') ...[
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        final repo = ref.read(tpoRepositoryProvider);
+                        await repo.updateDriveStatus(driveId: drive.id, status: 'completed');
+                        ref.invalidate(tpoDrivesProvider);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('🏁 Recruitment drive completed & closed!')),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: brandTheme.brassPrimary,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      icon: const Icon(Icons.check_circle_outline_rounded, size: 18, color: Colors.black),
+                      label: Text(
+                        'Finish Drive',
+                        style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _driveCard(Drive drive, AppBrandTheme brandTheme, ThemeData theme) {
+    final companyDisplayName = drive.companyName.isNotEmpty ? drive.companyName : 'Company';
+    final branches = drive.eligibilityBranches.isNotEmpty
+        ? drive.eligibilityBranches.join(', ')
+        : 'All Branches';
+
+    return GestureDetector(
+      onTap: () => _showDriveDetailsModal(drive, brandTheme, theme),
+      child: Container(
         padding: const EdgeInsets.all(AppSpacing.sp4),
         decoration: ShapeDecoration(
           color: theme.colorScheme.surface,
@@ -480,8 +809,15 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(company, style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 16)),
+                Expanded(
+                  child: Text(
+                    companyDisplayName,
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 17),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
@@ -489,15 +825,225 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                     borderRadius: BorderRadius.circular(100),
                   ),
                   child: Text(
-                    statusText,
+                    drive.status.toUpperCase(),
                     style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: brandTheme.brassPrimary),
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            Text(
+              drive.roleTitle,
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14, color: theme.colorScheme.onSurface),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'Package: ${drive.ctcOrStipend}',
+              style: GoogleFonts.inter(fontSize: 13, color: brandTheme.brassPrimary, fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.school_outlined, size: 14, color: brandTheme.textMuted),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Eligibility: $branches (CGPA: ${drive.cgpaCutoff})',
+                    style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 4),
-            Text(details, style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
+            Row(
+              children: [
+                Icon(Icons.calendar_today_outlined, size: 14, color: brandTheme.textMuted),
+                const SizedBox(width: 4),
+                Text(
+                  'Deadline: ${drive.applicationDeadline.day}/${drive.applicationDeadline.month}/${drive.applicationDeadline.year}',
+                  style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted),
+                ),
+              ],
+            ),
           ],
         ),
-      );
+      ),
+    );
+  }
+
+  void _showDriveDetailsModal(Drive drive, AppBrandTheme brandTheme, ThemeData theme) {
+    final companyDisplayName = drive.companyName.isNotEmpty ? drive.companyName : 'Company';
+    final branches = drive.eligibilityBranches.isNotEmpty
+        ? drive.eligibilityBranches.join(', ')
+        : 'All Eligible Branches';
+
+    final now = DateTime.now();
+    String statusReason = '';
+    final statusLower = drive.status.toLowerCase();
+    if (statusLower == 'upcoming') {
+      statusReason = 'Status is UPCOMING because registration is currently open for eligible students before selection rounds begin.';
+    } else if (statusLower == 'active' || statusLower == 'ongoing') {
+      statusReason = 'Status is ACTIVE/ONGOING because drive rounds (assessments & interviews) are actively in progress.';
+    } else if (statusLower == 'completed' || statusLower == 'closed') {
+      statusReason = 'Status is COMPLETED/CLOSED because the application deadline has passed or all offer letters have been issued.';
+    } else {
+      if (now.isBefore(drive.applicationDeadline)) {
+        statusReason = 'Status is based on active registration period ending on ${drive.applicationDeadline.day}/${drive.applicationDeadline.month}/${drive.applicationDeadline.year}.';
+      } else {
+        statusReason = 'Status is based on recruitment process lifecycle set in Supabase database ($statusLower).';
+      }
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(ctx).padding.bottom + 20,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: brandTheme.textMuted.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      companyDisplayName,
+                      style: GoogleFonts.fraunces(fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: brandTheme.brassSoft,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      drive.status.toUpperCase(),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: brandTheme.brassPrimary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                drive.roleTitle,
+                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: brandTheme.brassPrimary),
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 12),
+              
+              // Status Basis Section
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: brandTheme.brassSoft.withOpacity(0.4),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: brandTheme.cardBorder),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline_rounded, size: 20, color: brandTheme.brassPrimary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Status Basis (${drive.status.toUpperCase()})',
+                            style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13, color: brandTheme.brassPrimary),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            statusReason,
+                            style: GoogleFonts.inter(fontSize: 12, color: theme.colorScheme.onSurface),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 16),
+              Text('Drive Details', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
+              const SizedBox(height: 8),
+
+              _detailRow(Icons.monetization_on_outlined, 'Package / CTC', drive.ctcOrStipend, brandTheme),
+              _detailRow(Icons.school_outlined, 'Eligible Branches', branches, brandTheme),
+              _detailRow(Icons.grade_outlined, 'Min. CGPA Cutoff', '${drive.cgpaCutoff}', brandTheme),
+              _detailRow(Icons.history_edu_outlined, 'Max Allowed Backlogs', '${drive.backlogLimit}', brandTheme),
+              _detailRow(Icons.event_outlined, 'Application Deadline', '${drive.applicationDeadline.day}/${drive.applicationDeadline.month}/${drive.applicationDeadline.year}', brandTheme),
+
+              if (drive.jobDescription.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                Text('Job Description', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14)),
+                const SizedBox(height: 4),
+                Text(
+                  drive.jobDescription,
+                  style: GoogleFonts.inter(fontSize: 13, color: brandTheme.textMuted),
+                ),
+              ],
+
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Close'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _detailRow(IconData icon, String label, String value, AppBrandTheme brandTheme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: brandTheme.textMuted),
+          const SizedBox(width: 8),
+          Text('$label: ', style: GoogleFonts.inter(fontSize: 13, color: brandTheme.textMuted)),
+          Expanded(
+            child: Text(
+              value,
+              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

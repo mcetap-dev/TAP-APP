@@ -12,16 +12,31 @@ final tpoRepositoryProvider = Provider<TpoRepository>((ref) {
 });
 
 final tpoDrivesProvider = FutureProvider<List<Drive>>((ref) async {
+  final timer = Stream.periodic(const Duration(milliseconds: 1500)).listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(() => timer.cancel());
+
   final repo = ref.watch(tpoRepositoryProvider);
   return repo.getDrives();
 });
 
 final tpoCompaniesProvider = FutureProvider<List<Company>>((ref) async {
+  final timer = Stream.periodic(const Duration(milliseconds: 2000)).listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(() => timer.cancel());
+
   final repo = ref.watch(tpoRepositoryProvider);
   return repo.getCompanies();
 });
 
 final facultyCoordinatorsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final timer = Stream.periodic(const Duration(milliseconds: 1500)).listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(() => timer.cancel());
+
   final repo = ref.watch(tpoRepositoryProvider);
   return repo.fetchFacultyCoordinators();
 });

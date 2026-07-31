@@ -33,6 +33,7 @@ final currentProfileProvider = FutureProvider<UserProfile?>((ref) async {
 class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   final AuthRemoteDatasource _datasource;
   final AuditLogRepository _auditLogRepo;
+  RealtimeChannel? _profileChannel;
 
   AuthNotifier(this._datasource, this._auditLogRepo) : super(const AsyncValue.loading()) {
     _init();
@@ -42,9 +43,43 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     final user = _datasource.currentUser;
     if (user != null) {
       _loadProfile(user.id);
+      _subscribeToProfileChanges(user.id);
     } else {
       state = const AsyncValue.data(null);
     }
+  }
+
+  void _subscribeToProfileChanges(String userId) {
+    _profileChannel?.unsubscribe();
+    try {
+      _profileChannel = Supabase.instance.client
+          .channel('public:profiles:$userId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'profiles',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'id',
+              value: userId,
+            ),
+            callback: (payload) {
+              // ignore: avoid_print
+              print('⚡ [AuthNotifier] Realtime profile update detected for $userId: ${payload.newRecord}');
+              _loadProfile(userId);
+            },
+          )
+          .subscribe();
+    } catch (e) {
+      // ignore: avoid_print
+      print('⚠️ [AuthNotifier] Realtime profile subscription notice: $e');
+    }
+  }
+
+  @override
+  void dispose() {
+    _profileChannel?.unsubscribe();
+    super.dispose();
   }
 
   Future<void> _loadProfile(String userId) async {
