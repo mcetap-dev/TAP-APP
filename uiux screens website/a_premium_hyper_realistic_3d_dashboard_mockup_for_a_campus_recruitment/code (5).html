@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TPO Dashboard | Placement Connect</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;family=Literata:wght@500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+        }
+        .glass-card {
+            background: rgba(27, 28, 32, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2);
+        }
+        .brass-gradient {
+            background: linear-gradient(135deg, #f9bb6e 0%, #bd863e 100%);
+        }
+        .inner-highlight {
+            box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #131313; }
+        ::-webkit-scrollbar-thumb { background: #353535; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #504538; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error": "#690005",
+                        "outline": "#9d8e7f",
+                        "tertiary-container": "#a078ff",
+                        "primary-fixed-dim": "#f9bb6e",
+                        "on-secondary-fixed-variant": "#46464b",
+                        "secondary-container": "#46464b",
+                        "inverse-primary": "#83540f",
+                        "on-primary-fixed": "#2a1700",
+                        "surface-container-low": "#1b1b1b",
+                        "surface-dim": "#131313",
+                        "on-tertiary-fixed-variant": "#5516be",
+                        "on-primary-fixed-variant": "#653e00",
+                        "on-tertiary-fixed": "#23005c",
+                        "glass-stroke": "rgba(255, 255, 255, 0.08)",
+                        "tertiary": "#d0bcff",
+                        "on-secondary-container": "#b5b4ba",
+                        "error": "#ffb4ab",
+                        "on-background": "#e2e2e2",
+                        "on-secondary": "#2f3034",
+                        "on-surface-variant": "#d5c4b3",
+                        "surface-container-highest": "#353535",
+                        "on-tertiary-container": "#340080",
+                        "background": "#131313",
+                        "surface": "#131313",
+                        "tertiary-fixed-dim": "#d0bcff",
+                        "surface-medium": "#1B1C20",
+                        "surface-high": "#282A2F",
+                        "brass-muted": "#6E4C1F",
+                        "surface-container": "#1f1f1f",
+                        "on-primary": "#472a00",
+                        "inverse-on-surface": "#303030",
+                        "on-surface": "#e2e2e2",
+                        "outline-variant": "#504538",
+                        "tertiary-fixed": "#e9ddff",
+                        "on-tertiary": "#3c0091",
+                        "surface-container-high": "#2a2a2a",
+                        "surface-low": "#111214",
+                        "primary-fixed": "#ffddb8",
+                        "on-error-container": "#ffdad6",
+                        "primary-container": "#bd863e",
+                        "secondary": "#c7c6cb",
+                        "on-primary-container": "#3e2400",
+                        "surface-bright": "#393939",
+                        "error-container": "#93000a",
+                        "secondary-fixed-dim": "#c7c6cb",
+                        "surface-container-lowest": "#0e0e0e",
+                        "secondary-fixed": "#e3e2e7",
+                        "on-secondary-fixed": "#1a1b1f",
+                        "primary": "#f9bb6e",
+                        "surface-tint": "#f9bb6e",
+                        "surface-variant": "#353535",
+                        "inverse-surface": "#e2e2e2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "container-max": "1440px",
+                        "margin-desktop": "64px",
+                        "margin-mobile": "20px",
+                        "unit": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["literata"],
+                        "label-caps": ["jetbrainsMono"],
+                        "display-lg-mobile": ["literata"],
+                        "body-md": ["inter"],
+                        "technical": ["jetbrainsMono"],
+                        "display-lg": ["literata"],
+                        "body-lg": ["inter"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                        "label-caps": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "display-lg-mobile": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                        "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "technical": ["13px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "-0.01em", "fontWeight": "400"}]
+                    }
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body-md selection:bg-primary-container selection:text-on-primary-container">
+<div class="flex h-screen overflow-hidden">
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col h-full py-gutter px-4 bg-surface-low dark:bg-surface-low docked left-0 w-64 border-r border-glass-stroke">
+<div class="mb-12">
+<h1 class="font-headline-md text-headline-md font-bold text-primary dark:text-primary tracking-tight">Placement Connect</h1>
+<p class="font-technical text-[11px] uppercase tracking-widest text-outline mt-1 opacity-70">Enterprise Suite</p>
+</div>
+<button class="mb-8 w-full py-3 px-4 rounded-lg brass-gradient text-on-primary font-bold flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] active:scale-[0.98]">
+<span class="material-symbols-outlined text-lg">add</span>
+<span class="font-technical text-sm">New Placement Drive</span>
+</button>
+<nav class="flex-1 space-y-2">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-primary font-bold border-r-2 border-primary transition-all duration-200" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-body-md">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant font-medium hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">description</span>
+<span class="font-body-md">Applications</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant font-medium hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">business_center</span>
+<span class="font-body-md">Drives</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant font-medium hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-body-md">Analytics</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant font-medium hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">groups</span>
+<span class="font-body-md">Faculty Hub</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-on-surface-variant font-medium hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">person_search</span>
+<span class="font-body-md">Recruiter Suite</span>
+</a>
+</nav>
+<div class="mt-auto border-t border-glass-stroke pt-6 space-y-2">
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-body-md">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-on-surface-variant hover:text-primary transition-colors duration-200" href="#">
+<span class="material-symbols-outlined">help_outline</span>
+<span class="font-body-md">Support</span>
+</a>
+<div class="mt-6 flex items-center gap-3 px-4">
+<div class="w-8 h-8 rounded-full bg-surface-high border border-glass-stroke overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="Professional portrait of a high-level university placement officer in a dark tailored suit, captured with dramatic cinematic lighting against a blurred office background. The style is executive and high-end, featuring subtle metallic reflections and a deep monochromatic color palette with warm brass accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7DqI_ph2jG3pkGhhjhkKeVpc4civEUE4hN08LNRp7TTfICUSWBhFSw_GZ6yx_H9Yqbuw4zK8bbyvmNrKx2v1895VC5USNEvfSJ9I4mqUiP8Z_B3qSAChhhqsPH7W6mWaeBfVM787gPzxBlHqXZ_vjwJ5_g9pNkAE-Rm_qXX_Pv2Fs1IApS2F0blDPqmtG27n1A17KOtOkAKeulAtHLk1A9mj5u1-IjQJD6ardCouc1ErNvGc24bM7rA"/>
+</div>
+<div class="overflow-hidden">
+<p class="text-xs font-bold truncate">Executive Profile</p>
+<p class="text-[10px] text-outline truncate">TPO Head</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Canvas -->
+<main class="flex-1 flex flex-col min-w-0 bg-background overflow-hidden relative">
+<!-- TopNavBar -->
+<header class="flex justify-between items-center h-16 px-gutter md:px-margin-desktop sticky top-0 z-50 bg-surface-low/70 backdrop-blur-xl border-b border-glass-stroke shadow-sm shadow-primary/5">
+<div class="flex items-center gap-8 flex-1">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">search</span>
+<input class="w-full bg-surface-container-lowest border border-glass-stroke rounded-lg py-2 pl-10 pr-4 text-technical focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all" placeholder="Search applicants, drives, or reports..." type="text"/>
+</div>
+<nav class="hidden lg:flex items-center gap-6">
+<a class="font-technical text-primary border-b-2 border-primary pb-1" href="#">Overview</a>
+<a class="font-technical text-on-surface-variant hover:text-primary transition-all" href="#">Calendar</a>
+<a class="font-technical text-on-surface-variant hover:text-primary transition-all" href="#">Reports</a>
+</nav>
+</div>
+<div class="flex items-center gap-4 ml-4">
+<div class="flex items-center gap-2">
+<button class="p-2 text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:text-primary transition-all">
+<span class="material-symbols-outlined">dark_mode</span>
+</button>
+</div>
+<button class="hidden sm:block py-2 px-4 border border-primary text-primary rounded-lg text-technical font-medium hover:bg-primary/5 transition-all">
+                        Launch Drive
+                    </button>
+</div>
+</header>
+<!-- Scrollable Content Area -->
+<div class="flex-1 overflow-y-auto p-gutter md:p-margin-desktop space-y-gutter">
+<!-- Metric Hero Section (Bento Style) -->
+<section class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
+<div class="glass-card inner-highlight p-6 rounded-xl flex flex-col justify-between h-40">
+<div>
+<p class="font-label-caps text-label-caps text-outline uppercase">Total Applicants</p>
+<h2 class="font-display-lg text-display-lg-mobile md:text-headline-md mt-2">2,840</h2>
+</div>
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-sm">trending_up</span>
+<span class="text-xs font-technical">+12% from last year</span>
+</div>
+</div>
+<div class="glass-card inner-highlight p-6 rounded-xl flex flex-col justify-between h-40">
+<div>
+<p class="font-label-caps text-label-caps text-outline uppercase">Active Drives</p>
+<h2 class="font-display-lg text-display-lg-mobile md:text-headline-md mt-2">14</h2>
+</div>
+<div class="flex items-center gap-2 text-tertiary">
+<span class="material-symbols-outlined text-sm">event_available</span>
+<span class="text-xs font-technical">3 starting this week</span>
+</div>
+</div>
+<div class="glass-card inner-highlight p-6 rounded-xl border-t-2 border-primary flex flex-col justify-between h-40">
+<div>
+<p class="font-label-caps text-label-caps text-primary uppercase">Placement Rate</p>
+<h2 class="font-display-lg text-display-lg-mobile md:text-headline-md mt-2">78.4%</h2>
+</div>
+<div class="w-full bg-surface-high h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[78.4%]"></div>
+</div>
+</div>
+<div class="glass-card inner-highlight p-6 rounded-xl flex flex-col justify-between h-40 md:col-span-2 lg:col-span-1">
+<div>
+<p class="font-label-caps text-label-caps text-outline uppercase">Avg. Package</p>
+<h2 class="font-display-lg text-display-lg-mobile md:text-headline-md mt-2">₹12.4L</h2>
+</div>
+<div class="text-xs font-technical text-outline">Target: ₹15.0L</div>
+</div>
+</section>
+<!-- Ongoing Recruitment Drives -->
+<section>
+<div class="flex justify-between items-end mb-6">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Active Recruitment Drives</h3>
+<p class="text-on-surface-variant font-body-md">Currently live selection processes</p>
+</div>
+<button class="text-primary font-technical text-sm flex items-center gap-1 hover:underline">
+                            View All Drives <span class="material-symbols-outlined text-sm">arrow_forward</span>
+</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Drive Card 1 -->
+<div class="glass-card rounded-xl overflow-hidden group">
+<div class="h-32 bg-surface-medium relative overflow-hidden">
+<img class="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700" data-alt="High-tech corporate skyscraper facade with glass and steel reflecting a sunset sky, professional luxury corporate photography style with deep shadows and warm brass light leaking from the interior. Minimalist and powerful composition." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBiKE795D-pkZEXG0Z4nKnzcf2BwFyRSTkNitH3A8rnBQEEzu1F_TABKvznBBPhDC1NeACcvQ8Hxr8Hjr3POpDKvIBGCAN7bpi3yGWHEoImKHdat-Bc4P6l90B9tv7aADYsMXxA2QfqV9FAIu_CAgp9upuFaaJx0p_umUaCjaPLp87gKPTIPm0AJ8kTJIieYJpQ7kkZXUc2drM079w6ubQM2R2sjWEU3q9DgPpEGcZLd-FTx3CI5OqqwA"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-low to-transparent"></div>
+<div class="absolute bottom-4 left-6 flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-white p-1">
+<img class="w-full h-full object-contain" data-alt="Minimalist logo for a global technology company, clean sans-serif typography, monochrome black and white palette, professional and modern brand identity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDvEI7RA-M2p3bJkD7NJAumtdiihFDPHrGnCuuzPz41cCCeF5etGMl7vZSEhdbz0vD7Q8wFx3gnXb0eK-qScZjxRN0_98-yBBnBeb4vjnDHkfkOq2kPS5zWo6hdpRMotx51f2yQHNICobm5ZvCQm7lAIbcKGSu3Kf72JGDAuOTRpnpfyPN-VDkSSKyG0f0g_IT11hnsmjq9oFKni8M4MDL7ucLj_WtVa_86bW2EEM1omZ9jeYwjQQs4eg"/>
+</div>
+<h4 class="font-bold text-lg">NextGen Systems</h4>
+</div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-center mb-4">
+<span class="px-2 py-1 bg-primary/10 text-primary text-[10px] font-technical uppercase tracking-widest rounded">Technical Role</span>
+<span class="text-outline text-xs font-technical">Applied: 420</span>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-xs font-technical mb-1">
+<span class="text-on-surface-variant">Round 3 of 4: Technical Interview</span>
+<span class="text-primary">75%</span>
+</div>
+<div class="w-full bg-surface-high h-1 rounded-full">
+<div class="bg-primary h-full w-3/4"></div>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 py-2 text-xs font-bold border border-glass-stroke rounded hover:bg-surface-high transition-colors">Details</button>
+<button class="flex-1 py-2 text-xs font-bold bg-primary text-on-primary rounded hover:opacity-90 transition-opacity">Manage</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Drive Card 2 -->
+<div class="glass-card rounded-xl overflow-hidden group">
+<div class="h-32 bg-surface-medium relative overflow-hidden">
+<img class="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700" data-alt="Abstract architectural photography of a modern minimalist office interior, featuring sharp geometric shadows, high-end materials like brushed metal and dark marble, atmospheric moody lighting with soft golden glow." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCOAe8mcLUyoZaju8zY7TjFZDeERg9mfilw7LsVdplCp91VBO2xcz_o3Bx0MXzHA69v33U3GyOFyVk0sB_6zippfjVxpZPpaJjpU8OV-FQ7wSSaJyG-7j3ywVJ9iJQUoqfIIEr-71V1o3KbqKnQovOZPjKBExgUIChkgQMUdja-QEedJjI6cehgNFSZ00_Nr8JaoK1lpib7qcMnFajFsw35phr_EZ7UEEoTVsHcvFJwRRq45EBp0XIF2A"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-low to-transparent"></div>
+<div class="absolute bottom-4 left-6 flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-white p-1">
+<img class="w-full h-full object-contain" data-alt="A modern fintech company logo, sophisticated minimalist design, black on white, luxury financial brand aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBwxiFRKdFkIn3Rt5sY5Zt1BufOdms7Os8db3TOaBrCZ36zPKNiIBqcr3EhkkhTXxtW06IPqvxiQMpWz4oe1ER5MgzAahCqssfvSnHooKzCGntoGXnceyQhWPRmsucyt9Bfn7NnJURWEpiFMQlEMz_X0FC-FXJbhQsyG9B4h-KAo78Xxym4rnf9Wzv7b1awcID85AClpnvXhjrm87gF-QvKH_MN1Lv6YNK248sFwXLCMtZsaBFuk5rYHA"/>
+</div>
+<h4 class="font-bold text-lg">FinEdge Global</h4>
+</div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-center mb-4">
+<span class="px-2 py-1 bg-tertiary/10 text-tertiary text-[10px] font-technical uppercase tracking-widest rounded">Data Analyst</span>
+<span class="text-outline text-xs font-technical">Applied: 185</span>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-xs font-technical mb-1">
+<span class="text-on-surface-variant">Round 1 of 3: Assessment</span>
+<span class="text-tertiary">33%</span>
+</div>
+<div class="w-full bg-surface-high h-1 rounded-full">
+<div class="bg-tertiary h-full w-1/3"></div>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 py-2 text-xs font-bold border border-glass-stroke rounded hover:bg-surface-high transition-colors">Details</button>
+<button class="flex-1 py-2 text-xs font-bold bg-primary text-on-primary rounded hover:opacity-90 transition-opacity">Manage</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Drive Card 3 -->
+<div class="glass-card rounded-xl overflow-hidden group">
+<div class="h-32 bg-surface-medium relative overflow-hidden">
+<img class="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700" data-alt="Luxury corporate workspace featuring high-end hardware, dark wood textures, and soft cinematic illumination. The mood is focused and premium, perfect for a high-performance career setting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBdnlYBAxTkW_bimWZf-aEgTHPQowUE_YpwOKYZtVM1VI7vnHce9HFp5-OK5qdcLCoOCa_D4O1tb7td1cdDAc64CrNV1zixKwxRo7tFO8Djg96ECZVvDx6EgYqIcrBE47zlN9s6eWS2DfryIMtB1IaxZYmq7HlY5di2eTXpu2jZkh5HLSS_NtDDkqNGhOyatkBRddPXVTEPN_aG3YnMXSBK1Okzv9b2rBbLPOZYJxPjcYXAAM5oidDCxA"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-low to-transparent"></div>
+<div class="absolute bottom-4 left-6 flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-white p-1">
+<img class="w-full h-full object-contain" data-alt="A creative agency logo, bold typography and minimalist icon, elegant professional design." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBZ8FpCfo2Uycq-yo4sKkjmFp1y7TXRwfQ2VICwRDH6ZkTN-tfQT9nKdqaEeVzD5NhVqSGH7Lp1eiw08T8DonGYR8B-3_3_3S7uHZEcemivKiuioXdtrTSgfIYsNYRLfQdV3oB5aTaF_95pywNxD5nYYqbuesZ8ikVxH2nk3zX_eehYMSMnPhvHeg3b3DJy_-gGGPRTMehK5IO-1x1oz7L4HWZgTM304cAs6Kake9rJFIWJejMlzPZBAg"/>
+</div>
+<h4 class="font-bold text-lg">Vertex Creatives</h4>
+</div>
+</div>
+<div class="p-6">
+<div class="flex justify-between items-center mb-4">
+<span class="px-2 py-1 bg-secondary/10 text-secondary text-[10px] font-technical uppercase tracking-widest rounded">UI/UX Designer</span>
+<span class="text-outline text-xs font-technical">Applied: 92</span>
+</div>
+<div class="space-y-4">
+<div>
+<div class="flex justify-between text-xs font-technical mb-1">
+<span class="text-on-surface-variant">Final Selection</span>
+<span class="text-on-surface font-bold">100%</span>
+</div>
+<div class="w-full bg-surface-high h-1 rounded-full">
+<div class="bg-on-surface h-full w-full"></div>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 py-2 text-xs font-bold border border-glass-stroke rounded hover:bg-surface-high transition-colors">Results</button>
+<button class="flex-1 py-2 text-xs font-bold bg-primary text-on-primary rounded hover:opacity-90 transition-opacity">Archive</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Detailed Applicant Table -->
+<section class="glass-card rounded-xl overflow-hidden border border-glass-stroke shadow-xl">
+<div class="p-6 border-b border-glass-stroke flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+<div>
+<h3 class="font-headline-md text-headline-md text-on-surface">Candidate Roster</h3>
+<p class="text-outline text-technical mt-1">Manage and filter student applications across all active sessions.</p>
+</div>
+<div class="flex items-center gap-3 w-full md:w-auto">
+<button class="flex items-center gap-2 px-4 py-2 bg-surface-high border border-glass-stroke rounded-lg text-technical font-medium hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-sm">filter_list</span>
+                                Filter
+                            </button>
+<button class="flex items-center gap-2 px-4 py-2 bg-surface-high border border-glass-stroke rounded-lg text-technical font-medium hover:text-primary transition-colors">
+<span class="material-symbols-outlined text-sm">file_download</span>
+                                Export CSV
+                            </button>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-surface-container-low/50 text-outline border-b border-glass-stroke">
+<th class="px-6 py-4 font-technical text-[11px] uppercase tracking-wider">Candidate</th>
+<th class="px-6 py-4 font-technical text-[11px] uppercase tracking-wider">Academic Record</th>
+<th class="px-6 py-4 font-technical text-[11px] uppercase tracking-wider">Target Drive</th>
+<th class="px-6 py-4 font-technical text-[11px] uppercase tracking-wider">Status</th>
+<th class="px-6 py-4 font-technical text-[11px] uppercase tracking-wider text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-glass-stroke">
+<!-- Row 1 -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-high border border-glass-stroke flex items-center justify-center text-primary font-bold">
+                                                RS
+                                            </div>
+<div>
+<p class="font-bold text-on-surface">Rohan Sharma</p>
+<p class="text-xs text-outline font-technical">B.Tech Computer Science</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex flex-col gap-1">
+<p class="text-sm font-technical">CGPA: <span class="text-primary font-bold">9.2</span></p>
+<div class="flex gap-1">
+<span class="text-[10px] px-1.5 py-0.5 rounded bg-surface-high border border-glass-stroke text-outline">Python</span>
+<span class="text-[10px] px-1.5 py-0.5 rounded bg-surface-high border border-glass-stroke text-outline">AWS</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">
+                                        NextGen Systems
+                                    </td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-green-500/10 text-green-400 border border-green-500/20 uppercase tracking-tighter">
+<span class="w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5 animate-pulse"></span> Shortlisted
+                                        </span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-high border border-glass-stroke flex items-center justify-center text-tertiary font-bold">
+                                                AM
+                                            </div>
+<div>
+<p class="font-bold text-on-surface">Ananya Mehta</p>
+<p class="text-xs text-outline font-technical">B.Tech Electronics</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex flex-col gap-1">
+<p class="text-sm font-technical">CGPA: <span class="text-primary font-bold">8.7</span></p>
+<div class="flex gap-1">
+<span class="text-[10px] px-1.5 py-0.5 rounded bg-surface-high border border-glass-stroke text-outline">React</span>
+<span class="text-[10px] px-1.5 py-0.5 rounded bg-surface-high border border-glass-stroke text-outline">SQL</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">
+                                        FinEdge Global
+                                    </td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/20 uppercase tracking-tighter">
+                                            Under Review
+                                        </span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-primary/5 transition-colors group">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-high border border-glass-stroke flex items-center justify-center text-secondary font-bold">
+                                                VK
+                                            </div>
+<div>
+<p class="font-bold text-on-surface">Vikram Khanna</p>
+<p class="text-xs text-outline font-technical">B.Tech Information Tech</p>
+</div>
+</div>
+</td>
+<td class="px-6 py-4">
+<div class="flex flex-col gap-1">
+<p class="text-sm font-technical">CGPA: <span class="text-primary font-bold">8.1</span></p>
+<div class="flex gap-1">
+<span class="text-[10px] px-1.5 py-0.5 rounded bg-surface-high border border-glass-stroke text-outline">C++</span>
+</div>
+</div>
+</td>
+<td class="px-6 py-4 text-sm text-on-surface-variant">
+                                        NextGen Systems
+                                    </td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center px-2 py-1 rounded-full text-[10px] font-bold bg-red-500/10 text-red-400 border border-red-500/20 uppercase tracking-tighter">
+                                            Rejected
+                                        </span>
+</td>
+<td class="px-6 py-4 text-right">
+<button class="p-2 text-outline hover:text-primary transition-colors">
+<span class="material-symbols-outlined">more_vert</span>
+</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="p-4 border-t border-glass-stroke flex justify-between items-center bg-surface-container-low/30">
+<p class="text-xs text-outline font-technical">Showing 1-10 of 2,840 students</p>
+<div class="flex gap-2">
+<button class="p-1 border border-glass-stroke rounded hover:bg-surface-high transition-colors disabled:opacity-30" disabled="">
+<span class="material-symbols-outlined text-lg">chevron_left</span>
+</button>
+<button class="p-1 border border-glass-stroke rounded hover:bg-surface-high transition-colors">
+<span class="material-symbols-outlined text-lg">chevron_right</span>
+</button>
+</div>
+</div>
+</section>
+</div>
+<!-- Footer / System Status -->
+<footer class="h-8 border-t border-glass-stroke bg-surface-low/50 px-margin-desktop flex items-center justify-between">
+<div class="flex items-center gap-4 text-[10px] text-outline font-technical uppercase tracking-widest">
+<span class="flex items-center gap-1.5">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                        System Online
+                    </span>
+<span>Last updated: 2 mins ago</span>
+</div>
+<div class="text-[10px] text-outline/50 font-technical italic">
+                    Placement Connect Enterprise Suite v4.2.0
+                </div>
+</footer>
+</main>
+</div>
+<!-- Micro-interaction Script -->
+<script>
+        // Atmospheric interaction for cards
+        document.querySelectorAll('.glass-card').forEach(card => {
+            card.addEventListener('mousemove', e => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+                
+                // Subtle shine effect (simulated via style update)
+                card.style.borderColor = 'rgba(249, 187, 110, 0.15)';
+            });
+            card.addEventListener('mouseleave', () => {
+                card.style.borderColor = 'rgba(255, 255, 255, 0.08)';
+            });
+        });
+    </script>
+</body></html>

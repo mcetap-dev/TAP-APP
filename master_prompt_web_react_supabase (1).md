@@ -84,26 +84,37 @@ No business logic in components. Validation and business rules live in shared sc
 
 ## 7. Implementation scope for this pass
 
-Same module breakdown as the Flutter master prompt, adapted to web:
+Same module breakdown as the Flutter master prompt, adapted to web — plus one module the mobile app never needed: a public landing page, since a website (unlike an installed app) needs something to show a visitor who isn't logged in yet.
 
-### A. Auth & profile bootstrap
-- Login/signup pages per the auth flow in section 5.
+### A. Public landing page (new — web only)
+
+This is the one screen with no equivalent in the Flutter app. It's the first thing anyone hits at the root domain before auth, and it needs to read as a real product's marketing site, not a placeholder in front of the dashboard.
+
+- **Route**: `/` when signed out; signed-in users hitting `/` redirect straight to their role's dashboard — the landing page is never shown to an authenticated session.
+- **Sections**: hero (product name, one-line value proposition, primary CTA into sign-in, secondary CTA to scroll to "How it works"), a short "How it works" walkthrough pinned to the real four-role workflow from section 2 (not generic SaaS filler — student applies, faculty approves, TPO runs the drive, admin reports), a feature-highlight section built around the actual signature elements (the status thread, role-scoped dashboards, real-time status updates), a role-based sign-in entry point (Student / Faculty / TPO / Admin, matching the role-segmented login the Flutter app already uses), and a footer (contact/support, not a fabricated list of links to pages that don't exist).
+- **Content honesty**: no invented testimonials, no fake logos of companies "using" the platform, no placeholder stats ("500+ students placed!") unless real numbers are supplied — use descriptive copy about what the product does instead of unverifiable social proof.
+- **Design**: same token system as the rest of the app (`design.md` — brass/paper-grey/true-black, Fraunces for the hero headline, Inter for body, the status thread rendered as a live-looking illustrative example in the feature section) — a visitor should recognize the same product the moment they log in, not land somewhere that looks like a different brand's marketing site bolted onto the app.
+- **Performance/SEO**: this is the one route where SEO plausibly matters (a logged-out page meant to be found and shared) — semantic HTML, a real `<title>`/meta description, and reasonably fast initial load. If section 11's SSR question resolves toward Next.js, this page is the primary reason why; if it resolves toward a plain SPA, keep this route's bundle lean regardless (no heavy chart libraries or admin-only dependencies loaded before login).
+- **No auth-gated content leaks here**: nothing on this route should query Supabase for anything role-specific — it's static/public content plus the sign-in entry point, nothing else.
+
+### B. Auth & profile bootstrap
+- Login/signup pages per the auth flow in section 5, reached from the landing page's sign-in CTA.
 - Post-login routing by `profiles.role` to the correct module shell.
 - Pending-approval gate for students (browse-only, no Apply actions) — same rule as mobile, enforced by RLS not just route guards.
 
-### B. Admin module
+### C. Admin module
 - Appoint TPO, academic cycle CRUD, NAAC/NBA report screen (query the two views, export PDF/XLSX).
 
-### C. TPO module
+### D. TPO module
 - Appoint Faculty Coordinator (block duplicates), companies CRUD, drive creation + eligibility + exceptions, round scheduling, applicant list with bulk/CSV shortlist upload, offer upload, all-department dashboard.
 
-### D. Faculty Coordinator module
+### E. Faculty Coordinator module
 - Pending-approval queue (approve/reject with reason), department placement history, drive attendance view, optional interview feedback form.
 
-### E. Student module
+### F. Student module
 - Multi-step profile setup, consent/opt-in form, eligible drives list, apply form (blocked if not approved), My Applications tracker, offer accept/decline, grievance/query form, settings.
 
-### F. Shared/cross-cutting
+### G. Shared/cross-cutting
 - Notices/announcements (read for all, write for TPO/Admin).
 - Global search across companies, students, drives — debounced, paginated.
 - Notification center — in-app, backed by Supabase Realtime (web push/FCM is a mobile-only concern, skip it here unless later specified).
@@ -137,6 +148,7 @@ Add a top-level "AI Features" entry to the navigation (visible to all roles, or 
 - Which roles see the AI Features nav entry — all four, or a subset?
 - PDF export approach for Admin/TPO reports (client-side vs. Edge Function) — flagged in section 5, needs a decision before that piece is built.
 - Whether web push notifications are wanted at all for this pass, given FCM was mobile-specific in the original scope.
+- Landing page content: any real numbers/stats to feature (placements made, companies visited, etc.), or should copy stay descriptive with no claimed metrics until real data exists? Also confirm the institution's name/branding details if the page should identify which college this is for.
 
 ---
 

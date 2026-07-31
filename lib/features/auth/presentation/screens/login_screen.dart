@@ -43,12 +43,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.dispose();
   }
 
+  UserRole _selectedRole = UserRole.student;
+
+  String _getDomainForRole(UserRole role) {
+    return role == UserRole.student ? '@ms.mcehassan.ac.in' : '@mcehassan.ac.in';
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
+    final input = _emailCtrl.text.trim();
+    final domain = _getDomainForRole(_selectedRole);
+    final fullEmail = input.endsWith(domain) ? input : '$input$domain';
     try {
       await ref.read(authNotifierProvider.notifier).signInWithPassword(
-            email: _emailCtrl.text.trim(),
+            email: fullEmail,
             password: _passwordCtrl.text,
           );
 
@@ -149,8 +158,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   void _fillPreset(String email, String password) {
-    _emailCtrl.text = email;
+    if (email.endsWith('@ms.mcehassan.ac.in')) {
+      _selectedRole = UserRole.student;
+      _emailCtrl.text = email.replaceAll('@ms.mcehassan.ac.in', '');
+    } else if (email.endsWith('@mcehassan.ac.in')) {
+      if (email.startsWith('admin')) {
+        _selectedRole = UserRole.admin;
+      } else if (email.startsWith('tap')) {
+        _selectedRole = UserRole.tpo;
+      } else {
+        _selectedRole = UserRole.facultyCoordinator;
+      }
+      _emailCtrl.text = email.replaceAll('@mcehassan.ac.in', '');
+    } else {
+      _emailCtrl.text = email;
+    }
     _passwordCtrl.text = password;
+    setState(() {});
   }
 
   String _friendlyError(String raw) {
@@ -164,6 +188,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final brandTheme = theme.extension<AppBrandTheme>()!;
+    final currentDomain = _getDomainForRole(_selectedRole);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -260,21 +285,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
                     const SizedBox(height: AppSpacing.sp5),
 
-                    // Quick Demo Login Chips
-                    Wrap(
-                      spacing: AppSpacing.sp2,
-                      runSpacing: AppSpacing.sp2,
-                      alignment: WrapAlignment.center,
-                      children: [
-                        _demoChip('Student', 'stud1@ms.mcehassan.ac.in', 'Pass123!word', brandTheme),
-                        _demoChip('TPO', 'tap@mcehassan.ac.in', 'Pass123!word', brandTheme),
-                        _demoChip('Faculty', 'facultycse@mcehassan.ac.in', 'Pass123!word', brandTheme),
-                        _demoChip('Admin', 'admin@mcehassan.ac.in', 'Pass123!word', brandTheme),
-                      ],
-                    ),
-
-                    const SizedBox(height: AppSpacing.sp5),
-
                     // Login Form Card
                     Container(
                       constraints: const BoxConstraints(maxWidth: 400),
@@ -296,7 +306,57 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
-                              'EMAIL',
+                              'LOGIN ROLE',
+                              style: GoogleFonts.ibmPlexMono(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.8,
+                                color: brandTheme.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            SegmentedButton<UserRole>(
+                              style: ButtonStyle(
+                                backgroundColor: WidgetStateProperty.resolveWith<Color?>((states) {
+                                  if (states.contains(WidgetState.selected)) {
+                                    return brandTheme.brassSoft;
+                                  }
+                                  return null;
+                                }),
+                                foregroundColor: WidgetStateProperty.resolveWith<Color?>((states) {
+                                  if (states.contains(WidgetState.selected)) {
+                                    return brandTheme.brassPrimary;
+                                  }
+                                  return brandTheme.textMuted;
+                                }),
+                              ),
+                              segments: const [
+                                ButtonSegment(
+                                  value: UserRole.student,
+                                  label: Text('Student'),
+                                  icon: Icon(Icons.school_outlined, size: 16),
+                                ),
+                                ButtonSegment(
+                                  value: UserRole.facultyCoordinator,
+                                  label: Text('Faculty'),
+                                  icon: Icon(Icons.badge_outlined, size: 16),
+                                ),
+                              ],
+                              selected: {
+                                _selectedRole == UserRole.student
+                                    ? UserRole.student
+                                    : UserRole.facultyCoordinator
+                              },
+                              onSelectionChanged: (newSelection) {
+                                setState(() {
+                                  _selectedRole = newSelection.first;
+                                });
+                              },
+                            ),
+                            const SizedBox(height: AppSpacing.sp4),
+
+                            Text(
+                              'EMAIL USERNAME',
                               style: GoogleFonts.ibmPlexMono(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -313,9 +373,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 color: theme.colorScheme.onSurface,
                                 fontSize: 14,
                               ),
-                              validator: AppValidators.email,
-                              decoration: const InputDecoration(
-                                hintText: 'you@mcehassan.ac.in',
+                              validator: (val) {
+                                if (val == null || val.trim().isEmpty) {
+                                  return 'Email username is required';
+                                }
+                                final input = val.trim();
+                                if (input.contains('@') && !input.endsWith(currentDomain)) {
+                                  return 'Please enter username only (suffix $currentDomain is auto-added)';
+                                }
+                                return null;
+                              },
+                              decoration: InputDecoration(
+                                hintText: _selectedRole == UserRole.student ? '4mc21cs001' : 'faculty_name',
+                                suffixText: currentDomain,
+                                suffixStyle: GoogleFonts.ibmPlexMono(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: brandTheme.brassPrimary,
+                                ),
                               ),
                             ),
                             const SizedBox(height: AppSpacing.sp4),
@@ -426,29 +501,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         ),
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.sp3),
-
-                    // Dev Seed Helper Action
-                    TextButton.icon(
-                      onPressed: _isSeeding ? null : _seedDemoAccounts,
-                      icon: _isSeeding
-                          ? SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: brandTheme.brassPrimary,
-                              ),
-                            )
-                          : Icon(Icons.flash_on_rounded, size: 16, color: brandTheme.brassPrimary),
-                      label: Text(
-                        _isSeeding ? 'Creating accounts...' : 'Step 1: Setup Demo Accounts',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: brandTheme.brassPrimary,
-                          fontWeight: FontWeight.w500,
+                    Column(
+                      children: [
+                        Text(
+                          'Malnad College of Engineering',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: theme.colorScheme.onSurface,
+                            letterSpacing: 0.2,
+                          ),
                         ),
-                      ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'A Disha Placement Cell initiative',
+                          textAlign: TextAlign.center,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: brandTheme.brassPrimary,
+                          ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.sp6),
                   ],
@@ -460,13 +535,4 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       ),
     );
   }
-
-  Widget _demoChip(String roleName, String email, String password, AppBrandTheme brandTheme) => ActionChip(
-        avatar: Icon(Icons.person_rounded, size: 14, color: brandTheme.brassPrimary),
-        label: Text(roleName, style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600)),
-        onPressed: () => _fillPreset(email, password),
-        backgroundColor: brandTheme.brassSoft,
-        side: BorderSide(color: brandTheme.cardBorder),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-      );
 }
