@@ -39,13 +39,53 @@ serve(async (req) => {
     }
 
     const payload: EmailPayload = await req.json();
-    const { emailType, recipient, data, createdBy } = payload;
+    let { emailType, recipient, data, createdBy } = payload;
 
     if (!recipient) {
       return new Response(
         JSON.stringify({ success: false, error: "Recipient email is required." }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
       );
+    }
+
+    data = data || {};
+
+    // Guaranteed Real Data Lookup from Supabase Database if parameters are missing
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id, name, role, department, roll_number, email")
+        .eq("email", recipient)
+        .maybeSingle();
+
+      if (profile) {
+        if (!data.studentName && !data.facultyName) {
+          data.studentName = profile.name;
+          data.facultyName = profile.name;
+        }
+        if (!data.department || data.department === "N/A") {
+          data.department = profile.department || "Computer Science and Engineering";
+        }
+        if (!data.role) {
+          data.role = profile.role === "faculty_coordinator" ? "Faculty Coordinator" : profile.role;
+        }
+      }
+
+      // If faculty appointment, look up department from faculty_coordinators if missing
+      if (emailType === "faculty_appointment" && (!data.department || data.department === "N/A")) {
+        if (profile?.id) {
+          const { data: coord } = await supabase
+            .from("faculty_coordinators")
+            .select("department")
+            .eq("profile_id", profile.id)
+            .maybeSingle();
+          if (coord?.department) {
+            data.department = coord.department;
+          }
+        }
+      }
+    } catch (dbErr) {
+      console.warn("[Edge Function] Database fallback lookup warning:", dbErr);
     }
 
     const { subject, html } = generateEmailTemplate(emailType, payload.subject, data);
@@ -220,25 +260,27 @@ function wrapTemplate(title: string, bodyContent: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${title}</title>
   <style>
-    body { margin: 0; padding: 0; background-color: #0F0F0F; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #E0E0E0; }
+    body { margin: 0; padding: 0; background-color: #0F0F0F; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #FFFFFF; }
     .container { max-width: 600px; margin: 20px auto; background: #1A1A1A; border: 1px solid #333333; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.5); }
     .header { background: linear-gradient(135deg, #1A1A1A 0%, #2A2A2A 100%); padding: 30px 20px; text-align: center; border-bottom: 2px solid ${BRAND_GOLD}; }
     .header h1 { margin: 0; color: ${BRAND_GOLD}; font-size: 24px; font-weight: 700; letter-spacing: 1px; }
-    .header p { margin: 5px 0 0 0; color: #A0A0A0; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; }
-    .content { padding: 30px 25px; line-height: 1.6; font-size: 15px; }
+    .header p { margin: 5px 0 0 0; color: #D0D0D0; font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; }
+    .content { padding: 30px 25px; line-height: 1.6; font-size: 15px; color: #EEEEEE; }
+    .content p { color: #E0E0E0 !important; margin: 12px 0; }
+    .content strong { color: #FFFFFF !important; }
     .content h2 { color: #FFFFFF; font-size: 18px; margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 8px; }
     .info-table { width: 100%; border-collapse: collapse; margin: 20px 0; background: #222222; border-radius: 8px; overflow: hidden; }
     .info-table td { padding: 12px 16px; border-bottom: 1px solid #2C2C2C; font-size: 14px; }
     .info-table td.label { color: ${BRAND_GOLD}; font-weight: 600; width: 40%; }
-    .info-table td.value { color: #FFFFFF; }
+    .info-table td.value { color: #FFFFFF; font-weight: 500; }
     .info-table tr:last-child td { border-bottom: none; }
-    .highlight-box { background: rgba(212, 175, 55, 0.1); border-left: 4px solid ${BRAND_GOLD}; padding: 15px; border-radius: 4px; margin: 20px 0; color: #F0F0F0; }
+    .highlight-box { background: rgba(212, 175, 55, 0.15); border-left: 4px solid ${BRAND_GOLD}; padding: 15px; border-radius: 4px; margin: 20px 0; color: #FFFFFF; }
     .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; text-transform: uppercase; }
-    .badge-success { background: #1B4D3E; color: #4EAE87; }
-    .badge-warning { background: #4D3B1B; color: #D4AF37; }
-    .badge-danger { background: #4D1B1B; color: #E57373; }
-    .footer { background: #121212; padding: 20px; text-align: center; font-size: 12px; color: #777777; border-top: 1px solid #262626; }
-    .footer p { margin: 4px 0; }
+    .badge-success { background: #1B4D3E; color: #66BB9A; }
+    .badge-warning { background: #4D3B1B; color: ${BRAND_GOLD}; }
+    .badge-danger { background: #4D1B1B; color: #FF8A8A; }
+    .footer { background: #121212; padding: 20px; text-align: center; font-size: 12px; color: #AAAAAA; border-top: 1px solid #262626; }
+    .footer p { margin: 4px 0; color: #999999 !important; }
   </style>
 </head>
 <body>
@@ -258,6 +300,15 @@ function wrapTemplate(title: string, bodyContent: string): string {
 </body>
 </html>
   `;
+}
+
+function formatDate(d?: string | Date): string {
+  const dateObj = d ? new Date(d) : new Date();
+  if (isNaN(dateObj.getTime())) return String(d);
+  const day = String(dateObj.getDate()).padStart(2, "0");
+  const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+  const year = dateObj.getFullYear();
+  return `${day}/${month}/${year}`;
 }
 
 function generateEmailTemplate(
@@ -317,7 +368,7 @@ function generateEmailTemplate(
         <table class="info-table">
           <tr><td class="label">Faculty Name</td><td class="value">${data.facultyName || "N/A"}</td></tr>
           <tr><td class="label">Department</td><td class="value">${data.department || "N/A"}</td></tr>
-          <tr><td class="label">Appointment Date</td><td class="value">${data.appointmentDate || new Date().toLocaleDateString()}</td></tr>
+          <tr><td class="label">Appointment Date</td><td class="value">${formatDate(data.appointmentDate)}</td></tr>
         </table>
         
         <p>You now have access to department placement analytics, student approval queues, and drive attendance reporting.</p>
