@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Login | Placement Connect</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Literata:wght@500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        :root {
+            --glass-stroke: rgba(255, 255, 255, 0.08);
+            --brass-glow: rgba(169, 117, 47, 0.15);
+        }
+        body {
+            background-color: #131313;
+            overflow: hidden;
+        }
+        .glass-panel {
+            background: rgba(27, 28, 32, 0.7);
+            backdrop-filter: blur(24px);
+            border: 1px solid var(--glass-stroke);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        .inner-highlight {
+            position: relative;
+        }
+        .inner-highlight::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            pointer-events: none;
+            border-radius: inherit;
+        }
+        .shimmer-bg {
+            background: radial-gradient(circle at 50% -20%, #2a1700 0%, #131313 70%);
+        }
+        .brass-gradient {
+            background: linear-gradient(135deg, #f9bb6e 0%, #bd863e 100%);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-error": "#690005",
+                      "outline": "#9d8e7f",
+                      "tertiary-container": "#a078ff",
+                      "primary-fixed-dim": "#f9bb6e",
+                      "on-secondary-fixed-variant": "#46464b",
+                      "secondary-container": "#46464b",
+                      "inverse-primary": "#83540f",
+                      "on-primary-fixed": "#2a1700",
+                      "surface-container-low": "#1b1b1b",
+                      "surface-dim": "#131313",
+                      "on-tertiary-fixed-variant": "#5516be",
+                      "on-primary-fixed-variant": "#653e00",
+                      "on-tertiary-fixed": "#23005c",
+                      "glass-stroke": "rgba(255, 255, 255, 0.08)",
+                      "tertiary": "#d0bcff",
+                      "on-secondary-container": "#b5b4ba",
+                      "error": "#ffb4ab",
+                      "on-background": "#e2e2e2",
+                      "on-secondary": "#2f3034",
+                      "on-surface-variant": "#d5c4b3",
+                      "surface-container-highest": "#353535",
+                      "on-tertiary-container": "#340080",
+                      "background": "#131313",
+                      "surface": "#131313",
+                      "tertiary-fixed-dim": "#d0bcff",
+                      "surface-medium": "#1B1C20",
+                      "surface-high": "#282A2F",
+                      "brass-muted": "#6E4C1F",
+                      "surface-container": "#1f1f1f",
+                      "on-primary": "#472a00",
+                      "inverse-on-surface": "#303030",
+                      "on-surface": "#e2e2e2",
+                      "outline-variant": "#504538",
+                      "tertiary-fixed": "#e9ddff",
+                      "on-tertiary": "#3c0091",
+                      "surface-container-high": "#2a2a2a",
+                      "surface-low": "#111214",
+                      "primary-fixed": "#ffddb8",
+                      "on-error-container": "#ffdad6",
+                      "primary-container": "#bd863e",
+                      "secondary": "#c7c6cb",
+                      "on-primary-container": "#3e2400",
+                      "surface-bright": "#393939",
+                      "error-container": "#93000a",
+                      "secondary-fixed-dim": "#c7c6cb",
+                      "surface-container-lowest": "#0e0e0e",
+                      "secondary-fixed": "#e3e2e7",
+                      "on-secondary-fixed": "#1a1b1f",
+                      "primary": "#f9bb6e",
+                      "surface-tint": "#f9bb6e",
+                      "surface-variant": "#353535",
+                      "inverse-surface": "#e2e2e2"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "gutter": "24px",
+                      "container-max": "1440px",
+                      "margin-desktop": "64px",
+                      "margin-mobile": "20px",
+                      "unit": "4px"
+              },
+              "fontFamily": {
+                      "headline-md": ["literata"],
+                      "label-caps": ["jetbrainsMono"],
+                      "display-lg-mobile": ["literata"],
+                      "body-md": ["inter"],
+                      "technical": ["jetbrainsMono"],
+                      "display-lg": ["literata"],
+                      "body-lg": ["inter"]
+              },
+              "fontSize": {
+                      "headline-md": ["24px", {"lineHeight": "1.3", "fontWeight": "500"}],
+                      "label-caps": ["12px", {"lineHeight": "1.0", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "display-lg-mobile": ["32px", {"lineHeight": "1.2", "fontWeight": "600"}],
+                      "body-md": ["14px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "technical": ["13px", {"lineHeight": "1.4", "fontWeight": "400"}],
+                      "display-lg": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "600"}],
+                      "body-lg": ["16px", {"lineHeight": "1.6", "letterSpacing": "-0.01em", "fontWeight": "400"}]
+              }
+            },
+          },
+        }
+      </script>
+</head>
+<body class="font-body-md text-on-surface selection:bg-primary selection:text-on-primary-container">
+<!-- Ambient Background -->
+<div class="fixed inset-0 z-0 shimmer-bg overflow-hidden">
+<div class="absolute top-1/4 -left-20 w-96 h-96 bg-primary/5 rounded-full blur-[120px] animate-pulse"></div>
+<div class="absolute bottom-1/4 -right-20 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[160px] opacity-30"></div>
+</div>
+<!-- Main Content Stage -->
+<main class="relative z-10 flex min-h-screen items-center justify-center px-margin-mobile md:px-margin-desktop py-gutter">
+<div class="w-full max-w-[480px]">
+<!-- Brand Anchor -->
+<div class="flex flex-col items-center mb-10">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-primary text-4xl" style="font-variation-settings: 'FILL' 1;">business_center</span>
+<h1 class="font-headline-md text-headline-md tracking-tight text-primary">Placement Connect</h1>
+</div>
+<p class="font-technical text-technical text-on-surface-variant uppercase tracking-widest opacity-80">Enterprise Suite Access</p>
+</div>
+<!-- Login Card -->
+<div class="glass-panel inner-highlight rounded-xl overflow-hidden transition-all duration-500">
+<!-- Role Selector Tabs -->
+<div class="flex bg-surface-container-lowest/50 border-b border-glass-stroke p-1">
+<button class="role-tab flex-1 py-3 font-technical text-technical text-primary active-tab bg-surface-high/50 rounded-lg transition-all" onclick="switchRole('Student', this)">
+                        Student
+                    </button>
+<button class="role-tab flex-1 py-3 font-technical text-technical text-on-surface-variant hover:text-primary transition-all" onclick="switchRole('Faculty', this)">
+                        Faculty
+                    </button>
+<button class="role-tab flex-1 py-3 font-technical text-technical text-on-surface-variant hover:text-primary transition-all" onclick="switchRole('TPO', this)">
+                        TPO
+                    </button>
+<button class="role-tab flex-1 py-3 font-technical text-technical text-on-surface-variant hover:text-primary transition-all" onclick="switchRole('Recruiter', this)">
+                        Recruiter
+                    </button>
+</div>
+<div class="p-8 space-y-6">
+<div class="space-y-1">
+<h2 class="font-headline-md text-headline-md text-on-surface" id="login-title">Welcome Back, Student</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Access your professional dashboard.</p>
+</div>
+<!-- SSO Action -->
+<button class="w-full flex items-center justify-center gap-3 py-3.5 px-4 bg-surface-high border border-glass-stroke rounded-lg hover:bg-surface-bright transition-all duration-300 group">
+<svg class="w-5 h-5" viewbox="0 0 23 23" xmlns="http://www.w3.org/2000/svg">
+<path d="M0 0h11v11H0zM12 0h11v11H12zM0 12h11v11H0zM12 12h11v11H12z" fill="#f3f3f3"></path>
+</svg>
+<span class="font-technical text-technical font-medium">Continue with Microsoft SSO</span>
+<span class="material-symbols-outlined text-on-surface-variant group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</button>
+<div class="relative flex items-center gap-4 py-2">
+<div class="flex-1 h-[1px] bg-glass-stroke"></div>
+<span class="font-label-caps text-label-caps text-outline opacity-60">OR LOGIN WITH EMAIL</span>
+<div class="flex-1 h-[1px] bg-glass-stroke"></div>
+</div>
+<!-- Traditional Form -->
+<form class="space-y-4" onsubmit="return false">
+<div class="space-y-2">
+<label class="font-label-caps text-label-caps text-on-surface-variant px-1">Institutional Email</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">alternate_email</span>
+<input class="w-full bg-surface-container-lowest border border-glass-stroke rounded-lg py-3 pl-10 pr-4 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-outline/40" placeholder="name@university.edu" type="email"/>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between items-center px-1">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Security Key</label>
+<a class="font-label-caps text-label-caps text-primary hover:underline" href="#">Forgot?</a>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-lg">lock</span>
+<input class="w-full bg-surface-container-lowest border border-glass-stroke rounded-lg py-3 pl-10 pr-4 text-body-md focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-outline/40" placeholder="••••••••" type="password"/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-outline hover:text-on-surface" type="button">
+<span class="material-symbols-outlined text-lg">visibility</span>
+</button>
+</div>
+</div>
+<div class="flex items-center gap-2 px-1">
+<input class="w-4 h-4 rounded bg-surface-container border-glass-stroke text-primary focus:ring-primary/20" id="remember" type="checkbox"/>
+<label class="font-body-md text-body-md text-on-surface-variant cursor-pointer select-none" for="remember">Keep me signed in for 30 days</label>
+</div>
+<button class="brass-gradient w-full py-4 rounded-lg font-technical text-technical font-bold text-on-primary uppercase tracking-wider hover:brightness-110 active:scale-[0.98] transition-all shadow-lg shadow-primary/10 mt-2">
+                            Authenticate Access
+                        </button>
+</form>
+</div>
+<!-- Footer Section -->
+<div class="bg-surface-high/30 p-6 border-t border-glass-stroke text-center">
+<p class="font-body-md text-body-md text-on-surface-variant">
+                        New to the Enterprise Suite? <a class="text-primary font-medium hover:underline" href="#">Contact Administrator</a>
+</p>
+</div>
+</div>
+<!-- Global Footer Links -->
+<div class="flex justify-center gap-8 mt-12">
+<a class="font-technical text-[11px] text-outline uppercase tracking-widest hover:text-primary transition-colors" href="#">Privacy Protocol</a>
+<a class="font-technical text-[11px] text-outline uppercase tracking-widest hover:text-primary transition-colors" href="#">System Status</a>
+<a class="font-technical text-[11px] text-outline uppercase tracking-widest hover:text-primary transition-colors" href="#">Help Terminal</a>
+</div>
+</div>
+</main>
+<script>
+        function switchRole(role, element) {
+            // Update UI State for Tabs
+            const tabs = document.querySelectorAll('.role-tab');
+            tabs.forEach(tab => {
+                tab.classList.remove('bg-surface-high/50', 'text-primary');
+                tab.classList.add('text-on-surface-variant');
+            });
+            
+            element.classList.add('bg-surface-high/50', 'text-primary');
+            element.classList.remove('text-on-surface-variant');
+
+            // Update Content
+            const title = document.getElementById('login-title');
+            title.textContent = `Welcome Back, ${role}`;
+            
+            // Add a subtle animation effect to the title
+            title.style.opacity = '0';
+            setTimeout(() => {
+                title.style.opacity = '1';
+            }, 50);
+        }
+
+        // Micro-interaction for form inputs
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('focus', () => {
+                input.parentElement.parentElement.classList.add('scale-[1.01]');
+            });
+            input.addEventListener('blur', () => {
+                input.parentElement.parentElement.classList.remove('scale-[1.01]');
+            });
+        });
+    </script>
+</body></html>

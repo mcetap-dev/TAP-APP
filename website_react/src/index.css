@@ -1,0 +1,137 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,450;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;0,7..72,600;1,7..72,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --bg: #131313;
+  --surface: #111214;
+  --surface-alt: #1B1C20;
+  --surface-high: #282A2F;
+  --ink: #F2F1EC;
+  --ink-muted: #9AA3AF;
+  --border: #232428;
+  --brass: #C89446;
+  --brass-soft: rgba(200, 148, 70, 0.16);
+  --success: #4C9172;
+  --success-soft: rgba(76, 145, 114, 0.16);
+  --alert: #D6635D;
+  --alert-soft: rgba(214, 99, 93, 0.16);
+  --info: #6C8FB0;
+  --info-soft: rgba(108, 143, 176, 0.16);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.6), 0 12px 32px rgba(0, 0, 0, 0.55);
+  --font-display: 'Literata', 'Fraunces', serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+}
+
+html[data-theme="light"] {
+  --bg: #F1F2F4;
+  --surface: #FFFFFF;
+  --surface-alt: #E9EAEC;
+  --surface-high: #DCDDE1;
+  --ink: #14171C;
+  --ink-muted: #5B6472;
+  --border: #DADCE1;
+  --brass: #A9752F;
+  --brass-soft: rgba(169, 117, 47, 0.12);
+  --success: #2F6B4F;
+  --success-soft: rgba(47, 107, 79, 0.12);
+  --alert: #B33F3A;
+  --alert-soft: rgba(179, 63, 58, 0.12);
+  --info: #3E5C76;
+  --info-soft: rgba(62, 92, 118, 0.12);
+  --shadow: 0 1px 2px rgba(20, 23, 28, 0.06), 0 8px 24px rgba(20, 23, 28, 0.06);
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Design System Utilities from UIUX Screens Website */
+.card-aureate {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.card-aureate:hover {
+  border-color: rgba(200, 148, 70, 0.3);
+}
+
+.btn-aureate-primary {
+  background-color: var(--brass);
+  color: #0A0A0B;
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 10px 18px;
+  transition: transform 0.1s ease, opacity 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-aureate-primary:active {
+  transform: scale(0.97);
+}
+
+.btn-aureate-secondary {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 10px 18px;
+  transition: transform 0.1s ease, opacity 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-aureate-secondary:hover {
+  background-color: var(--surface-alt);
+}
+
+.badge-aureate {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 100px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.badge-brass {
+  background-color: var(--brass-soft);
+  color: var(--brass);
+}
+
+.badge-success {
+  background-color: var(--success-soft);
+  color: var(--success);
+}
+
+.badge-alert {
+  background-color: var(--alert-soft);
+  color: var(--alert);
+}
+
+.badge-info {
+  background-color: var(--info-soft);
+  color: var(--info);
+}
