@@ -190,16 +190,13 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<void> {
   await sendCmd("DATA", "354");
 
   // MIME Email Content
-  const mailContent = [
-    `From: ${opts.from}`,
-    `To: ${opts.to}`,
-    `Subject: ${opts.subject}`,
-    "MIME-Version: 1.0",
-    "Content-Type: text/html; charset=UTF-8",
-    "",
-    opts.html,
-    ".",
-  ].join("\r\n");
+  const mailContent = 
+    `From: ${opts.from}\r\n` +
+    `To: ${opts.to}\r\n` +
+    `Subject: ${opts.subject}\r\n` +
+    `MIME-Version: 1.0\r\n` +
+    `Content-Type: text/html; charset=UTF-8\r\n\r\n` +
+    `${opts.html}\r\n.`;
 
   await sendCmd(mailContent, "250");
   await sendCmd("QUIT", "221");
