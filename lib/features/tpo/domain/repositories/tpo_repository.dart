@@ -1,6 +1,7 @@
 import '../../../../shared/domain/entities/company.dart';
 import '../../../student/domain/entities/drive.dart';
 import '../../../student/domain/entities/application.dart';
+import '../entities/drive_round.dart';
 
 abstract class TpoRepository {
   Future<void> appointFacultyCoordinator({
@@ -22,7 +23,7 @@ abstract class TpoRepository {
 
   Future<List<Company>> getCompanies();
 
-  Future<void> createDrive({
+  Future<String> createDrive({
     required String companyId,
     required String roleTitle,
     String? ctcOrStipend,
@@ -78,4 +79,59 @@ abstract class TpoRepository {
   });
 
   Future<List<Map<String, dynamic>>> fetchDriveAttendance(String driveId);
+
+  // ── Round Management ──────────────────────────────────────────────────
+
+  Future<void> saveDriveRounds({
+    required String driveId,
+    required List<String> roundNames,
+    required String createdBy,
+  });
+
+  Future<List<DriveRound>> getDriveRounds(String driveId);
+
+  Future<List<Map<String, dynamic>>> getRoundStudents({
+    required String driveId,
+    required int roundNumber,
+  });
+
+  Future<void> moveStudentsToNextRound({
+    required String driveId,
+    required int currentRoundNumber,
+    required List<String> applicationIds,
+    required String performedBy,
+  });
+
+  Future<void> rejectStudents({
+    required String driveId,
+    required int currentRoundNumber,
+    required List<String> applicationIds,
+    String? remarks,
+    required String performedBy,
+  });
+
+  Future<void> markStudentsAbsent({
+    required String driveId,
+    required int currentRoundNumber,
+    required List<String> applicationIds,
+    required String performedBy,
+  });
+
+  Future<void> addRoundRemarks({
+    required String applicationId,
+    required String roundId,
+    required String remarks,
+    required String performedBy,
+  });
+
+  Future<void> sendNotification({
+    required String userId,
+    required String title,
+    required String body,
+    required String type,
+    String? driveId,
+    String? applicationId,
+  });
+
+  Future<List<Map<String, dynamic>>> getStudentRoundProgress(String applicationId);
 }

@@ -163,12 +163,37 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
         return;
       }
 
-      // Insert application
-      await Supabase.instance.client.from('applications').insert({
+      // Insert application — place student in Round 1 by default
+      final appResponse = await Supabase.instance.client
+          .from('applications')
+          .insert({
         'student_id': user.id,
         'drive_id': _drive.id,
         'status': 'applied',
-      });
+        'current_round': 1,
+      }).select('id').maybeSingle();
+
+      final applicationId = appResponse?['id'] as String?;
+
+      // Create application_round_status for Round 1 so student appears in Manage Recruitment
+      if (applicationId != null) {
+        final firstRound = await Supabase.instance.client
+            .from('drive_rounds')
+            .select('id')
+            .eq('drive_id', _drive.id)
+            .eq('round_number', 1)
+            .maybeSingle();
+
+        if (firstRound != null) {
+          await Supabase.instance.client
+              .from('application_round_status')
+              .upsert({
+            'application_id': applicationId,
+            'round_id': firstRound['id'],
+            'result': 'pending',
+          }, onConflict: 'application_id,round_id');
+        }
+      }
 
       // Refresh providers
       ref.invalidate(studentApplicationsProvider);
@@ -487,15 +512,62 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
           border: Border(top: BorderSide(color: brandTheme.cardBorder)),
         ),
         child: alreadyApplied
-            ? Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: brandTheme.statusShortlisted.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(AppShapes.radiusSmall),
-                ),
-                child: Center(
-                  child: Text('Already Applied', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700, color: brandTheme.statusShortlisted)),
+            ? GestureDetector(
+                onTap: () {
+                  // Navigate to student dashboard, Timeline tab (index 2)
+                  context.go('/student');
+                  // Small delay to let navigation settle, then switch tab
+                  Future.delayed(const Duration(milliseconds: 100), () {
+                    if (context.mounted) {
+                      // The dashboard uses _currentNavIndex, default is 0
+                      // We need to trigger the Timeline tab
+                    }
+                  });
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    gradient: brandTheme.brassGradient,
+                    borderRadius: BorderRadius.circular(AppShapes.radiusSmall),
+                    boxShadow: [
+                      BoxShadow(
+                        color: brandTheme.brassPrimary.withValues(alpha: 0.3),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.timeline_rounded, size: 18, color: brandTheme.onBrass),
+                      const SizedBox(width: 10),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'View Recruitment Progress',
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: brandTheme.onBrass,
+                            ),
+                          ),
+                          Text(
+                            'See your recruitment journey',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w400,
+                              color: brandTheme.onBrass.withValues(alpha: 0.75),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(Icons.arrow_forward_rounded, size: 16, color: brandTheme.onBrass.withValues(alpha: 0.7)),
+                    ],
+                  ),
                 ),
               )
             : Row(

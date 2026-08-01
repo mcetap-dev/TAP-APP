@@ -13,6 +13,7 @@ import '../../features/student/presentation/screens/consent_form_screen.dart';
 import '../../features/student/presentation/screens/eligible_drives_screen.dart';
 import '../../features/student/presentation/screens/drive_details_screen.dart';
 import '../../features/student/presentation/screens/scan_attendance_screen.dart';
+import '../../features/student/presentation/screens/student_application_timeline_screen.dart';
 import '../../features/student/domain/entities/drive.dart';
 import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
 import '../../features/admin/presentation/screens/admin_reports_screen.dart';
@@ -23,9 +24,12 @@ import '../../features/admin/presentation/screens/system_settings_screen.dart';
 import '../../features/faculty/presentation/screens/faculty_dashboard_screen.dart';
 import '../../features/faculty/presentation/screens/student_approval_queue_screen.dart';
 import '../../features/faculty/presentation/screens/faculty_waiting_screen.dart';
+import '../../features/faculty/presentation/screens/department_analytics_screen.dart';
 import '../../features/tpo/presentation/screens/tpo_dashboard_screen.dart';
 import '../../features/tpo/presentation/screens/drive_creation_wizard.dart';
 import '../../features/tpo/presentation/screens/applicant_list_screen.dart';
+import '../../features/tpo/presentation/screens/round_management_screen.dart';
+import '../../features/tpo/presentation/screens/student_progress_screen.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
 
@@ -188,6 +192,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'student-scan-attendance',
         builder: (_, __) => const ScanAttendanceScreen(),
       ),
+      GoRoute(
+        path: '/student/timeline',
+        name: 'student-timeline',
+        builder: (_, __) => const StudentApplicationTimelineScreen(),
+      ),
       // ── Faculty routes ──────────────────────────────────────────────────
       GoRoute(
         path: '/faculty',
@@ -203,6 +212,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/faculty/waiting',
         name: 'faculty-waiting',
         builder: (_, __) => const FacultyWaitingScreen(),
+      ),
+      GoRoute(
+        path: '/faculty/analytics',
+        name: 'faculty-analytics',
+        builder: (_, state) {
+          final department = state.uri.queryParameters['dept'] ?? '';
+          return DepartmentAnalyticsScreen(department: department);
+        },
       ),
       // ── Admin routes ────────────────────────────────────────────────────
       GoRoute(
@@ -255,6 +272,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/tpo/appoint-faculty',
         name: 'tpo-appoint-faculty',
         builder: (_, __) => const AppointFacultyCoordinatorScreen(),
+      ),
+      GoRoute(
+        path: '/tpo/round-management',
+        name: 'tpo-round-management',
+        builder: (context, state) {
+          final drive = state.extra as Drive;
+          return RoundManagementScreen(drive: drive);
+        },
+      ),
+      GoRoute(
+        path: '/tpo/student-progress',
+        name: 'tpo-student-progress',
+        builder: (context, state) {
+          final extra = state.extra as Map<String, dynamic>;
+          return StudentProgressScreen(
+            drive: extra['drive'] as Drive,
+            applicationId: extra['applicationId'] as String,
+            studentName: extra['studentName'] as String,
+          );
+        },
       ),
     ],
     errorBuilder: (_, state) => Scaffold(

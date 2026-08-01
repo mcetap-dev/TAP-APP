@@ -3,6 +3,7 @@ import '../../../../shared/domain/entities/company.dart';
 import '../../../student/domain/entities/drive.dart';
 import '../../../student/domain/entities/application.dart';
 import '../../domain/repositories/tpo_repository.dart';
+import '../../domain/entities/drive_round.dart';
 
 import '../../../audit/domain/entities/audit_log_entry.dart';
 import '../../../audit/domain/repositories/audit_log_repository.dart';
@@ -105,7 +106,7 @@ class TpoRepositoryImpl implements TpoRepository {
   final List<Drive> _localDriveCache = [];
 
   @override
-  Future<void> createDrive({
+  Future<String> createDrive({
     required String companyId,
     required String roleTitle,
     String? ctcOrStipend,
@@ -160,12 +161,15 @@ class TpoRepositoryImpl implements TpoRepository {
             targetTable: 'drives',
           );
         } catch (_) {}
+
+        return drive.id;
       }
     } catch (e, stack) {
       // ignore: avoid_print
       print('❌ [TpoRepository] Supabase insert error: $e\n$stack');
       rethrow;
     }
+    return '';
   }
 
   @override
@@ -280,7 +284,7 @@ class TpoRepositoryImpl implements TpoRepository {
     try {
       final response = await _supabase
           .from('drives')
-          .select('*, company:companies(*)')
+          .select('*, company:companies(*), drive_rounds(id, round_number, round_name, instructions, scheduled_date, created_at)')
           .order('created_at', ascending: false);
       return (response as List).map((map) => Drive.fromMap(map)).toList();
     } catch (e) {
@@ -341,5 +345,395 @@ class TpoRepositoryImpl implements TpoRepository {
         .order('scanned_at', ascending: false);
 
     return List<Map<String, dynamic>>.from(response);
+  }
+
+  // ── Round Management ──────────────────────────────────────────────────
+
+  @override
+  Future<void> saveDriveRounds({
+    required String driveId,
+    required List<String> roundNames,
+    required String createdBy,
+  }) async {
+    // Delete existing rounds for this drive
+    await _supabase.from('drive_rounds').delete().eq('drive_id', driveId);
+
+    // Insert new rounds
+    if (roundNames.isEmpty) return;
+
+    final rounds = <Map<String, dynamic>>[];
+    for (var i = 0; i < roundNames.length; i++) {
+      rounds.add({
+        'drive_id': driveId,
+        'round_number': i + 1,
+        'round_name': roundNames[i],
+        'created_by': createdBy,
+      });
+    }
+
+    await _supabase.from('drive_rounds').insert(rounds);
+
+    // Update rounds_count on the drive
+    await _supabase
+        .from('drives')
+        .update({'rounds_count': roundNames.length})
+        .eq('id', driveId);
+  }
+
+  @override
+  Future<List<DriveRound>> getDriveRounds(String driveId) async {
+    final response = await _supabase
+        .from('drive_rounds')
+        .select()
+        .eq('drive_id', driveId)
+        .order('round_number', ascending: true);
+
+    return (response as List)
+        .map((map) => DriveRound.fromMap(map))
+        .toList();
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getRoundStudents({
+    required String driveId,
+    required int roundNumber,
+  }) async {
+    if (roundNumber == 1) {
+      // ── Round 1: attendance-based ───────────────────────────────────
+      // Primary data source is drive_attendance (students who scanned QR).
+      // Cross-reference with applications to ensure they also applied.
+      final attendanceResponse = await _supabase
+          .from('drive_attendance')
+          .select('student_id, scanned_at, status')
+          .eq('drive_id', driveId);
+
+      if ((attendanceResponse as List).isEmpty) return [];
+
+      final attendedStudentIds = <String>{};
+      final attendedAtMap = <String, dynamic>{};
+      final attendanceStatusMap = <String, dynamic>{};
+      for (final a in attendanceResponse as List) {
+        final sid = a['student_id'] as String;
+        attendedStudentIds.add(sid);
+        attendedAtMap[sid] = a['scanned_at'];
+        attendanceStatusMap[sid] = a['status'];
+      }
+
+      // Get all applications for this drive
+      final appsResponse = await _supabase
+          .from('applications')
+          .select(
+              'id, status, applied_at, student_id, current_round, updated_by, '
+              'student:profiles!applications_student_id_fkey(name, email, usn, department, cgpa, semester, photo_url)')
+          .eq('drive_id', driveId)
+          .order('applied_at', ascending: false);
+
+      // Keep only students who both attended AND applied (exclude rejected)
+      final results = <Map<String, dynamic>>[];
+      for (final app in appsResponse as List) {
+        final sid = app['student_id'] as String;
+        final appStatus = (app['status'] as String?) ?? '';
+        if (!attendedStudentIds.contains(sid)) continue;
+        if (appStatus == 'rejected') continue;
+        results.add({
+          ...app as Map<String, dynamic>,
+          'attended_at': attendedAtMap[sid],
+          'attendance_status': attendanceStatusMap[sid],
+        });
+      }
+      return results;
+    }
+
+    // ── Round N (N > 1): application current_round matches ──────────
+    final response = await _supabase
+        .from('applications')
+        .select(
+            'id, status, applied_at, student_id, current_round, updated_by, '
+            'student:profiles!applications_student_id_fkey(name, email, usn, department, cgpa, semester, photo_url)')
+        .eq('drive_id', driveId)
+        .eq('current_round', roundNumber)
+        .order('applied_at', ascending: false);
+
+    return (response as List).cast<Map<String, dynamic>>();
+  }
+
+  @override
+  Future<void> moveStudentsToNextRound({
+    required String driveId,
+    required int currentRoundNumber,
+    required List<String> applicationIds,
+    required String performedBy,
+  }) async {
+    final nextRound = currentRoundNumber + 1;
+
+    // Get current round_id
+    final currentRoundData = await _supabase
+        .from('drive_rounds')
+        .select('id')
+        .eq('drive_id', driveId)
+        .eq('round_number', currentRoundNumber)
+        .maybeSingle();
+
+    for (final appId in applicationIds) {
+      // Get student_id for notification
+      final appData = await _supabase
+          .from('applications')
+          .select('student_id')
+          .eq('id', appId)
+          .maybeSingle();
+      final studentId = appData?['student_id'] as String? ?? '';
+
+      // Mark current round as cleared
+      if (currentRoundData != null) {
+        await _supabase.from('application_round_status').upsert({
+          'application_id': appId,
+          'round_id': currentRoundData['id'],
+          'attended': true,
+          'result': 'cleared',
+          'updated_by': performedBy,
+        }, onConflict: 'application_id,round_id');
+      }
+
+      // Update current_round and status on the application
+      await _supabase
+          .from('applications')
+          .update({
+            'current_round': nextRound,
+            'status': 'shortlisted',
+            'updated_by': performedBy,
+          })
+          .eq('id', appId);
+
+      // Get the round_id for the next round
+      final nextRoundData = await _supabase
+          .from('drive_rounds')
+          .select('id')
+          .eq('drive_id', driveId)
+          .eq('round_number', nextRound)
+          .maybeSingle();
+
+      if (nextRoundData != null) {
+        // Create application_round_status for the next round
+        await _supabase.from('application_round_status').upsert({
+          'application_id': appId,
+          'round_id': nextRoundData['id'],
+          'result': 'pending',
+          'updated_by': performedBy,
+        }, onConflict: 'application_id,round_id');
+      }
+
+      // Log audit
+      try {
+        await _auditLogRepo.logAction(
+          action: AuditAction.other,
+          description: 'Student moved from round $currentRoundNumber to round $nextRound',
+          targetId: appId,
+          targetTable: 'applications',
+        );
+      } catch (_) {}
+
+      // Send notification to student
+      await sendNotification(
+        userId: studentId,
+        title: 'Round Progress Update',
+        body: 'Congratulations! You have been promoted to Round $nextRound. Please check the round details.',
+        type: 'success',
+        driveId: driveId,
+        applicationId: appId,
+      );
+    }
+  }
+
+  @override
+  Future<void> rejectStudents({
+    required String driveId,
+    required int currentRoundNumber,
+    required List<String> applicationIds,
+    String? remarks,
+    required String performedBy,
+  }) async {
+    for (final appId in applicationIds) {
+      // Get student_id for notification
+      final appData = await _supabase
+          .from('applications')
+          .select('student_id')
+          .eq('id', appId)
+          .maybeSingle();
+      final studentId = appData?['student_id'] as String? ?? '';
+
+      // Update application status to rejected
+      await _supabase
+          .from('applications')
+          .update({'status': 'rejected', 'updated_by': performedBy})
+          .eq('id', appId);
+
+      // Get the current round_id
+      final roundData = await _supabase
+          .from('drive_rounds')
+          .select('id')
+          .eq('drive_id', driveId)
+          .eq('round_number', currentRoundNumber)
+          .maybeSingle();
+
+      if (roundData != null) {
+        // Update application_round_status with rejection (attended: true since they were present)
+        await _supabase.from('application_round_status').upsert({
+          'application_id': appId,
+          'round_id': roundData['id'],
+          'attended': true,
+          'result': 'rejected',
+          'remarks': remarks,
+          'updated_by': performedBy,
+        }, onConflict: 'application_id,round_id');
+      }
+
+      // Log audit
+      try {
+        await _auditLogRepo.logAction(
+          action: AuditAction.other,
+          description: 'Student rejected at round $currentRoundNumber${remarks != null ? ': $remarks' : ''}',
+          targetId: appId,
+          targetTable: 'applications',
+        );
+      } catch (_) {}
+
+      // Send notification
+      await sendNotification(
+        userId: studentId,
+        title: 'Application Update',
+        body: 'Your application has not progressed to the next round.${remarks != null ? ' Remarks: $remarks' : ''}',
+        type: 'warning',
+        driveId: driveId,
+        applicationId: appId,
+      );
+    }
+  }
+
+  @override
+  Future<void> markStudentsAbsent({
+    required String driveId,
+    required int currentRoundNumber,
+    required List<String> applicationIds,
+    required String performedBy,
+  }) async {
+    for (final appId in applicationIds) {
+      // Get student_id for notification and attendance update
+      final appData = await _supabase
+          .from('applications')
+          .select('student_id')
+          .eq('id', appId)
+          .maybeSingle();
+      final studentId = appData?['student_id'] as String? ?? '';
+
+      // Mark attendance as absent in drive_attendance
+      if (studentId.isNotEmpty) {
+        await _supabase
+            .from('drive_attendance')
+            .update({'status': 'absent'})
+            .eq('drive_id', driveId)
+            .eq('student_id', studentId);
+      }
+
+      // Get the current round_id
+      final roundData = await _supabase
+          .from('drive_rounds')
+          .select('id')
+          .eq('drive_id', driveId)
+          .eq('round_number', currentRoundNumber)
+          .maybeSingle();
+
+      if (roundData != null) {
+        // Update application_round_status with absent
+        await _supabase.from('application_round_status').upsert({
+          'application_id': appId,
+          'round_id': roundData['id'],
+          'attended': false,
+          'result': 'rejected',
+          'remarks': 'Marked absent',
+          'updated_by': performedBy,
+        }, onConflict: 'application_id,round_id');
+      }
+
+      // Update application status
+      await _supabase
+          .from('applications')
+          .update({'status': 'rejected', 'updated_by': performedBy})
+          .eq('id', appId);
+
+      // Log audit
+      try {
+        await _auditLogRepo.logAction(
+          action: AuditAction.other,
+          description: 'Student marked absent at round $currentRoundNumber',
+          targetId: appId,
+          targetTable: 'applications',
+        );
+      } catch (_) {}
+
+      // Send notification
+      await sendNotification(
+        userId: studentId,
+        title: 'Attendance Update',
+        body: 'You have been marked absent for Round $currentRoundNumber. Your application has been closed.',
+        type: 'warning',
+        driveId: driveId,
+        applicationId: appId,
+      );
+    }
+  }
+
+  @override
+  Future<void> addRoundRemarks({
+    required String applicationId,
+    required String roundId,
+    required String remarks,
+    required String performedBy,
+  }) async {
+    await _supabase.from('application_round_status').upsert({
+      'application_id': applicationId,
+      'round_id': roundId,
+      'remarks': remarks,
+      'updated_by': performedBy,
+    }, onConflict: 'application_id,round_id');
+
+    try {
+      await _auditLogRepo.logAction(
+        action: AuditAction.other,
+        description: 'Remarks added to application',
+        targetId: applicationId,
+        targetTable: 'applications',
+      );
+    } catch (_) {}
+  }
+
+  @override
+  Future<void> sendNotification({
+    required String userId,
+    required String title,
+    required String body,
+    required String type,
+    String? driveId,
+    String? applicationId,
+  }) async {
+    try {
+      await _supabase.from('notifications').insert({
+        'user_id': userId,
+        'title': title,
+        'body': body,
+        'type': type,
+        'drive_id': driveId,
+        'application_id': applicationId,
+      });
+    } catch (_) {}
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getStudentRoundProgress(String applicationId) async {
+    final response = await _supabase
+        .from('application_round_status')
+        .select('*, round:drive_rounds(round_number, round_name, round_date, round_time, venue_or_link, instructions, scheduled_date)')
+        .eq('application_id', applicationId);
+
+    return (response as List).cast<Map<String, dynamic>>();
   }
 }

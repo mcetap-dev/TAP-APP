@@ -157,6 +157,8 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
 
   Widget _overviewTab(BuildContext context, WidgetRef ref, String name, AppBrandTheme brandTheme, ThemeData theme) {
     final drivesAsync = ref.watch(tpoDrivesProvider);
+    final applicantsAsync = ref.watch(tpoApplicantCountProvider);
+    final offersAsync = ref.watch(tpoOffersCountProvider);
     final topPadding = MediaQuery.of(context).padding.top + AppSpacing.sp3;
 
     return SingleChildScrollView(
@@ -218,8 +220,8 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
           drivesAsync.when(
             data: (drives) {
               final activeDrivesCount = drives.length;
-              final applicantsCount = 0; // Dynamic from provider/data
-              final offersCount = 0; // Dynamic from provider/data
+              final applicantsCount = applicantsAsync.valueOrNull ?? 0;
+              final offersCount = offersAsync.valueOrNull ?? 0;
 
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -411,6 +413,8 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
 
   Widget _drivesManagementTab(WidgetRef ref, AppBrandTheme brandTheme, ThemeData theme) {
     final drivesAsync = ref.watch(tpoDrivesProvider);
+    final applicantCountsAsync = ref.watch(tpoDriveApplicantCountsProvider);
+    final applicantCounts = applicantCountsAsync.valueOrNull ?? {};
 
     return SingleChildScrollView(
       padding: EdgeInsets.only(
@@ -583,7 +587,7 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                         const SizedBox(height: 12),
                         const SubtleDivider(height: 1),
 
-                        // Action Bar: View Details & Edit Drive
+                        // Action Bar: View Details, Applied, Manage Rounds, & Edit Drive
                         Row(
                           children: [
                             Expanded(
@@ -591,19 +595,71 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                                 onTap: () => _showDriveDetailsModal(drive, brandTheme, theme),
                                 borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(16)),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.info_outline_rounded, size: 16, color: brandTheme.brassPrimary),
-                                      const SizedBox(width: 6),
+                                      Icon(Icons.info_outline_rounded, size: 18, color: brandTheme.brassPrimary),
+                                      const SizedBox(height: 4),
                                       Text(
-                                        'View Details',
+                                        'Details',
                                         style: GoogleFonts.inter(
-                                          fontSize: 13,
+                                          fontSize: 10,
                                           fontWeight: FontWeight.w600,
                                           color: brandTheme.brassPrimary,
                                         ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Container(width: 1, height: 32, color: brandTheme.cardBorder),
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => _showApplicantsSheet(drive, brandTheme, theme),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.people_outline_rounded, size: 18, color: brandTheme.statusShortlisted),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Applied (${applicantCounts[drive.id] ?? 0})',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: brandTheme.statusShortlisted,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Container(width: 1, height: 32, color: brandTheme.cardBorder),
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => context.push('/tpo/round-management', extra: drive),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.play_circle_outline_rounded, size: 18, color: brandTheme.statusPending),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Recruit',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: brandTheme.statusPending,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
                                       ),
                                     ],
                                   ),
@@ -621,16 +677,16 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                                 ),
                                 borderRadius: const BorderRadius.only(bottomRight: Radius.circular(16)),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 12),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.edit_outlined, size: 16, color: brandTheme.brassPrimary),
-                                      const SizedBox(width: 6),
+                                      Icon(Icons.edit_outlined, size: 18, color: brandTheme.brassPrimary),
+                                      const SizedBox(height: 4),
                                       Text(
-                                        'Edit Drive',
+                                        'Edit',
                                         style: GoogleFonts.inter(
-                                          fontSize: 13,
+                                          fontSize: 10,
                                           fontWeight: FontWeight.w600,
                                           color: brandTheme.brassPrimary,
                                         ),
@@ -1305,6 +1361,212 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showApplicantsSheet(Drive drive, AppBrandTheme brandTheme, ThemeData theme) {
+    final applicantsAsync = ref.read(tpoDriveApplicantsProvider(drive.id));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (ctx, scrollController) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: brandTheme.textMuted.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Applicants',
+                          style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${drive.companyName} — ${drive.roleTitle}',
+                          style: GoogleFonts.inter(fontSize: 13, color: brandTheme.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    icon: Icon(Icons.close_rounded, color: brandTheme.textMuted),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: applicantsAsync.when(
+                  data: (applicants) {
+                    if (applicants.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.people_outline_rounded, size: 40, color: brandTheme.textMuted),
+                            const SizedBox(height: 12),
+                            Text('No applications yet', style: GoogleFonts.inter(fontSize: 14, color: brandTheme.textMuted)),
+                          ],
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      controller: scrollController,
+                      itemCount: applicants.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, i) {
+                        final app = applicants[i];
+                        final student = app['student'] as Map<String, dynamic>? ?? {};
+                        final name = student['name'] as String? ?? 'Student';
+                        final usn = student['usn'] as String? ?? '';
+                        final dept = student['department'] as String? ?? '';
+                        final cgpa = student['cgpa'];
+                        final status = app['status'] as String? ?? 'applied';
+                        final appliedAt = app['applied_at'] as String?;
+                        final dateStr = appliedAt != null
+                            ? DateTime.tryParse(appliedAt)?.toIso8601String().split('T').first ?? ''
+                            : '';
+
+                        Color statusBg;
+                        Color statusText;
+                        switch (status) {
+                          case 'shortlisted':
+                            statusBg = Colors.greenAccent.withValues(alpha: 0.15);
+                            statusText = Colors.greenAccent;
+                            break;
+                          case 'rejected':
+                            statusBg = Colors.redAccent.withValues(alpha: 0.15);
+                            statusText = Colors.redAccent;
+                            break;
+                          case 'selected':
+                            statusBg = Colors.amberAccent.withValues(alpha: 0.15);
+                            statusText = Colors.amberAccent;
+                            break;
+                          default:
+                            statusBg = brandTheme.brassSoft;
+                            statusText = brandTheme.brassPrimary;
+                        }
+
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: brandTheme.cardBorder),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: brandTheme.brassSoft,
+                                child: Text(
+                                  name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
+                                  style: GoogleFonts.fraunces(fontSize: 14, fontWeight: FontWeight.w600, color: brandTheme.brassPrimary),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(name, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      [if (usn.isNotEmpty) usn, if (dept.isNotEmpty) dept].join(' · '),
+                                      style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted),
+                                    ),
+                                    if (cgpa != null) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'CGPA: ${cgpa is num ? cgpa.toStringAsFixed(2) : cgpa}',
+                                        style: GoogleFonts.ibmPlexMono(fontSize: 11, color: brandTheme.brassPrimary),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: statusBg,
+                                      borderRadius: BorderRadius.circular(100),
+                                    ),
+                                    child: Text(
+                                      status.toUpperCase(),
+                                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: statusText),
+                                    ),
+                                  ),
+                                  if (dateStr.isNotEmpty) ...[
+                                    const SizedBox(height: 4),
+                                    Text(dateStr, style: GoogleFonts.ibmPlexMono(fontSize: 10, color: brandTheme.textMuted)),
+                                  ],
+                                ],
+                              ),
+                              const SizedBox(width: 8),
+                              PopupMenuButton<String>(
+                                icon: Icon(Icons.more_vert_rounded, size: 18, color: brandTheme.textMuted),
+                                onSelected: (value) {
+                                  if (value == 'progress') {
+                                    Navigator.of(ctx).pop(); // Close sheet
+                                    context.push('/tpo/student-progress', extra: {
+                                      'drive': drive,
+                                      'applicationId': app['id'] as String,
+                                      'studentName': name,
+                                    });
+                                  }
+                                },
+                                itemBuilder: (_) => [
+                                  PopupMenuItem(
+                                    value: 'progress',
+                                    child: Text('View Progress', style: GoogleFonts.inter(fontSize: 13)),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(
+                    child: Text('Error loading applicants: $e', style: GoogleFonts.inter(fontSize: 13)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

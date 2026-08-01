@@ -10,6 +10,7 @@ import '../../../../core/theme/theme_extensions.dart';
 import '../../../../shared/presentation/widgets/subtle_divider.dart';
 import '../../../student/domain/entities/drive.dart';
 import '../providers/tpo_provider.dart';
+import 'attendance_export_dialog.dart';
 
 class DriveQrCodeModal extends ConsumerStatefulWidget {
   final Drive drive;
@@ -113,119 +114,6 @@ class _DriveQrCodeModalState extends ConsumerState<DriveQrCodeModal>
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => pdf.save(),
       name: 'Drive_QR_${widget.drive.companyName}_${widget.drive.roleTitle}.pdf',
-    );
-  }
-
-  Future<void> _exportPdfReport(List<Map<String, dynamic>> records) async {
-    final pdf = pw.Document();
-
-    pdf.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(32),
-        build: (pw.Context context) => [
-          pw.Header(
-            level: 0,
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text('MALNAD COLLEGE OF ENGINEERING',
-                        style: pw.TextStyle(
-                            fontSize: 14, fontWeight: pw.FontWeight.bold)),
-                    pw.Text('Training & Placement Office (TPO)',
-                        style: const pw.TextStyle(fontSize: 10)),
-                  ],
-                ),
-                pw.Text('OFFICIAL ATTENDANCE LOG',
-                    style: pw.TextStyle(
-                        fontSize: 12, fontWeight: pw.FontWeight.bold)),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 12),
-          pw.Container(
-            padding: const pw.EdgeInsets.all(10),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.grey200,
-              borderRadius: pw.BorderRadius.circular(6),
-            ),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text('Company: ${widget.drive.companyName}',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                pw.Text('Role: ${widget.drive.roleTitle}'),
-                pw.Text('Total Scanned: ${records.length}'),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 16),
-          pw.TableHelper.fromTextArray(
-            headers: ['#', 'Student Name', 'USN', 'Department', 'Scanned Time', 'Status'],
-            data: records.asMap().entries.map((e) {
-              final idx = e.key + 1;
-              final rec = e.value;
-              final profile = rec['profile'] as Map<String, dynamic>? ?? {};
-              final name = profile['name'] as String? ?? 'N/A';
-              final usn = profile['usn'] as String? ?? 'N/A';
-              final dept = profile['department'] as String? ?? 'N/A';
-              final timeStr = rec['scanned_at'] != null
-                  ? DateTime.parse(rec['scanned_at'] as String)
-                      .toLocal()
-                      .toString()
-                      .split('.')
-                      .first
-                  : 'N/A';
-              final status = rec['status'] as String? ?? 'present';
-              return [
-                '$idx',
-                name,
-                usn,
-                dept,
-                timeStr,
-                status.toUpperCase(),
-              ];
-            }).toList(),
-            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColors.white),
-            headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey800),
-            rowDecoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey300))),
-          ),
-        ],
-      ),
-    );
-
-    await Printing.layoutPdf(
-      onLayout: (format) async => pdf.save(),
-      name: 'Attendance_${widget.drive.companyName}_${widget.drive.roleTitle}.pdf',
-    );
-  }
-
-  void _exportCsvReport(List<Map<String, dynamic>> records) {
-    final buffer = StringBuffer();
-    buffer.writeln('SL NO,STUDENT NAME,USN,DEPARTMENT,EMAIL,SCANNED TIME,STATUS');
-
-    for (int i = 0; i < records.length; i++) {
-      final rec = records[i];
-      final profile = rec['profile'] as Map<String, dynamic>? ?? {};
-      final name = profile['name'] as String? ?? '';
-      final usn = profile['usn'] as String? ?? '';
-      final dept = profile['department'] as String? ?? '';
-      final email = profile['email'] as String? ?? '';
-      final timeStr = rec['scanned_at'] != null
-          ? DateTime.parse(rec['scanned_at'] as String).toLocal().toString().split('.').first
-          : '';
-      final status = rec['status'] as String? ?? 'present';
-
-      buffer.writeln('${i + 1},"$name","$usn","$dept","$email","$timeStr","$status"');
-    }
-
-    final bytes = utf8.encode(buffer.toString());
-    Printing.sharePdf(
-      bytes: bytes,
-      filename: 'Attendance_${widget.drive.companyName}.csv',
     );
   }
 
@@ -402,21 +290,20 @@ class _DriveQrCodeModalState extends ConsumerState<DriveQrCodeModal>
                               OutlinedButton.icon(
                                 onPressed: records.isEmpty
                                     ? null
-                                    : () => _exportPdfReport(records),
-                                icon: const Icon(Icons.picture_as_pdf_rounded,
-                                    size: 16, color: Colors.redAccent),
-                                label: const Text('PDF',
-                                    style: TextStyle(color: Colors.redAccent)),
-                              ),
-                              const SizedBox(width: 8),
-                              OutlinedButton.icon(
-                                onPressed: records.isEmpty
-                                    ? null
-                                    : () => _exportCsvReport(records),
-                                icon: const Icon(Icons.table_chart_rounded,
-                                    size: 16, color: Colors.green),
-                                label: const Text('CSV',
-                                    style: TextStyle(color: Colors.green)),
+                                    : () => showAttendanceExportDialog(
+                                          context: context,
+                                          records: records,
+                                          companyName:
+                                              widget.drive.companyName,
+                                          roleTitle:
+                                              widget.drive.roleTitle,
+                                        ),
+                                icon: Icon(Icons.file_download_rounded,
+                                    size: 16, color: accent),
+                                label: Text('Export',
+                                    style: TextStyle(
+                                        color: accent,
+                                        fontWeight: FontWeight.w600)),
                               ),
                             ],
                           ),

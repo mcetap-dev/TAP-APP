@@ -16,6 +16,7 @@ import '../../../../shared/presentation/widgets/subtle_divider.dart';
 import '../../../student/domain/entities/drive.dart';
 import '../../../tpo/presentation/providers/tpo_provider.dart';
 import 'student_approval_queue_screen.dart';
+import 'department_analytics_screen.dart';
 
 class FacultyDashboardScreen extends ConsumerStatefulWidget {
   const FacultyDashboardScreen({super.key});
@@ -379,27 +380,27 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
   }
 
   Widget _analyticsTab(ThemeData theme, AppBrandTheme brandTheme) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + AppSpacing.sp4,
-        left: AppSpacing.sp5,
-        right: AppSpacing.sp5,
-        bottom: 110,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Department Analytics', style: GoogleFonts.fraunces(fontSize: 24, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Text('Placement statistics for your batch', style: GoogleFonts.inter(fontSize: 13, color: brandTheme.textMuted)),
-          const SizedBox(height: AppSpacing.sp5),
-          StateBlockWidget(
-            icon: Icons.analytics_outlined,
-            title: 'Analytics Overview',
-            message: 'Detailed batch analytics and placement ratios will populate once drives conclude.',
-          ),
-        ],
-      ),
+    final profileAsync = ref.watch(authNotifierProvider);
+    return profileAsync.when(
+      data: (profile) {
+        final dept = profile?.department ?? '';
+        if (dept.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.apartment_rounded, size: 48, color: brandTheme.textMuted),
+                const SizedBox(height: 12),
+                Text('No department assigned',
+                    style: GoogleFonts.inter(fontSize: 16, color: brandTheme.textMuted)),
+              ],
+            ),
+          );
+        }
+        return _DepartmentAnalyticsStub(department: dept);
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error: $e')),
     );
   }
 
@@ -824,5 +825,16 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
         ],
       ),
     );
+  }
+}
+
+/// Embeds the DepartmentAnalyticsScreen inside the tab without its own Scaffold/AppBar.
+class _DepartmentAnalyticsStub extends StatelessWidget {
+  final String department;
+  const _DepartmentAnalyticsStub({required this.department});
+
+  @override
+  Widget build(BuildContext context) {
+    return DepartmentAnalyticsScreen(department: department);
   }
 }

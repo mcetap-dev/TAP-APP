@@ -137,7 +137,7 @@ class UserManagementRepositoryImpl implements UserManagementRepository {
   Future<List<UserProfile>> getTpoList() async {
     final response = await _supabase
         .from('tpo_appointments')
-        .select('*, profile:profiles(*)');
+        .select('*, profile:profiles!tpo_appointments_profile_id_fkey(*)');
 
     return (response as List)
         .map((map) => UserProfile.fromMap(map['profile']))

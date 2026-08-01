@@ -139,9 +139,10 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
       final cgpa = double.tryParse(_cgpaCutoffController.text.trim()) ?? 0.0;
       final backlogs = int.tryParse(_backlogsLimitController.text.trim()) ?? 0;
 
+      String targetDriveId = _isEditMode ? widget.driveToEdit!.id : '';
       if (_isEditMode) {
         await repo.updateDrive(
-          driveId: widget.driveToEdit!.id,
+          driveId: targetDriveId,
           companyId: companyId,
           roleTitle: _roleController.text.trim(),
           ctcOrStipend: _ctcController.text.trim(),
@@ -152,7 +153,7 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
           applicationDeadline: _selectedDeadline,
         );
       } else {
-        await repo.createDrive(
+        targetDriveId = await repo.createDrive(
           companyId: companyId,
           roleTitle: _roleController.text.trim(),
           ctcOrStipend: _ctcController.text.trim(),
@@ -166,8 +167,21 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
         );
       }
 
+      // Save rounds to drive_rounds table
+      if (targetDriveId.isNotEmpty && _rounds.isNotEmpty) {
+        await repo.saveDriveRounds(
+          driveId: targetDriveId,
+          roundNames: _rounds,
+          createdBy: createdBy,
+        );
+      }
+
       // Refresh drives list globally across the app
       ref.invalidate(tpoDrivesProvider);
+      // Invalidate rounds provider so round management screen refreshes
+      if (targetDriveId.isNotEmpty) {
+        ref.invalidate(driveRoundsProvider(targetDriveId));
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

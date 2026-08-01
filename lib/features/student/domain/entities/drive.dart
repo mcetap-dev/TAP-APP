@@ -10,6 +10,8 @@ class Drive {
   final int backlogLimit;
   final DateTime applicationDeadline;
   final String status;
+  final int roundsCount;
+  final List<Map<String, dynamic>> rounds;
 
   Drive({
     required this.id,
@@ -23,6 +25,8 @@ class Drive {
     required this.backlogLimit,
     required this.applicationDeadline,
     required this.status,
+    this.roundsCount = 0,
+    this.rounds = const [],
   });
 
   factory Drive.fromMap(Map<String, dynamic> map) {
@@ -76,6 +80,9 @@ class Drive {
       backlogLimit: map['backlog_limit'] as int? ?? map['backlogLimit'] as int? ?? 0,
       applicationDeadline: deadlineDate,
       status: map['status'] as String? ?? 'upcoming',
+      roundsCount: map['rounds_count'] as int? ?? 0,
+      rounds: (map['drive_rounds'] as List?)?.cast<Map<String, dynamic>>() ??
+              (map['rounds'] as List?)?.cast<Map<String, dynamic>>() ?? [],
     );
   }
   // Compatibility getters for legacy UI code

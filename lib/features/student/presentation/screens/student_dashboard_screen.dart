@@ -13,8 +13,10 @@ import '../../../../shared/presentation/widgets/status_thread_widget.dart';
 import '../../../../shared/presentation/widgets/skeleton_loader.dart';
 import '../../../../shared/presentation/widgets/state_block_widget.dart';
 import '../providers/student_drive_provider.dart';
+import '../providers/student_timeline_provider.dart';
 import '../../domain/entities/application.dart';
 import '../../domain/entities/drive.dart';
+import 'student_application_timeline_screen.dart';
 
 class StudentDashboardScreen extends ConsumerStatefulWidget {
   const StudentDashboardScreen({super.key});
@@ -629,51 +631,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
   }
 
   Widget _applicationsTab(ThemeData theme, AppBrandTheme brandTheme) {
-    final appsAsync = ref.watch(studentApplicationsProvider);
-
-    return SingleChildScrollView(
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + AppSpacing.sp4,
-        left: AppSpacing.sp5,
-        right: AppSpacing.sp5,
-        bottom: 110,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Application Timeline', style: GoogleFonts.fraunces(fontSize: 24, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 4),
-          Text('Live recruitment stage tracking', style: GoogleFonts.inter(fontSize: 13, color: brandTheme.textMuted)),
-          const SizedBox(height: AppSpacing.sp5),
-          appsAsync.when(
-            data: (apps) {
-              if (apps.isEmpty) {
-                return StateBlockWidget(
-                  icon: Icons.assignment_outlined,
-                  title: 'No applications submitted',
-                  message: 'When you apply to open drives, your progress timeline will appear here.',
-                );
-              }
-              return Column(
-                children: apps.map((a) => _applicationThreadCard(a.companyName, '${a.roleName} · ${a.status.displayName}', theme, brandTheme)).toList(),
-              );
-            },
-            loading: () => Column(
-              children: const [
-                SkeletonCardRow(),
-                SkeletonCardRow(),
-              ],
-            ),
-            error: (e, _) => StateBlockWidget(
-              icon: Icons.error_outline_rounded,
-              title: "Couldn't load applications",
-              message: e.toString(),
-              isError: true,
-            ),
-          ),
-        ],
-      ),
-    );
+    return const StudentApplicationTimelineScreen();
   }
 
   Widget _profileTab(UserProfile? profile, AppBrandTheme brandTheme, ThemeData theme) {
