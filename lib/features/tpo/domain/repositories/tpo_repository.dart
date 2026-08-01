@@ -35,11 +35,28 @@ abstract class TpoRepository {
     required String createdBy,
   });
 
+  Future<void> updateCompany({
+    required String companyId,
+    required String name,
+  });
+
   Future<List<Drive>> getDrives();
 
   Future<void> updateDriveStatus({
     required String driveId,
     required String status,
+  });
+
+  Future<void> updateDrive({
+    required String driveId,
+    String? companyId,
+    required String roleTitle,
+    String? ctcOrStipend,
+    String? jobDescription,
+    List<String>? eligibilityBranches,
+    double? cgpaCutoff,
+    int? backlogLimit,
+    DateTime? applicationDeadline,
   });
 
   Future<void> updateApplicationStatus({
@@ -59,4 +76,6 @@ abstract class TpoRepository {
     required String offerLetterUrl,
     required DateTime joiningDate,
   });
+
+  Future<List<Map<String, dynamic>>> fetchDriveAttendance(String driveId);
 }

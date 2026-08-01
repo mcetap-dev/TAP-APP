@@ -78,4 +78,11 @@ class Drive {
       status: map['status'] as String? ?? 'upcoming',
     );
   }
+  // Compatibility getters for legacy UI code
+  List<String> get targetBranches => eligibilityBranches;
+  double get minCgpa => cgpaCutoff;
+  int get maxBacklogs => backlogLimit;
+  DateTime get deadline => applicationDeadline;
+  String get description => jobDescription;
+
 }

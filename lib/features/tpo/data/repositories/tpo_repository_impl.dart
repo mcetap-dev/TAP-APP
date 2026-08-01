@@ -62,13 +62,38 @@ class TpoRepositoryImpl implements TpoRepository {
     String? hrContactPhone,
     required String createdBy,
   }) async {
-    await _supabase.from('companies').insert({
-      'name': name,
-      if (industry != null) 'industry': industry,
-      if (hrContactName != null) 'hr_contact_name': hrContactName,
-      if (hrContactEmail != null) 'hr_contact_email': hrContactEmail,
-      if (hrContactPhone != null) 'hr_contact_phone': hrContactPhone,
-    });
+    final cleanName = name.trim();
+    if (cleanName.isEmpty) return;
+
+    // Check if company already exists to avoid duplicate inserts
+    final existing = await _supabase
+        .from('companies')
+        .select('id')
+        .ilike('name', cleanName)
+        .maybeSingle();
+
+    if (existing == null) {
+      await _supabase.from('companies').insert({
+        'name': cleanName,
+        if (industry != null) 'industry': industry,
+        if (hrContactName != null) 'hr_contact_name': hrContactName,
+        if (hrContactEmail != null) 'hr_contact_email': hrContactEmail,
+        if (hrContactPhone != null) 'hr_contact_phone': hrContactPhone,
+      });
+    }
+  }
+
+  @override
+  Future<void> updateCompany({
+    required String companyId,
+    required String name,
+  }) async {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty || companyId.isEmpty) return;
+    await _supabase
+        .from('companies')
+        .update({'name': cleanName})
+        .eq('id', companyId);
   }
 
   @override
@@ -122,9 +147,6 @@ class TpoRepositoryImpl implements TpoRepository {
           .select('*, company:companies(*)')
           .maybeSingle();
 
-      // ignore: avoid_print
-      print('✅ [TpoRepository] Supabase insert response: $response');
-
       if (response != null) {
         final drive = Drive.fromMap(response);
         _localDriveCache.removeWhere((d) => d.id == drive.id);
@@ -141,26 +163,9 @@ class TpoRepositoryImpl implements TpoRepository {
       }
     } catch (e, stack) {
       // ignore: avoid_print
-      print('❌ [TpoRepository] Supabase insert blocked by RLS: $e\n$stack');
+      print('❌ [TpoRepository] Supabase insert error: $e\n$stack');
+      rethrow;
     }
-
-    // Add to local cache guaranteed so drive displays immediately in UI
-    _localDriveCache.insert(
-      0,
-      Drive(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        companyId: companyId,
-        companyName: companyId.isNotEmpty ? 'Company' : 'New Enterprise',
-        roleTitle: roleTitle,
-        ctcOrStipend: ctcOrStipend ?? (packageLpa != null ? '₹$packageLpa LPA' : '₹12 LPA'),
-        jobDescription: jobDescription ?? '',
-        eligibilityBranches: eligibilityBranches ?? [],
-        cgpaCutoff: cgpaCutoff ?? 0.0,
-        backlogLimit: backlogLimit ?? 0,
-        applicationDeadline: applicationDeadline ?? DateTime.now().add(const Duration(days: 14)),
-        status: status,
-      ),
-    );
   }
 
   @override
@@ -214,11 +219,58 @@ class TpoRepositoryImpl implements TpoRepository {
             .update({'status': fallbackStatus})
             .eq('id', driveId);
             
-        // ignore: avoid_print
-        print('✅ [TpoRepository] Fallback status update succeeded with: $fallbackStatus');
       } catch (err) {
         // ignore: avoid_print
         print('❌ [TpoRepository] Supabase drive status update completely failed: $err');
+      }
+    }
+  }
+
+  @override
+  Future<void> updateDrive({
+    required String driveId,
+    String? companyId,
+    required String roleTitle,
+    String? ctcOrStipend,
+    String? jobDescription,
+    List<String>? eligibilityBranches,
+    double? cgpaCutoff,
+    int? backlogLimit,
+    DateTime? applicationDeadline,
+  }) async {
+    double? packageLpa;
+    if (ctcOrStipend != null && ctcOrStipend.isNotEmpty) {
+      final numericStr = ctcOrStipend.replaceAll(RegExp(r'[^0-9.]'), '');
+      packageLpa = double.tryParse(numericStr);
+    }
+
+    final payload = <String, dynamic>{
+      if (companyId != null && companyId.isNotEmpty) 'company_id': companyId,
+      'role': roleTitle,
+      'role_title': roleTitle,
+      if (jobDescription != null) 'description': jobDescription,
+      if (packageLpa != null) 'package_lpa': packageLpa,
+      if (cgpaCutoff != null) 'eligibility_cgpa': cgpaCutoff,
+      if (eligibilityBranches != null) 'eligibility_branches': eligibilityBranches,
+      if (backlogLimit != null) 'backlog_limit': backlogLimit,
+      if (applicationDeadline != null) 'end_date': applicationDeadline.toIso8601String(),
+    };
+
+    // ignore: avoid_print
+    print('🚀 [TpoRepository] Updating drive $driveId in Supabase: $payload');
+
+    final response = await _supabase
+        .from('drives')
+        .update(payload)
+        .eq('id', driveId)
+        .select('*, company:companies(*)')
+        .maybeSingle();
+
+    if (response != null) {
+      final updatedDrive = Drive.fromMap(response);
+      final idx = _localDriveCache.indexWhere((d) => d.id == driveId);
+      if (idx != -1) {
+        _localDriveCache[idx] = updatedDrive;
       }
     }
   }
@@ -228,14 +280,10 @@ class TpoRepositoryImpl implements TpoRepository {
     try {
       final response = await _supabase
           .from('drives')
-          .select('*, company:companies(*)');
-      final remoteDrives = (response as List).map((map) => Drive.fromMap(map)).toList();
-      
-      // Combine remote and local cache without duplicates
-      final remoteIds = remoteDrives.map((d) => d.id).toSet();
-      final uniqueLocal = _localDriveCache.where((d) => !remoteIds.contains(d.id)).toList();
-      return [...uniqueLocal, ...remoteDrives];
-    } catch (_) {
+          .select('*, company:companies(*)')
+          .order('created_at', ascending: false);
+      return (response as List).map((map) => Drive.fromMap(map)).toList();
+    } catch (e) {
       return _localDriveCache;
     }
   }
@@ -282,5 +330,16 @@ class TpoRepositoryImpl implements TpoRepository {
     await _supabase
         .from('applications')
         .update({'status': 'selected'}).eq('id', applicationId);
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchDriveAttendance(String driveId) async {
+    final response = await _supabase
+        .from('drive_attendance')
+        .select('*, profile:profiles!drive_attendance_student_id_fkey(name, email, usn, department)')
+        .eq('drive_id', driveId)
+        .order('scanned_at', ascending: false);
+
+    return List<Map<String, dynamic>>.from(response);
   }
 }

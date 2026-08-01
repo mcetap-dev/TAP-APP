@@ -7,11 +7,13 @@ class StatusNodeData {
   final String label;
   final bool isDone;
   final bool isCurrent;
+  final VoidCallback? onTap;
 
   const StatusNodeData({
     required this.label,
     this.isDone = false,
     this.isCurrent = false,
+    this.onTap,
   });
 }
 
@@ -164,18 +166,11 @@ class _StatusThreadWidgetState extends State<StatusThreadWidget>
                 final isHighlight = node.isDone || node.isCurrent;
                 return SizedBox(
                   width: nodeItemWidth,
-                  child: Text(
-                    node.label,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: totalWidth < 180 ? 8.5 : 10,
-                      fontWeight: FontWeight.w600,
-                      color: isHighlight
-                          ? theme.colorScheme.onSurface
-                          : brandTheme.textMuted,
-                    ),
+                  child: _BlinkingNodeText(
+                    node: node,
+                    isHighlight: isHighlight,
+                    totalWidth: totalWidth,
+                    brandTheme: brandTheme,
                   ),
                 );
               }).toList(),
@@ -225,5 +220,78 @@ class _StatusThreadWidgetState extends State<StatusThreadWidget>
         ),
       );
     }
+  }
+}
+
+class _BlinkingNodeText extends StatefulWidget {
+  final StatusNodeData node;
+  final bool isHighlight;
+  final double totalWidth;
+  final AppBrandTheme brandTheme;
+
+  const _BlinkingNodeText({
+    required this.node,
+    required this.isHighlight,
+    required this.totalWidth,
+    required this.brandTheme,
+  });
+
+  @override
+  State<_BlinkingNodeText> createState() => _BlinkingNodeTextState();
+}
+
+class _BlinkingNodeTextState extends State<_BlinkingNodeText>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _blinkController;
+  late Animation<double> _opacityAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _blinkController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _opacityAnim = Tween<double>(begin: 1.0, end: 0.1).animate(
+      CurvedAnimation(parent: _blinkController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _blinkController.dispose();
+    super.dispose();
+  }
+
+  void _triggerBlink() {
+    _blinkController.forward().then((_) => _blinkController.reverse());
+    if (widget.node.onTap != null) {
+      widget.node.onTap!();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: _triggerBlink,
+      behavior: HitTestBehavior.opaque,
+      child: FadeTransition(
+        opacity: _opacityAnim,
+        child: Text(
+          widget.node.label,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: widget.totalWidth < 180 ? 8.5 : 10,
+            fontWeight: FontWeight.w700,
+            color: widget.isHighlight
+                ? theme.colorScheme.onSurface
+                : widget.brandTheme.textMuted,
+          ),
+        ),
+      ),
+    );
   }
 }

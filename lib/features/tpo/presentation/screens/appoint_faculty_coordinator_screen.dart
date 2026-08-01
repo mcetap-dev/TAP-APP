@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/theme_extensions.dart';
+import '../../../admin/presentation/providers/departments_provider.dart';
 import '../providers/tpo_provider.dart';
 
 class AppointFacultyCoordinatorScreen extends ConsumerStatefulWidget {
@@ -19,15 +20,6 @@ class _AppointFacultyCoordinatorScreenState
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   String? _selectedDept;
-  final List<String> _departments = [
-    'CSE',
-    'ISE',
-    'AIML',
-    'ECE',
-    'EEE',
-    'ME',
-    'Civil'
-  ];
   bool _isSubmitting = false;
 
   @override
@@ -126,6 +118,7 @@ class _AppointFacultyCoordinatorScreenState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final brandTheme = theme.extension<AppBrandTheme>()!;
+    final departmentsAsync = ref.watch(departmentsProvider);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -225,13 +218,15 @@ class _AppointFacultyCoordinatorScreenState
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.account_balance_outlined),
                   ),
-                  items: _departments
-                      .map((d) => DropdownMenuItem<String>(
-                            value: d,
-                            child: Text('$d Department',
-                                style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-                          ))
-                      .toList(),
+                  items: departmentsAsync.hasValue
+                      ? departmentsAsync.value!
+                          .map((d) => DropdownMenuItem<String>(
+                                value: d.branchCode,
+                                child: Text('${d.branchCode} — ${d.name}',
+                                    style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                              ))
+                          .toList()
+                      : [],
                   validator: (val) {
                     if (val == null || val.isEmpty) {
                       return 'Please select a department.';

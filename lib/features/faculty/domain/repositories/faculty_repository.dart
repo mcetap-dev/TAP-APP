@@ -11,6 +11,10 @@ abstract class FacultyRepository {
 
   Future<List<UserProfile>> getPendingStudents({required String department});
 
+  Future<List<UserProfile>> getVerifiedStudents({required String department});
+
+  Future<List<UserProfile>> getRejectedStudents({required String department});
+
   Future<void> reviewStudentApproval({
     required String studentId,
     required ApprovalStatus status,

@@ -11,9 +11,13 @@ import '../../features/student/presentation/screens/student_dashboard_screen.dar
 import '../../features/student/presentation/screens/profile_setup_screen.dart';
 import '../../features/student/presentation/screens/consent_form_screen.dart';
 import '../../features/student/presentation/screens/eligible_drives_screen.dart';
+import '../../features/student/presentation/screens/drive_details_screen.dart';
+import '../../features/student/presentation/screens/scan_attendance_screen.dart';
+import '../../features/student/domain/entities/drive.dart';
 import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
 import '../../features/admin/presentation/screens/admin_reports_screen.dart';
 import '../../features/admin/presentation/screens/tpo_appointment_screen.dart';
+import '../../features/admin/presentation/screens/appoint_faculty_coordinator_screen.dart';
 import '../../features/admin/presentation/screens/audit_logs_screen.dart';
 import '../../features/admin/presentation/screens/system_settings_screen.dart';
 import '../../features/faculty/presentation/screens/faculty_dashboard_screen.dart';
@@ -22,7 +26,6 @@ import '../../features/faculty/presentation/screens/faculty_waiting_screen.dart'
 import '../../features/tpo/presentation/screens/tpo_dashboard_screen.dart';
 import '../../features/tpo/presentation/screens/drive_creation_wizard.dart';
 import '../../features/tpo/presentation/screens/applicant_list_screen.dart';
-import '../../features/tpo/presentation/screens/appoint_faculty_coordinator_screen.dart';
 
 final _rootKey = GlobalKey<NavigatorState>();
 
@@ -68,7 +71,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Logged in → handle redirection based on role and approval status
       if (isLoggedIn) {
         // If student is pending, force them to pending approval screen
-        if (profile.role == UserRole.student && 
+        if (profile.role == UserRole.student &&
             profile.approvalStatus == ApprovalStatus.pending) {
           if (state.matchedLocation != '/pending-approval') {
             return '/pending-approval';
@@ -76,20 +79,47 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return null; // Already on pending-approval
         }
 
+        // ── Onboarding gate: approved students who haven't completed profile ──
+        if (profile.role == UserRole.student &&
+            profile.approvalStatus == ApprovalStatus.approved &&
+            !profile.profileCompleted) {
+          if (state.matchedLocation != '/student/onboarding') {
+            return '/student/onboarding';
+          }
+          return null; // Already on onboarding
+        }
+
         // Otherwise, if they are on an auth screen, redirect to their dashboard
         if (isOnAuth) {
           return _dashboardPath(profile.role);
         }
-        
+
         // Enforce strict role-based route authorization
-        if (profile.role == UserRole.faculty && state.matchedLocation.startsWith('/faculty') && state.matchedLocation != '/faculty/waiting') {
+        if (profile.role == UserRole.faculty &&
+            state.matchedLocation.startsWith('/faculty') &&
+            state.matchedLocation != '/faculty/waiting') {
           return '/faculty/waiting';
         }
 
         // If they are on pending-approval but are no longer pending, redirect to dashboard
-        if (state.matchedLocation == '/pending-approval' && 
-            (profile.role != UserRole.student || profile.approvalStatus != ApprovalStatus.pending)) {
+        if (state.matchedLocation == '/pending-approval' &&
+            (profile.role != UserRole.student ||
+                profile.approvalStatus != ApprovalStatus.pending)) {
           return _dashboardPath(profile.role);
+        }
+
+        // If onboarding is done and they somehow land on /student/onboarding
+        if (profile.role == UserRole.student &&
+            profile.profileCompleted &&
+            state.matchedLocation == '/student/onboarding') {
+          return '/student';
+        }
+
+        // If profile is completed, /student/profile-edit should not open — go to profile page
+        if (profile.role == UserRole.student &&
+            profile.profileCompleted &&
+            state.matchedLocation == '/student/profile-edit') {
+          return '/student';
         }
       }
 
@@ -119,15 +149,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'pending-approval',
         builder: (_, __) => const PendingApprovalScreen(),
       ),
+      // ── Student routes ──────────────────────────────────────────────────
       GoRoute(
         path: '/student',
         name: 'student',
         builder: (_, __) => const StudentDashboardScreen(),
       ),
       GoRoute(
-        path: '/student/profile-setup',
-        name: 'student-profile-setup',
-        builder: (_, __) => const ProfileSetupScreen(),
+        path: '/student/onboarding',
+        name: 'student-onboarding',
+        builder: (_, __) => const ProfileSetupScreen(isEditMode: false),
+      ),
+      GoRoute(
+        path: '/student/profile-edit',
+        name: 'student-profile-edit',
+        builder: (_, __) => const ProfileSetupScreen(isEditMode: true),
       ),
       GoRoute(
         path: '/student/consent-form',
@@ -139,6 +175,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'student-eligible-drives',
         builder: (_, __) => const EligibleDrivesScreen(),
       ),
+      GoRoute(
+        path: '/student/drive-details',
+        name: 'student-drive-details',
+        builder: (context, state) {
+          final drive = state.extra as Drive;
+          return DriveDetailsScreen(drive: drive);
+        },
+      ),
+      GoRoute(
+        path: '/student/scan-attendance',
+        name: 'student-scan-attendance',
+        builder: (_, __) => const ScanAttendanceScreen(),
+      ),
+      // ── Faculty routes ──────────────────────────────────────────────────
       GoRoute(
         path: '/faculty',
         name: 'faculty',
@@ -154,6 +204,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'faculty-waiting',
         builder: (_, __) => const FacultyWaitingScreen(),
       ),
+      // ── Admin routes ────────────────────────────────────────────────────
       GoRoute(
         path: '/admin',
         name: 'admin',
@@ -170,6 +221,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const TpoAppointmentScreen(),
       ),
       GoRoute(
+        path: '/admin/appoint-fc',
+        name: 'admin-appoint-fc',
+        builder: (_, __) => const AppointFacultyCoordinatorScreen(),
+      ),
+      GoRoute(
         path: '/admin/audit-logs',
         name: 'admin-audit-logs',
         builder: (_, __) => const AuditLogsScreen(),
@@ -179,6 +235,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         name: 'admin-settings',
         builder: (_, __) => const SystemSettingsScreen(),
       ),
+      // ── TPO routes ──────────────────────────────────────────────────────
       GoRoute(
         path: '/tpo',
         name: 'tpo',

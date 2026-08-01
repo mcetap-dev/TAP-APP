@@ -5,10 +5,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/presentation/widgets/status_thread_widget.dart';
+import '../../../../shared/presentation/widgets/subtle_divider.dart';
+import '../../../admin/presentation/providers/departments_provider.dart';
+import '../../../admin/domain/entities/department.dart';
 import '../providers/tpo_provider.dart';
 
+import '../../../student/domain/entities/drive.dart';
+
 class DriveCreationWizard extends ConsumerStatefulWidget {
-  const DriveCreationWizard({super.key});
+  final Drive? driveToEdit;
+
+  const DriveCreationWizard({this.driveToEdit, super.key});
 
   @override
   ConsumerState<DriveCreationWizard> createState() => _DriveCreationWizardState();
@@ -21,21 +28,38 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
   final _roundsFormKey = GlobalKey<FormState>();
 
   // Basic Details
-  final _companyController = TextEditingController();
-  final _roleController = TextEditingController();
-  final _ctcController = TextEditingController();
-  final _descriptionController = TextEditingController();
+  late final TextEditingController _companyController;
+  late final TextEditingController _roleController;
+  late final TextEditingController _ctcController;
+  late final TextEditingController _descriptionController;
 
   // Eligibility & Schedule
-  final _cgpaCutoffController = TextEditingController(text: '7.0');
-  final _backlogsLimitController = TextEditingController(text: '0');
-  final List<String> _branches = ['ISE', 'CSE', 'ECE'];
-  final _branchController = TextEditingController();
-  DateTime _selectedDeadline = DateTime.now().add(const Duration(days: 14));
+  late final TextEditingController _cgpaCutoffController;
+  late final TextEditingController _backlogsLimitController;
+  late final List<String> _branches;
+  late DateTime _selectedDeadline;
 
   // Rounds
   final List<String> _rounds = ['Aptitude Test', 'Technical Interview', 'HR Interview'];
   final _roundController = TextEditingController();
+
+  bool get _isEditMode => widget.driveToEdit != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final d = widget.driveToEdit;
+    _companyController = TextEditingController(text: d?.companyName ?? '');
+    _roleController = TextEditingController(text: d?.roleTitle ?? '');
+    _ctcController = TextEditingController(text: d?.ctcOrStipend ?? '');
+    _descriptionController = TextEditingController(text: d?.jobDescription ?? '');
+    _cgpaCutoffController = TextEditingController(text: d != null ? '${d.cgpaCutoff}' : '7.0');
+    _backlogsLimitController = TextEditingController(text: d != null ? '${d.backlogLimit}' : '0');
+    _branches = d != null && d.eligibilityBranches.isNotEmpty
+        ? List<String>.from(d.eligibilityBranches)
+        : [];
+    _selectedDeadline = d?.applicationDeadline ?? DateTime.now().add(const Duration(days: 14));
+  }
 
   @override
   void dispose() {
@@ -45,7 +69,6 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
     _descriptionController.dispose();
     _cgpaCutoffController.dispose();
     _backlogsLimitController.dispose();
-    _branchController.dispose();
     _roundController.dispose();
     super.dispose();
   }
@@ -80,54 +103,76 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
       final user = Supabase.instance.client.auth.currentUser;
       final createdBy = user?.id ?? '';
 
-      // Get or create company first if needed
-      final companies = await repo.getCompanies();
-      String companyId = '';
+      // Company handling
       final companyName = _companyController.text.trim();
+      String companyId = '';
 
-      final existingCompany = companies.where((c) => c.name.toLowerCase() == companyName.toLowerCase()).firstOrNull;
-      if (existingCompany != null) {
-        companyId = existingCompany.id;
+      if (_isEditMode) {
+        companyId = widget.driveToEdit!.companyId;
+        if (companyId.isNotEmpty && companyName.isNotEmpty) {
+          // UPDATE existing company row in-place directly in companies table
+          await repo.updateCompany(companyId: companyId, name: companyName);
+        }
       } else {
-      try {
-        await repo.createCompany(
-          name: companyName,
-          createdBy: createdBy,
-        );
-        final updatedCompanies = await repo.getCompanies();
-        final newlyCreated = updatedCompanies.where((c) => c.name.toLowerCase() == companyName.toLowerCase()).firstOrNull;
-        companyId = newlyCreated?.id ?? (updatedCompanies.isNotEmpty ? updatedCompanies.first.id : '');
-      } catch (_) {
-        // If company creation RLS policy blocks insertion, pick matching or first existing company
-        final updatedCompanies = await repo.getCompanies();
-        final newlyCreated = updatedCompanies.where((c) => c.name.toLowerCase() == companyName.toLowerCase()).firstOrNull;
-        companyId = newlyCreated?.id ?? (updatedCompanies.isNotEmpty ? updatedCompanies.first.id : '');
+        final companies = await repo.getCompanies();
+
+        // Check if company already exists (case-insensitive)
+        final existingCompany = companies
+            .where((c) => c.name.trim().toLowerCase() == companyName.toLowerCase())
+            .firstOrNull;
+
+        if (existingCompany != null) {
+          companyId = existingCompany.id;
+        } else if (companyName.isNotEmpty) {
+          await repo.createCompany(
+            name: companyName,
+            createdBy: createdBy,
+          );
+          final updatedCompanies = await repo.getCompanies();
+          final newlyCreated = updatedCompanies
+              .where((c) => c.name.trim().toLowerCase() == companyName.toLowerCase())
+              .firstOrNull;
+          companyId = newlyCreated?.id ?? (updatedCompanies.isNotEmpty ? updatedCompanies.first.id : '');
+        }
       }
-    }
 
       final cgpa = double.tryParse(_cgpaCutoffController.text.trim()) ?? 0.0;
       final backlogs = int.tryParse(_backlogsLimitController.text.trim()) ?? 0;
 
-      await repo.createDrive(
-        companyId: companyId,
-        roleTitle: _roleController.text.trim(),
-        ctcOrStipend: _ctcController.text.trim(),
-        jobDescription: _descriptionController.text.trim(),
-        eligibilityBranches: _branches,
-        cgpaCutoff: cgpa,
-        backlogLimit: backlogs,
-        applicationDeadline: _selectedDeadline,
-        status: 'active',
-        createdBy: createdBy,
-      );
+      if (_isEditMode) {
+        await repo.updateDrive(
+          driveId: widget.driveToEdit!.id,
+          companyId: companyId,
+          roleTitle: _roleController.text.trim(),
+          ctcOrStipend: _ctcController.text.trim(),
+          jobDescription: _descriptionController.text.trim(),
+          eligibilityBranches: _branches,
+          cgpaCutoff: cgpa,
+          backlogLimit: backlogs,
+          applicationDeadline: _selectedDeadline,
+        );
+      } else {
+        await repo.createDrive(
+          companyId: companyId,
+          roleTitle: _roleController.text.trim(),
+          ctcOrStipend: _ctcController.text.trim(),
+          jobDescription: _descriptionController.text.trim(),
+          eligibilityBranches: _branches,
+          cgpaCutoff: cgpa,
+          backlogLimit: backlogs,
+          applicationDeadline: _selectedDeadline,
+          status: 'active',
+          createdBy: createdBy,
+        );
+      }
 
       // Refresh drives list globally across the app
       ref.invalidate(tpoDrivesProvider);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ New placement drive created & published!'),
+          SnackBar(
+            content: Text(_isEditMode ? '✅ Drive updated successfully!' : '✅ New placement drive created & published!'),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -154,6 +199,7 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final brandTheme = theme.extension<AppBrandTheme>()!;
+    final departmentsAsync = ref.watch(departmentsProvider);
 
     final stepsData = [
       const StatusNodeData(label: 'Basic Info', isDone: true),
@@ -164,7 +210,7 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: Text('Create Placement Drive', style: GoogleFonts.fraunces(fontWeight: FontWeight.w600)),
+        title: Text(_isEditMode ? 'Edit Placement Drive' : 'Create Placement Drive', style: GoogleFonts.fraunces(fontWeight: FontWeight.w600)),
         backgroundColor: theme.colorScheme.surface,
         foregroundColor: theme.colorScheme.onSurface,
         elevation: 0,
@@ -214,13 +260,13 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
                 ],
               ),
             ),
-            const Divider(height: 1, thickness: 1),
+            const SubtleDivider(height: 1, thickness: 1),
 
             // Step Content Form Body
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(AppSpacing.sp5),
-                child: _buildCurrentStepForm(theme, brandTheme),
+                child: _buildCurrentStepForm(theme, brandTheme, departmentsAsync),
               ),
             ),
 
@@ -277,7 +323,7 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
                         ),
                         child: Center(
                           child: Text(
-                            _currentStep == 2 ? 'Publish Drive' : 'Continue to Next Step',
+                            _currentStep == 2 ? (_isEditMode ? 'Save Changes' : 'Publish Drive') : 'Continue to Next Step',
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
@@ -297,7 +343,7 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
     );
   }
 
-  Widget _buildCurrentStepForm(ThemeData theme, AppBrandTheme brandTheme) {
+  Widget _buildCurrentStepForm(ThemeData theme, AppBrandTheme brandTheme, AsyncValue<List<Department>> departmentsAsync) {
     switch (_currentStep) {
       case 0:
         return Form(
@@ -411,90 +457,50 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
                 ),
               ),
               const SizedBox(height: AppSpacing.sp5),
-              _fieldHeader('QUICK BATCH PRESETS', brandTheme),
-              Wrap(
-                spacing: AppSpacing.sp2,
-                runSpacing: AppSpacing.sp2,
-                children: [
-                  ActionChip(
-                    label: Text('All Branches', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600)),
-                    backgroundColor: brandTheme.surfaceAlt,
-                    onPressed: () {
-                      setState(() {
-                        _branches.clear();
-                        _branches.addAll(['CSE', 'ISE', 'ECE', 'EEE', 'MECH', 'CIVIL', 'AIML']);
-                      });
-                    },
-                  ),
-                  ActionChip(
-                    label: Text('CS & Circuit Only', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600)),
-                    backgroundColor: brandTheme.surfaceAlt,
-                    onPressed: () {
-                      setState(() {
-                        _branches.clear();
-                        _branches.addAll(['CSE', 'ISE', 'ECE', 'AIML']);
-                      });
-                    },
-                  ),
-                  ActionChip(
-                    label: Text('Core Engineering', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600)),
-                    backgroundColor: brandTheme.surfaceAlt,
-                    onPressed: () {
-                      setState(() {
-                        _branches.clear();
-                        _branches.addAll(['EEE', 'MECH', 'CIVIL']);
-                      });
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sp4),
               _fieldHeader('ELIGIBLE BRANCHES', brandTheme),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextFormField(
-                      controller: _branchController,
-                      decoration: const InputDecoration(hintText: 'Add Branch (e.g. EEE, MECH)'),
-                    ),
+              if (departmentsAsync.hasValue)
+                ActionChip(
+                  label: Text('All Branches', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600)),
+                  backgroundColor: brandTheme.surfaceAlt,
+                  onPressed: () {
+                    setState(() {
+                      _branches.clear();
+                      _branches.addAll(departmentsAsync.value!.map((d) => d.branchCode));
+                    });
+                  },
+                ),
+              if (departmentsAsync.hasValue) ...[
+                const SizedBox(height: AppSpacing.sp4),
+                ActionChip(
+                  avatar: Icon(Icons.tune_rounded, size: 16, color: brandTheme.brassPrimary),
+                  label: Text(
+                    _branches.isEmpty
+                        ? 'Choose Specific Departments'
+                        : '${_branches.length} department${_branches.length == 1 ? '' : 's'} selected',
+                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: _branches.isEmpty ? brandTheme.textMuted : brandTheme.brassPrimary),
                   ),
-                  const SizedBox(width: AppSpacing.sp2),
-                  GestureDetector(
-                    onTap: () {
-                      if (_branchController.text.trim().isNotEmpty) {
-                        setState(() {
-                          _branches.add(_branchController.text.trim().toUpperCase());
-                          _branchController.clear();
-                        });
-                      }
-                    },
-                    child: Container(
-                      height: 48,
-                      width: 48,
-                      decoration: BoxDecoration(
-                        gradient: brandTheme.brassGradient,
-                        borderRadius: BorderRadius.circular(AppShapes.radiusSmall),
-                      ),
-                      child: Icon(Icons.add_rounded, color: brandTheme.onBrass),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sp3),
-              Wrap(
-                spacing: AppSpacing.sp2,
-                runSpacing: AppSpacing.sp2,
-                children: _branches.map((branch) {
-                  return Chip(
-                    label: Text(branch, style: GoogleFonts.ibmPlexMono(fontSize: 12, fontWeight: FontWeight.w700)),
-                    backgroundColor: brandTheme.brassSoft,
-                    deleteIcon: const Icon(Icons.close_rounded, size: 14),
-                    onDeleted: () => setState(() => _branches.remove(branch)),
-                    side: BorderSide(color: brandTheme.cardBorder),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-                  );
-                }).toList(),
-              ),
+                  backgroundColor: _branches.isEmpty ? brandTheme.surfaceAlt : brandTheme.brassSoft,
+                  side: BorderSide(color: _branches.isEmpty ? brandTheme.cardBorder : brandTheme.brassPrimary.withOpacity(0.3)),
+                  onPressed: () => _showDepartmentPicker(departmentsAsync.value!, brandTheme),
+                ),
+              ],
+              if (_branches.isNotEmpty) ...[
+                const SizedBox(height: AppSpacing.sp4),
+                Wrap(
+                  spacing: AppSpacing.sp2,
+                  runSpacing: AppSpacing.sp2,
+                  children: _branches.map((branch) {
+                    return Chip(
+                      label: Text(branch, style: GoogleFonts.ibmPlexMono(fontSize: 12, fontWeight: FontWeight.w700)),
+                      backgroundColor: brandTheme.brassSoft,
+                      deleteIcon: const Icon(Icons.close_rounded, size: 14),
+                      onDeleted: () => setState(() => _branches.remove(branch)),
+                      side: BorderSide(color: brandTheme.cardBorder),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                    );
+                  }).toList(),
+                ),
+              ],
             ],
           ),
         );
@@ -610,6 +616,247 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
       default:
         return const SizedBox();
     }
+  }
+
+  void _showDepartmentPicker(List<Department> departments, AppBrandTheme brandTheme) {
+    final selected = Set<String>.from(_branches);
+    String searchQuery = '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final theme = Theme.of(ctx);
+        return StatefulBuilder(
+          builder: (ctx, setSheetState) {
+            final filtered = departments.where((d) {
+              if (searchQuery.isEmpty) return true;
+              final q = searchQuery.toLowerCase();
+              return d.branchCode.toLowerCase().contains(q) || d.name.toLowerCase().contains(q);
+            }).toList();
+
+            return Container(
+              height: MediaQuery.of(ctx).size.height * 0.7,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surface,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    margin: const EdgeInsets.only(top: 12),
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(color: brandTheme.textMuted.withOpacity(0.3), borderRadius: BorderRadius.circular(2)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.sp5, AppSpacing.sp4, AppSpacing.sp5, 0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Select Departments', style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${selected.length} of ${departments.length} selected',
+                                style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted),
+                              ),
+                            ],
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _branches.clear();
+                              _branches.addAll(selected);
+                            });
+                            Navigator.pop(ctx);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              gradient: brandTheme.brassGradient,
+                              borderRadius: BorderRadius.circular(100),
+                            ),
+                            child: Text('Done', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: brandTheme.onBrass)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sp3),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sp5),
+                    child: TextField(
+                      onChanged: (val) => setSheetState(() => searchQuery = val),
+                      style: GoogleFonts.inter(fontSize: 14),
+                      decoration: InputDecoration(
+                        hintText: 'Search departments...',
+                        hintStyle: GoogleFonts.inter(color: brandTheme.textMuted),
+                        prefixIcon: Icon(Icons.search_rounded, color: brandTheme.textMuted, size: 20),
+                        filled: true,
+                        fillColor: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: brandTheme.cardBorder),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: brandTheme.cardBorder),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: brandTheme.brassPrimary),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sp3),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sp5),
+                    child: Row(
+                      children: [
+                        _pickerActionChip('Select All', Icons.check_circle_outline_rounded, brandTheme, () {
+                          setSheetState(() => selected.addAll(departments.map((d) => d.branchCode)));
+                        }),
+                        const SizedBox(width: AppSpacing.sp2),
+                        _pickerActionChip('Clear All', Icons.remove_circle_outline_rounded, brandTheme, () {
+                          setSheetState(() => selected.clear());
+                        }),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.sp3),
+                  const SubtleDivider(),
+                  Expanded(
+                    child: filtered.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.search_off_rounded, size: 40, color: brandTheme.textMuted.withOpacity(0.4)),
+                                const SizedBox(height: 8),
+                                Text('No departments found', style: GoogleFonts.inter(color: brandTheme.textMuted, fontSize: 13)),
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sp5, vertical: AppSpacing.sp3),
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 2),
+                            itemBuilder: (_, i) {
+                              final dept = filtered[i];
+                              final isSelected = selected.contains(dept.branchCode);
+                              return GestureDetector(
+                                onTap: () {
+                                  setSheetState(() {
+                                    if (isSelected) {
+                                      selected.remove(dept.branchCode);
+                                    } else {
+                                      selected.add(dept.branchCode);
+                                    }
+                                  });
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 150),
+                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  decoration: BoxDecoration(
+                                    color: Colors.transparent,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(
+                                      color: isSelected ? brandTheme.brassPrimary : brandTheme.cardBorder,
+                                      width: isSelected ? 1.5 : 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      AnimatedContainer(
+                                        duration: const Duration(milliseconds: 150),
+                                        width: 22,
+                                        height: 22,
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? brandTheme.brassPrimary : Colors.transparent,
+                                          borderRadius: BorderRadius.circular(6),
+                                          border: Border.all(
+                                            color: isSelected ? brandTheme.brassPrimary : brandTheme.textMuted.withOpacity(0.4),
+                                            width: 1.5,
+                                          ),
+                                        ),
+                                        child: isSelected
+                                            ? Icon(Icons.check_rounded, size: 14, color: brandTheme.onBrass)
+                                            : null,
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Container(
+                                        width: 36,
+                                        height: 28,
+                                        decoration: BoxDecoration(
+                                          color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            dept.branchCode,
+                                            style: GoogleFonts.ibmPlexMono(
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w800,
+                                              color: brandTheme.textMuted,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Text(
+                                          dept.name,
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: brandTheme.textMuted,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  const SizedBox(height: AppSpacing.sp4),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _pickerActionChip(String label, IconData icon, AppBrandTheme brandTheme, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: brandTheme.surfaceAlt,
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(color: brandTheme.cardBorder),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 14, color: brandTheme.textMuted),
+            const SizedBox(width: 4),
+            Text(label, style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: brandTheme.textMuted)),
+          ],
+        ),
+      ),
+    );
   }
 
   Widget _fieldHeader(String title, AppBrandTheme brandTheme) {

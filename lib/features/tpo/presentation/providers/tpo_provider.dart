@@ -40,3 +40,13 @@ final facultyCoordinatorsProvider = FutureProvider<List<Map<String, dynamic>>>((
   final repo = ref.watch(tpoRepositoryProvider);
   return repo.fetchFacultyCoordinators();
 });
+
+final driveAttendanceProvider = FutureProvider.family<List<Map<String, dynamic>>, String>((ref, driveId) async {
+  final timer = Stream.periodic(const Duration(seconds: 3)).listen((_) {
+    ref.invalidateSelf();
+  });
+  ref.onDispose(() => timer.cancel());
+
+  final repo = ref.watch(tpoRepositoryProvider);
+  return repo.fetchDriveAttendance(driveId);
+});

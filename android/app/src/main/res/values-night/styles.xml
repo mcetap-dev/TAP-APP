@@ -15,4 +15,9 @@
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+    <!-- Custom theme for UCropActivity: handles status bar on edge-to-edge devices (dark mode) -->
+    <style name="CropTheme" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:fitsSystemWindows">true</item>
+        <item name="android:statusBarColor">#FF1A1A2E</item>
+    </style>
 </resources>

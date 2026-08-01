@@ -6,6 +6,12 @@ abstract class UserManagementRepository {
     required String appointedBy,
   });
 
+  Future<void> appointFacultyCoordinator({
+    required String email,
+    required String department,
+    required String appointedBy,
+  });
+
   Future<List<UserProfile>> getTpoList();
 
   Future<void> createAcademicCycle({

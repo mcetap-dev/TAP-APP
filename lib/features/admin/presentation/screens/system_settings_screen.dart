@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/theme_extensions.dart';
+import '../../../../shared/presentation/widgets/subtle_divider.dart';
+import '../../domain/entities/department.dart';
+import '../providers/departments_provider.dart';
 
-class SystemSettingsScreen extends StatefulWidget {
+class SystemSettingsScreen extends ConsumerStatefulWidget {
   const SystemSettingsScreen({super.key});
 
   @override
-  State<SystemSettingsScreen> createState() => _SystemSettingsScreenState();
+  ConsumerState<SystemSettingsScreen> createState() => _SystemSettingsScreenState();
 }
 
-class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
+class _SystemSettingsScreenState extends ConsumerState<SystemSettingsScreen> {
   // Academic Configuration
   String _activeYear = '2025-26';
   String _activeBatch = '2026';
@@ -25,15 +29,6 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   // CGPA & Criteria
   final _defaultCgpaController = TextEditingController(text: '7.0');
   final _maxBacklogsController = TextEditingController(text: '0');
-
-  // Department list
-  final List<String> _departments = [
-    'Computer Science & Engineering',
-    'Information Science & Engineering',
-    'Electronics & Communication',
-    'Mechanical Engineering',
-    'Civil Engineering',
-  ];
 
   bool _isSaving = false;
 
@@ -58,11 +53,39 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     }
   }
 
+  Future<void> _deleteDepartment(Department dept) async {
+    try {
+      final repo = ref.read(departmentsRepositoryProvider);
+      await repo.delete(dept.id);
+      ref.invalidate(departmentsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Deleted department ${dept.name}'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting department: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final brandTheme = theme.extension<AppBrandTheme>();
     final accent = brandTheme?.brassPrimary ?? theme.colorScheme.primary;
+
+    final deptsAsync = ref.watch(departmentsProvider);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surfaceContainerLowest,
@@ -103,7 +126,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                 onChanged: (v) => setState(() => _activeYear = v!),
               ),
             ),
-            const Divider(height: 1),
+            const SubtleDivider(height: 1),
             _settingRow(
               icon: Icons.school_rounded,
               color: const Color(0xFF8B5CF6),
@@ -134,7 +157,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
               onChanged: (v) => setState(() => _allowMultipleOffers = v),
               accent: accent,
             ),
-            const Divider(height: 1),
+            const SubtleDivider(height: 1),
             _toggleRow(
               icon: Icons.verified_user_rounded,
               color: const Color(0xFF3B82F6),
@@ -144,7 +167,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
               onChanged: (v) => setState(() => _requireFacultyApproval = v),
               accent: accent,
             ),
-            const Divider(height: 1),
+            const SubtleDivider(height: 1),
             _toggleRow(
               icon: Icons.how_to_vote_rounded,
               color: const Color(0xFFB45309),
@@ -154,7 +177,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
               onChanged: (v) => setState(() => _consentMandatory = v),
               accent: accent,
             ),
-            const Divider(height: 1),
+            const SubtleDivider(height: 1),
             _toggleRow(
               icon: Icons.notifications_active_rounded,
               color: const Color(0xFF8B5CF6),
@@ -204,7 +227,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                 ],
               ),
             ),
-            const Divider(height: 1),
+            const SubtleDivider(height: 1),
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(
@@ -241,49 +264,88 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
 
           const SizedBox(height: 20),
 
-          // ─── Section 4: Departments ───
-          _sectionHeader('🏛️ Departments', theme, brandTheme),
+          // ─── Section 4: Departments with Branch Codes ───
+          _sectionHeader('🏛️ Departments & USN Branch Mapping', theme, brandTheme),
           const SizedBox(height: 10),
-          _card(theme, brandTheme, [
-            ..._departments.asMap().entries.map((e) => Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 32, height: 32,
-                            decoration: BoxDecoration(color: accent.withValues(alpha: 0.10), shape: BoxShape.circle),
-                            alignment: Alignment.center,
-                            child: Text('${e.key + 1}', style: GoogleFonts.ibmPlexMono(fontWeight: FontWeight.w700, fontSize: 13, color: accent)),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(child: Text(e.value, style: GoogleFonts.inter(fontSize: 13))),
-                          IconButton(
-                            icon: Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red.shade300),
-                            onPressed: () => setState(() => _departments.removeAt(e.key)),
-                            padding: EdgeInsets.zero,
-                          ),
-                        ],
+          deptsAsync.when(
+            loading: () => _card(theme, brandTheme, [
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ]),
+            error: (err, _) => _card(theme, brandTheme, [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text('Error loading departments: $err', style: const TextStyle(color: Colors.red)),
+              ),
+            ]),
+            data: (departments) => _card(theme, brandTheme, [
+              if (departments.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('No departments registered.'),
+                )
+              else
+                ...departments.asMap().entries.map((e) {
+                  final dept = e.value;
+                  final isLast = e.key == departments.length - 1;
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                dept.branchCode,
+                                style: GoogleFonts.ibmPlexMono(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: accent,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                dept.name,
+                                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red.shade300),
+                              onPressed: () => _deleteDepartment(dept),
+                              padding: EdgeInsets.zero,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                    if (e.key < _departments.length - 1) const Divider(height: 1),
-                  ],
-                )),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: OutlinedButton.icon(
-                onPressed: () => _showAddDeptDialog(context, accent),
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: Text('Add Department', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: accent,
-                  side: BorderSide(color: accent),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      if (!isLast) const SubtleDivider(height: 1),
+                    ],
+                  );
+                }),
+              const SubtleDivider(height: 1),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: OutlinedButton.icon(
+                  onPressed: () => _showAddDeptDialog(context, accent),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: Text('Add Department', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: accent,
+                    side: BorderSide(color: accent),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
                 ),
               ),
-            ),
-          ]),
+            ]),
+          ),
 
           const SizedBox(height: 20),
 
@@ -400,24 +462,69 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
       );
 
   void _showAddDeptDialog(BuildContext context, Color accent) {
-    final ctrl = TextEditingController();
+    final nameCtrl = TextEditingController();
+    final codeCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: Text('Add Department', style: GoogleFonts.fraunces(fontWeight: FontWeight.w600)),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'e.g. AI & Data Science'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: nameCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Department Name',
+                  hintText: 'e.g. Civil Engineering',
+                ),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: codeCtrl,
+                textCapitalization: TextCapitalization.characters,
+                inputFormatters: [
+                  UpperCaseTextFormatter(),
+                ],
+                decoration: const InputDecoration(
+                  labelText: 'Branch Code (USN Segment)',
+                  hintText: 'e.g. CV',
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Required';
+                  if (v.trim().length < 2 || v.trim().length > 4) return '2-4 chars';
+                  return null;
+                },
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: accent),
-            onPressed: () {
-              if (ctrl.text.trim().isNotEmpty) {
-                setState(() => _departments.add(ctrl.text.trim()));
-                Navigator.pop(context);
+            onPressed: () async {
+              if (formKey.currentState!.validate()) {
+                final repo = ref.read(departmentsRepositoryProvider);
+                try {
+                  await repo.create(
+                    name: nameCtrl.text.trim(),
+                    branchCode: codeCtrl.text.trim(),
+                  );
+                  ref.invalidate(departmentsProvider);
+                  if (context.mounted) Navigator.pop(context);
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error creating department: $e')),
+                    );
+                  }
+                }
               }
             },
             child: const Text('Add'),
@@ -445,6 +552,19 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
     );
   }
 }
