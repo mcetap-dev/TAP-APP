@@ -256,6 +256,24 @@ function generateEmailTemplate(
   data: Record<string, any>
 ): { subject: string; html: string } {
   switch (emailType) {
+    case "otp": {
+      const subject = customSubject || `Your Placement Connect Verification Code: ${data.otp || ''}`;
+      const html = wrapTemplate(
+        "Verification Code",
+        `
+        <h2>Account Verification Code</h2>
+        <p>Use the 6-digit verification code below to confirm your account on <strong>Placement Connect</strong>.</p>
+        
+        <div class="highlight-box" style="text-align: center; font-size: 28px; font-weight: bold; letter-spacing: 6px; color: ${BRAND_GOLD}; margin: 30px 0;">
+          ${data.otp || "000000"}
+        </div>
+        
+        <p>This code will expire shortly. If you did not request this registration, please ignore this email.</p>
+        `
+      );
+      return { subject, html };
+    }
+
     case "welcome": {
       const subject = customSubject || `Welcome to Placement Connect — ${data.studentName || 'Student'}`;
       const html = wrapTemplate(

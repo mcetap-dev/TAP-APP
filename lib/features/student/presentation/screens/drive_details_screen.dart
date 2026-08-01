@@ -11,6 +11,7 @@ import '../../../auth/domain/entities/user_profile.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/entities/drive.dart';
 import '../providers/student_drive_provider.dart';
+import '../../../../core/services/email_notification_service.dart';
 
 /// Full-screen drive details with eligibility check, consent, summary, and submit.
 class DriveDetailsScreen extends ConsumerStatefulWidget {
@@ -34,7 +35,7 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
 
   _EligibilityResult _checkEligibility(UserProfile? profile) {
     if (profile == null) {
-      return _EligibilityResult(
+      return const _EligibilityResult(
         eligible: false,
         checks: [],
         failureReason: 'Profile not loaded.',
@@ -110,7 +111,7 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
     ));
 
     final allPassed = checks.every((c) => c.passed);
-    final firstFailure = checks.firstWhere((c) => !c.passed, orElse: () => _EligibilityCheck(label: '', passed: true));
+    final firstFailure = checks.firstWhere((c) => !c.passed, orElse: () => const _EligibilityCheck(label: '', passed: true));
 
     return _EligibilityResult(
       eligible: allPassed,
@@ -195,6 +196,24 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
         }
       }
 
+      // Dispatch real email notification to student
+      try {
+        final profile = await Supabase.instance.client
+            .from('profiles')
+            .select('name, email')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        if (profile != null && profile['email'] != null) {
+          ref.read(emailNotificationServiceProvider).sendApplicationSubmittedEmail(
+            recipientEmail: profile['email'] as String,
+            studentName: (profile['name'] as String?) ?? 'Student',
+            companyName: _drive.companyName,
+            roleTitle: _drive.roleTitle,
+          );
+        }
+      } catch (_) {}
+
       // Refresh providers
       ref.invalidate(studentApplicationsProvider);
       ref.invalidate(studentEligibleDrivesProvider);
@@ -260,7 +279,7 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
         elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.only(
+        padding: const EdgeInsets.only(
           top: AppSpacing.sp3,
           left: AppSpacing.sp5,
           right: AppSpacing.sp5,
