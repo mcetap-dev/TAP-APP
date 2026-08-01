@@ -1,10 +1,13 @@
 import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../core/services/email_notification_service.dart';
+
 class StudentAttendanceRemoteDataSource {
   final SupabaseClient _client;
+  final EmailNotificationService? _emailService;
 
-  StudentAttendanceRemoteDataSource(this._client);
+  StudentAttendanceRemoteDataSource(this._client, [this._emailService]);
 
   /// Validates QR payload and inserts attendance record.
   Future<Map<String, dynamic>> markAttendance({
@@ -79,6 +82,18 @@ class StudentAttendanceRemoteDataSource {
     final companyName = driveResponse['company'] is Map
         ? (driveResponse['company'] as Map)['name'] as String? ?? ''
         : '';
+
+    // Dispatch attendance confirmation email
+    if (_emailService != null && profile['email'] != null) {
+      try {
+        _emailService!.sendAttendanceConfirmationEmail(
+          recipientEmail: profile['email'] as String,
+          companyName: companyName.isNotEmpty ? companyName : 'Placement Drive',
+          date: now.split('T')[0],
+          time: now.contains('T') ? now.split('T')[1].substring(0, 5) : '',
+        );
+      } catch (_) {}
+    }
 
     return {
       'id': inserted['id'],

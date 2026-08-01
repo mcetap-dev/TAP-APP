@@ -8,11 +8,14 @@ import '../../domain/entities/drive_round.dart';
 import '../../../audit/domain/entities/audit_log_entry.dart';
 import '../../../audit/domain/repositories/audit_log_repository.dart';
 
+import '../../../../core/services/email_notification_service.dart';
+
 class TpoRepositoryImpl implements TpoRepository {
   final SupabaseClient _supabase;
   final AuditLogRepository _auditLogRepo;
+  final EmailNotificationService? _emailService;
 
-  TpoRepositoryImpl(this._supabase, this._auditLogRepo);
+  TpoRepositoryImpl(this._supabase, this._auditLogRepo, [this._emailService]);
 
   @override
   Future<void> appointFacultyCoordinator({
@@ -44,6 +47,23 @@ class TpoRepositoryImpl implements TpoRepository {
     await _supabase
         .from('profiles')
         .update({'role': 'faculty_coordinator'}).eq('id', profileId);
+
+    // Dispatch email notification asynchronously
+    try {
+      final profile = await _supabase
+          .from('profiles')
+          .select('name, email')
+          .eq('id', profileId)
+          .maybeSingle();
+
+      if (profile != null && profile['email'] != null && _emailService != null) {
+        _emailService!.sendFacultyAppointmentEmail(
+          recipientEmail: profile['email'] as String,
+          facultyName: (profile['name'] as String?) ?? 'Faculty Member',
+          department: department,
+        );
+      }
+    } catch (_) {}
   }
 
   @override
@@ -212,6 +232,63 @@ class TpoRepositoryImpl implements TpoRepository {
           
       // ignore: avoid_print
       print('✅ [TpoRepository] Supabase update successful for status: $validStatus');
+
+      // Dispatch event-driven email notifications
+      if (_emailService != null) {
+        try {
+          final driveRes = await _supabase
+              .from('drives')
+              .select('role_title, ctc_or_stipend, application_deadline, start_date, company:companies!company_id(name)')
+              .eq('id', driveId)
+              .maybeSingle();
+
+          if (driveRes != null) {
+            final companyName = (driveRes['company'] is Map ? (driveRes['company'] as Map)['name'] : null) ?? 'Company';
+            final roleTitle = (driveRes['role_title'] as String?) ?? 'Job Role';
+
+            if (validStatus == 'active' || validStatus == 'open') {
+              // Notify all eligible approved students
+              final students = await _supabase
+                  .from('profiles')
+                  .select('email')
+                  .eq('role', 'student')
+                  .eq('approval_status', 'approved');
+
+              for (final s in (students as List)) {
+                final email = s['email'] as String?;
+                if (email != null && email.isNotEmpty) {
+                  _emailService!.sendDrivePublishedEmail(
+                    recipientEmail: email,
+                    companyName: companyName,
+                    roleTitle: roleTitle,
+                    package: (driveRes['ctc_or_stipend'] as String?) ?? 'As per policy',
+                    registrationDeadline: (driveRes['application_deadline'] as String?) ?? 'N/A',
+                    driveDate: (driveRes['start_date'] as String?) ?? 'To be announced',
+                  );
+                }
+              }
+            } else if (validStatus == 'cancelled') {
+              // Notify applicants
+              final apps = await _supabase
+                  .from('applications')
+                  .select('profile:profiles!applications_student_id_fkey(email)')
+                  .eq('drive_id', driveId);
+
+              for (final a in (apps as List)) {
+                final profile = a['profile'];
+                final email = profile is Map ? profile['email'] as String? : null;
+                if (email != null && email.isNotEmpty) {
+                  _emailService!.sendDriveCancelledEmail(
+                    recipientEmail: email,
+                    companyName: companyName,
+                    reason: 'Drive status updated to cancelled by TPO.',
+                  );
+                }
+              }
+            }
+          }
+        } catch (_) {}
+      }
     } catch (e) {
       // ignore: avoid_print
       print('⚠️ [TpoRepository] First update attempt failed: $e. Retrying with fallback status...');
@@ -541,6 +618,34 @@ class TpoRepositoryImpl implements TpoRepository {
         driveId: driveId,
         applicationId: appId,
       );
+
+      // Email dispatch for round promotion
+      if (_emailService != null) {
+        try {
+          final studentProfile = await _supabase
+              .from('profiles')
+              .select('name, email')
+              .eq('id', studentId)
+              .maybeSingle();
+
+          final driveInfo = await _supabase
+              .from('drives')
+              .select('role_title, company:companies!company_id(name)')
+              .eq('id', driveId)
+              .maybeSingle();
+
+          if (studentProfile != null && studentProfile['email'] != null && driveInfo != null) {
+            final compName = (driveInfo['company'] is Map ? (driveInfo['company'] as Map)['name'] : null) ?? 'Company';
+            _emailService!.sendRoundQualifiedEmail(
+              recipientEmail: studentProfile['email'] as String,
+              studentName: (studentProfile['name'] as String?) ?? 'Student',
+              companyName: compName,
+              qualifiedRound: 'Round $currentRoundNumber',
+              nextRoundName: 'Round $nextRound',
+            );
+          }
+        } catch (_) {}
+      }
     }
   }
 
@@ -606,6 +711,34 @@ class TpoRepositoryImpl implements TpoRepository {
         driveId: driveId,
         applicationId: appId,
       );
+
+      // Email dispatch for round rejection
+      if (_emailService != null) {
+        try {
+          final studentProfile = await _supabase
+              .from('profiles')
+              .select('name, email')
+              .eq('id', studentId)
+              .maybeSingle();
+
+          final driveInfo = await _supabase
+              .from('drives')
+              .select('role_title, company:companies!company_id(name)')
+              .eq('id', driveId)
+              .maybeSingle();
+
+          if (studentProfile != null && studentProfile['email'] != null && driveInfo != null) {
+            final compName = (driveInfo['company'] is Map ? (driveInfo['company'] as Map)['name'] : null) ?? 'Company';
+            _emailService!.sendRoundRejectedEmail(
+              recipientEmail: studentProfile['email'] as String,
+              studentName: (studentProfile['name'] as String?) ?? 'Student',
+              companyName: compName,
+              rejectedRound: 'Round $currentRoundNumber',
+              remarks: remarks,
+            );
+          }
+        } catch (_) {}
+      }
     }
   }
 

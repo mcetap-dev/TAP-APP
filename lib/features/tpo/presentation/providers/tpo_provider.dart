@@ -7,9 +7,12 @@ import '../../domain/repositories/tpo_repository.dart';
 import '../../domain/entities/drive_round.dart';
 import '../../../audit/domain/repositories/audit_log_repository.dart';
 
+import '../../../../core/services/email_notification_service.dart';
+
 final tpoRepositoryProvider = Provider<TpoRepository>((ref) {
   final auditRepo = ref.watch(auditLogRepositoryProvider);
-  return TpoRepositoryImpl(Supabase.instance.client, auditRepo);
+  final emailService = ref.watch(emailNotificationServiceProvider);
+  return TpoRepositoryImpl(Supabase.instance.client, auditRepo, emailService);
 });
 
 final tpoDrivesProvider = FutureProvider<List<Drive>>((ref) async {

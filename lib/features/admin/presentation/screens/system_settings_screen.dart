@@ -6,6 +6,7 @@ import '../../../../core/theme/theme_extensions.dart';
 import '../../../../shared/presentation/widgets/subtle_divider.dart';
 import '../../domain/entities/department.dart';
 import '../providers/departments_provider.dart';
+import '../../../../core/services/email_notification_service.dart';
 
 class SystemSettingsScreen extends ConsumerStatefulWidget {
   const SystemSettingsScreen({super.key});
@@ -188,6 +189,35 @@ class _SystemSettingsScreenState extends ConsumerState<SystemSettingsScreen> {
               accent: accent,
             ),
           ]),
+
+          const SizedBox(height: 20),
+
+          // ─── Section: Email System Testing Suite ───
+          _sectionHeader('✉️ Email Notification System Tester', theme, brandTheme),
+          const SizedBox(height: 10),
+          if (brandTheme != null)
+            _card(theme, brandTheme, [
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: brandTheme.brassPrimary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.mark_email_read_rounded, color: brandTheme.brassPrimary),
+                ),
+                title: Text('Dispatch Email Tests', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                subtitle: Text('Send test emails for Welcome, Faculty Appt, Application, Attendance, Status updates & Offers.', style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
+                trailing: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: brandTheme.brassPrimary,
+                    foregroundColor: brandTheme.onBrass,
+                  ),
+                  onPressed: () => _showEmailTesterDialog(context, brandTheme),
+                  child: const Text('Test Endpoints'),
+                ),
+              ),
+            ]),
 
           const SizedBox(height: 20),
 
@@ -455,7 +485,7 @@ class _SystemSettingsScreenState extends ConsumerState<SystemSettingsScreen> {
             Switch(
               value: value,
               onChanged: onChanged,
-              activeColor: isDestructive ? Colors.red : accent,
+              activeThumbColor: isDestructive ? Colors.red : accent,
             ),
           ],
         ),
@@ -529,6 +559,143 @@ class _SystemSettingsScreenState extends ConsumerState<SystemSettingsScreen> {
             },
             child: const Text('Add'),
           ),
+        ],
+      ),
+    );
+  }
+
+  void _showEmailTesterDialog(BuildContext context, AppBrandTheme brandTheme) {
+    final emailCtrl = TextEditingController(text: 'test@example.com');
+    final emailService = ref.read(emailNotificationServiceProvider);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        title: Text('✉️ Email Notification Test Suite', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: emailCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Recipient Email',
+                  hintText: 'Enter destination email',
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton(
+                    onPressed: () {
+                      emailService.sendWelcomeEmail(
+                        recipientEmail: emailCtrl.text.trim(),
+                        studentName: 'Test Student',
+                        role: 'Student',
+                        department: 'CSE',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Welcome email test dispatched!')));
+                    },
+                    child: const Text('Welcome'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      emailService.sendFacultyAppointmentEmail(
+                        recipientEmail: emailCtrl.text.trim(),
+                        facultyName: 'Dr. Smith',
+                        department: 'CSE',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Faculty Appt email test dispatched!')));
+                    },
+                    child: const Text('Faculty Appt'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      emailService.sendApplicationSubmittedEmail(
+                        recipientEmail: emailCtrl.text.trim(),
+                        studentName: 'Test Student',
+                        companyName: 'Acme Corp',
+                        roleTitle: 'Software Engineer',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Application email test dispatched!')));
+                    },
+                    child: const Text('Application'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      emailService.sendAttendanceConfirmationEmail(
+                        recipientEmail: emailCtrl.text.trim(),
+                        companyName: 'Acme Corp',
+                        date: '2026-08-01',
+                        time: '10:00 AM',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Attendance email test dispatched!')));
+                    },
+                    child: const Text('Attendance'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      emailService.sendRoundQualifiedEmail(
+                        recipientEmail: emailCtrl.text.trim(),
+                        studentName: 'Test Student',
+                        companyName: 'Acme Corp',
+                        qualifiedRound: 'Online Test',
+                        nextRoundName: 'Technical Interview',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Qualified email test dispatched!')));
+                    },
+                    child: const Text('Qualified'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      emailService.sendRoundRejectedEmail(
+                        recipientEmail: emailCtrl.text.trim(),
+                        studentName: 'Test Student',
+                        companyName: 'Acme Corp',
+                        rejectedRound: 'Technical Interview',
+                        remarks: 'Keep applying for future drives.',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Rejected email test dispatched!')));
+                    },
+                    child: const Text('Rejected'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      emailService.sendOfferReleasedEmail(
+                        recipientEmail: emailCtrl.text.trim(),
+                        studentName: 'Test Student',
+                        companyName: 'Acme Corp',
+                        roleTitle: 'Software Engineer',
+                        package: '12 LPA',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offer email test dispatched!')));
+                    },
+                    child: const Text('Offer Released'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      emailService.sendReminderEmail(
+                        recipientEmail: emailCtrl.text.trim(),
+                        studentName: 'Test Student',
+                        reminderTitle: 'Resume Upload Pending',
+                        message: 'Please upload your latest resume to apply for upcoming drives.',
+                        deadline: 'Tomorrow 5:00 PM',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reminder email test dispatched!')));
+                    },
+                    child: const Text('Reminder'),
+                  ),
+                ],
+              )
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
         ],
       ),
     );
