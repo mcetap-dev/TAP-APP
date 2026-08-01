@@ -141,9 +141,21 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<void> {
   const writer = conn.writable.getWriter();
 
   async function readResponse(): Promise<string> {
-    const { value, done } = await reader.read();
-    if (done || !value) return "";
-    return decoder.decode(value);
+    let fullResponse = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done || !value) break;
+      const text = decoder.decode(value);
+      fullResponse += text;
+      // Multi-line SMTP responses have a dash on line 4 (e.g. 250-SIZE).
+      // The final line of a multi-line response has a space (e.g. 250 OK or 250 HELP).
+      const lines = fullResponse.trim().split("\r\n");
+      const lastLine = lines[lines.length - 1];
+      if (lastLine && lastLine.length >= 4 && lastLine[3] === " ") {
+        break;
+      }
+    }
+    return fullResponse;
   }
 
   async function sendCmd(cmd: string, expectedCode?: string): Promise<string> {
@@ -157,7 +169,7 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<void> {
 
   await readResponse(); // Initial server greeting
 
-  await sendCmd(`EHLO ${opts.hostname}`, "250");
+  await sendCmd(`EHLO localhost`, "250");
 
   if (opts.port === 587) {
     await sendCmd("STARTTLS", "220");
@@ -171,9 +183,10 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<void> {
   await sendCmd(btoa(opts.password), "235");
 
   // MAIL FROM / RCPT TO / DATA
-  const cleanFrom = opts.username;
+  const cleanFrom = opts.username.trim();
+  const cleanTo = opts.to.trim();
   await sendCmd(`MAIL FROM:<${cleanFrom}>`, "250");
-  await sendCmd(`RCPT TO:<${opts.to}>`, "250");
+  await sendCmd(`RCPT TO:<${cleanTo}>`, "250");
   await sendCmd("DATA", "354");
 
   // MIME Email Content
