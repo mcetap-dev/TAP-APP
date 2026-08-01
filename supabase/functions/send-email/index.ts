@@ -191,8 +191,8 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<void> {
 
   // MIME Email Content
   const mailContent = 
-    `From: ${opts.from}\r\n` +
-    `To: ${opts.to}\r\n` +
+    `From: "${COLLEGE_NAME}" <${cleanFrom}>\r\n` +
+    `To: <${cleanTo}>\r\n` +
     `Subject: ${opts.subject}\r\n` +
     `MIME-Version: 1.0\r\n` +
     `Content-Type: text/html; charset=UTF-8\r\n\r\n` +
