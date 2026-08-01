@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -15,11 +14,8 @@ interface EmailPayload {
   createdBy?: string;
 }
 
-// College and Branding Defaults
 const COLLEGE_NAME = "Placement Connect Portal";
 const BRAND_GOLD = "#D4AF37";
-const BRAND_DARK = "#1A1A1A";
-const BRAND_ACCENT = "#222222";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -31,7 +27,6 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Read SMTP secrets ONLY from Supabase Secrets
     const smtpHost = Deno.env.get("SMTP_HOST") || "smtp.gmail.com";
     const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "465");
     const smtpEmail = Deno.env.get("SMTP_EMAIL") || "";
@@ -59,33 +54,16 @@ serve(async (req) => {
     let errorMessage: string | null = null;
 
     try {
-      const client = new SmtpClient();
-      
-      if (smtpPort === 465) {
-        await client.connectTls({
-          hostname: smtpHost,
-          port: smtpPort,
-          username: smtpEmail,
-          password: smtpPassword,
-        });
-      } else {
-        await client.connect({
-          hostname: smtpHost,
-          port: smtpPort,
-          username: smtpEmail,
-          password: smtpPassword,
-        });
-      }
-
-      await client.send({
+      await sendSmtpEmail({
+        hostname: smtpHost,
+        port: smtpPort,
+        username: smtpEmail,
+        password: smtpPassword,
         from: `${COLLEGE_NAME} <${smtpEmail}>`,
         to: recipient,
         subject: subject,
-        content: html,
         html: html,
       });
-
-      await client.close();
     } catch (err: any) {
       status = "failed";
       errorMessage = err?.message || String(err);
@@ -126,6 +104,99 @@ serve(async (req) => {
     );
   }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Robust Deno Native SMTP Client (Supports Port 465 SSL/TLS & Port 587 STARTTLS)
+// ─────────────────────────────────────────────────────────────────────────────
+interface SmtpOptions {
+  hostname: string;
+  port: number;
+  username: string;
+  password: string;
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+}
+
+async function sendSmtpEmail(opts: SmtpOptions): Promise<void> {
+  const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
+
+  let conn: Deno.Conn;
+
+  if (opts.port === 465) {
+    conn = await Deno.connectTls({
+      hostname: opts.hostname,
+      port: opts.port,
+    });
+  } else {
+    conn = await Deno.connect({
+      hostname: opts.hostname,
+      port: opts.port,
+    });
+  }
+
+  const reader = conn.readable.getReader();
+  const writer = conn.writable.getWriter();
+
+  async function readResponse(): Promise<string> {
+    const { value, done } = await reader.read();
+    if (done || !value) return "";
+    return decoder.decode(value);
+  }
+
+  async function sendCmd(cmd: string, expectedCode?: string): Promise<string> {
+    await writer.write(encoder.encode(cmd + "\r\n"));
+    const res = await readResponse();
+    if (expectedCode && !res.startsWith(expectedCode)) {
+      throw new Error(`SMTP Error [cmd: ${cmd.split(" ")[0]}]: ${res.trim()}`);
+    }
+    return res;
+  }
+
+  await readResponse(); // Initial server greeting
+
+  await sendCmd(`EHLO ${opts.hostname}`, "250");
+
+  if (opts.port === 587) {
+    await sendCmd("STARTTLS", "220");
+    conn = await Deno.startTls(conn, { hostname: opts.hostname });
+    await sendCmd(`EHLO ${opts.hostname}`, "250");
+  }
+
+  // AUTH LOGIN (Base64)
+  await sendCmd("AUTH LOGIN", "334");
+  await sendCmd(btoa(opts.username), "334");
+  await sendCmd(btoa(opts.password), "235");
+
+  // MAIL FROM / RCPT TO / DATA
+  const cleanFrom = opts.username;
+  await sendCmd(`MAIL FROM:<${cleanFrom}>`, "250");
+  await sendCmd(`RCPT TO:<${opts.to}>`, "250");
+  await sendCmd("DATA", "354");
+
+  // MIME Email Content
+  const mailContent = [
+    `From: ${opts.from}`,
+    `To: ${opts.to}`,
+    `Subject: ${opts.subject}`,
+    "MIME-Version: 1.0",
+    "Content-Type: text/html; charset=UTF-8",
+    "",
+    opts.html,
+    ".",
+  ].join("\r\n");
+
+  await sendCmd(mailContent, "250");
+  await sendCmd("QUIT", "221");
+
+  try {
+    writer.releaseLock();
+    reader.releaseLock();
+    conn.close();
+  } catch (_) {}
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HTML Email Templates (Black & Gold Premium Branding)
