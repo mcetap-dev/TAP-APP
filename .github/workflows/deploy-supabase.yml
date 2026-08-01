@@ -1,13 +1,19 @@
-name: Deploy Supabase Edge Functions
+name: Deploy and Test Supabase Email Function
 
 on:
   push:
     branches:
       - main
       - harry
+  workflow_dispatch:
+    inputs:
+      test_email:
+        description: 'Destination email address for test email'
+        required: false
+        default: ''
 
 jobs:
-  deploy:
+  deploy-and-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,3 +29,21 @@ jobs:
         run: supabase functions deploy send-email --project-ref ${{ secrets.SUPABASE_PROJECT_REF }} --no-verify-jwt
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Test Email Dispatch
+        if: ${{ inputs.test_email != '' }}
+        run: |
+          echo "Sending test email to ${{ inputs.test_email }}..."
+          curl -i -X POST "https://${{ secrets.SUPABASE_PROJECT_REF }}.supabase.co/functions/v1/send-email" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "emailType": "welcome",
+              "recipient": "'"${{ inputs.test_email }}"'",
+              "subject": "Test Email from GitHub Actions CI/CD",
+              "data": {
+                "studentName": "Test User",
+                "role": "Student",
+                "department": "Computer Science & Engineering"
+              }
+            }'
