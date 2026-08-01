@@ -317,6 +317,26 @@ function generateEmailTemplate(
   data: Record<string, any>
 ): { subject: string; html: string } {
   switch (emailType) {
+    case "login_alert": {
+      const subject = customSubject || `New Login to Placement Connect`;
+      const html = wrapTemplate(
+        "Login Security Alert",
+        `
+        <h2>Account Login Security Notice</h2>
+        <p>Hello <strong>${data.studentName || data.userName || "User"}</strong>,</p>
+        <p>A new login to your Placement Connect account was detected.</p>
+        
+        <table class="info-table">
+          <tr><td class="label">Account Email</td><td class="value">${data.email || "N/A"}</td></tr>
+          <tr><td class="label">Login Time</td><td class="value">${formatDate(data.time)}</td></tr>
+          <tr><td class="label">Security Status</td><td class="value"><span class="badge badge-success">Successful Login</span></td></tr>
+        </table>
+        
+        <p>If this was you, no action is required. If you did not log in, please reset your password immediately.</p>
+        `
+      );
+      return { subject, html };
+    }
     case "otp": {
       const subject = customSubject || `Your Placement Connect Verification Code: ${data.otp || ''}`;
       const html = wrapTemplate(

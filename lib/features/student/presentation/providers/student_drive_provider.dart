@@ -64,26 +64,29 @@ final studentAppliedDriveIdsProvider = StreamProvider<Set<String>>((ref) async* 
   final controller = StreamController<Set<String>>.broadcast();
   controller.add(ids);
 
-  final channel = Supabase.instance.client
-      .from('applications')
-      .stream(primaryKey: ['id'])
-      .eq('student_id', user.id)
-      .listen((_) async {
-        // On any change, re-query to get the canonical set
-        final fresh = await Supabase.instance.client
-            .from('applications')
-            .select('drive_id')
-            .eq('student_id', user.id);
-        final freshIds = (fresh as List)
-            .map((row) => row['drive_id'] as String)
-            .toSet();
-        controller.add(freshIds);
-      });
+  try {
+    final channel = Supabase.instance.client
+        .from('applications')
+        .stream(primaryKey: ['id'])
+        .eq('student_id', user.id)
+        .listen((_) async {
+          final fresh = await Supabase.instance.client
+              .from('applications')
+              .select('drive_id')
+              .eq('student_id', user.id);
+          final freshIds = (fresh as List)
+              .map((row) => row['drive_id'] as String)
+              .toSet();
+          controller.add(freshIds);
+        }, onError: (err) {
+          // If Realtime is not enabled on table, fallback safely to initial fetch
+        });
 
-  ref.onDispose(() {
-    channel.cancel();
-    controller.close();
-  });
+    ref.onDispose(() {
+      channel.cancel();
+      controller.close();
+    });
+  } catch (_) {}
 
   yield* controller.stream;
 });

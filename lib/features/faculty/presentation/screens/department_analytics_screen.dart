@@ -444,7 +444,7 @@ class _DepartmentAnalyticsScreenState
       builder: (context, constraints) {
         final isWide = constraints.maxWidth > 600;
         final crossAxisCount = isWide ? 4 : 2;
-        final childAspectRatio = isWide ? 1.5 : 1.6;
+        final childAspectRatio = isWide ? 1.5 : 1.25;
 
         return GridView.count(
           crossAxisCount: crossAxisCount,
@@ -514,22 +514,25 @@ class _DepartmentAnalyticsScreenState
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 28,
+            height: 28,
             decoration: BoxDecoration(
               color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppShapes.radiusSmall),
             ),
-            child: Icon(icon, size: 18, color: color),
+            child: Icon(icon, size: 16, color: color),
           ),
-          const Spacer(),
-          Text(value,
-              style: GoogleFonts.inter(
-                  fontSize: 22, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 2),
+          const SizedBox(height: 4),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(value,
+                style: GoogleFonts.inter(
+                    fontSize: 20, fontWeight: FontWeight.w700)),
+          ),
           Text(label,
               style: GoogleFonts.inter(
                   fontSize: 11, fontWeight: FontWeight.w600),
@@ -594,10 +597,12 @@ class _DepartmentAnalyticsScreenState
       child: Row(
         children: [
           SizedBox(
-            width: 120,
+            width: 90,
             child: Text(label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style:
-                    GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w500),
+                    GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),
                 textAlign: TextAlign.right),
           ),
           const SizedBox(width: 12),
@@ -764,9 +769,9 @@ class _DepartmentAnalyticsScreenState
                           ),
                           const SizedBox(width: AppSpacing.sp2),
                           SizedBox(
-                            width: 60,
+                            width: 50,
                             child: Text('${r.qualified} / ${r.entered}',
-                                style: GoogleFonts.ibmPlexMono(fontSize: 12),
+                                style: GoogleFonts.ibmPlexMono(fontSize: 11),
                                 textAlign: TextAlign.right),
                           ),
                         ],
@@ -882,64 +887,129 @@ class _DepartmentAnalyticsScreenState
         borderRadius: BorderRadius.circular(AppShapes.radiusStandard),
         border: Border.all(color: brandTheme.cardBorder),
       ),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 140,
-            height: 140,
-            child: PieChart(
-              PieChartData(
-                sectionsSpace: 2,
-                centerSpaceRadius: 36,
-                sections: [
-                  PieChartSectionData(
-                    value: data.selectedCount.toDouble(),
-                    color: brandTheme.statusShortlisted,
-                    radius: 20,
-                    title: '',
-                  ),
-                  PieChartSectionData(
-                    value: data.inProcessCount.toDouble(),
-                    color: brandTheme.brassPrimary,
-                    radius: 20,
-                    title: '',
-                  ),
-                  PieChartSectionData(
-                    value: data.rejectedCount.toDouble(),
-                    color: brandTheme.statusRejected,
-                    radius: 20,
-                    title: '',
-                  ),
-                  PieChartSectionData(
-                    value: data.notAppliedCount.toDouble(),
-                    color: brandTheme.textMuted.withValues(alpha: 0.5),
-                    radius: 20,
-                    title: '',
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: AppSpacing.sp5),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 320;
+          if (isNarrow) {
+            return Column(
               children: [
-                _legendItem('Selected', data.selectedCount, total,
-                    brandTheme.statusShortlisted, brandTheme),
-                const SizedBox(height: AppSpacing.sp2),
-                _legendItem('In Process', data.inProcessCount, total,
-                    brandTheme.brassPrimary, brandTheme),
-                const SizedBox(height: AppSpacing.sp2),
-                _legendItem('Rejected', data.rejectedCount, total,
-                    brandTheme.statusRejected, brandTheme),
-                const SizedBox(height: AppSpacing.sp2),
-                _legendItem('Not Applied', data.notAppliedCount, total,
-                    brandTheme.textMuted.withValues(alpha: 0.5), brandTheme),
+                SizedBox(
+                  width: 120,
+                  height: 120,
+                  child: PieChart(
+                    PieChartData(
+                      sectionsSpace: 2,
+                      centerSpaceRadius: 30,
+                      sections: [
+                        PieChartSectionData(
+                          value: data.selectedCount.toDouble(),
+                          color: brandTheme.statusShortlisted,
+                          radius: 18,
+                          title: '',
+                        ),
+                        PieChartSectionData(
+                          value: data.inProcessCount.toDouble(),
+                          color: brandTheme.brassPrimary,
+                          radius: 18,
+                          title: '',
+                        ),
+                        PieChartSectionData(
+                          value: data.rejectedCount.toDouble(),
+                          color: brandTheme.statusRejected,
+                          radius: 18,
+                          title: '',
+                        ),
+                        PieChartSectionData(
+                          value: data.notAppliedCount.toDouble(),
+                          color: brandTheme.textMuted.withValues(alpha: 0.5),
+                          radius: 18,
+                          title: '',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _legendItem('Selected', data.selectedCount, total,
+                        brandTheme.statusShortlisted, brandTheme),
+                    const SizedBox(height: AppSpacing.sp2),
+                    _legendItem('In Process', data.inProcessCount, total,
+                        brandTheme.brassPrimary, brandTheme),
+                    const SizedBox(height: AppSpacing.sp2),
+                    _legendItem('Rejected', data.rejectedCount, total,
+                        brandTheme.statusRejected, brandTheme),
+                    const SizedBox(height: AppSpacing.sp2),
+                    _legendItem('Not Applied', data.notAppliedCount, total,
+                        brandTheme.textMuted.withValues(alpha: 0.5), brandTheme),
+                  ],
+                ),
               ],
-            ),
-          ),
-        ],
+            );
+          }
+
+          return Row(
+            children: [
+              SizedBox(
+                width: 130,
+                height: 130,
+                child: PieChart(
+                  PieChartData(
+                    sectionsSpace: 2,
+                    centerSpaceRadius: 32,
+                    sections: [
+                      PieChartSectionData(
+                        value: data.selectedCount.toDouble(),
+                        color: brandTheme.statusShortlisted,
+                        radius: 18,
+                        title: '',
+                      ),
+                      PieChartSectionData(
+                        value: data.inProcessCount.toDouble(),
+                        color: brandTheme.brassPrimary,
+                        radius: 18,
+                        title: '',
+                      ),
+                      PieChartSectionData(
+                        value: data.rejectedCount.toDouble(),
+                        color: brandTheme.statusRejected,
+                        radius: 18,
+                        title: '',
+                      ),
+                      PieChartSectionData(
+                        value: data.notAppliedCount.toDouble(),
+                        color: brandTheme.textMuted.withValues(alpha: 0.5),
+                        radius: 18,
+                        title: '',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sp3),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _legendItem('Selected', data.selectedCount, total,
+                        brandTheme.statusShortlisted, brandTheme),
+                    const SizedBox(height: AppSpacing.sp2),
+                    _legendItem('In Process', data.inProcessCount, total,
+                        brandTheme.brassPrimary, brandTheme),
+                    const SizedBox(height: AppSpacing.sp2),
+                    _legendItem('Rejected', data.rejectedCount, total,
+                        brandTheme.statusRejected, brandTheme),
+                    const SizedBox(height: AppSpacing.sp2),
+                    _legendItem('Not Applied', data.notAppliedCount, total,
+                        brandTheme.textMuted.withValues(alpha: 0.5), brandTheme),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -961,9 +1031,12 @@ class _DepartmentAnalyticsScreenState
                 style: GoogleFonts.inter(fontSize: 12),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis)),
-        Text('$count ($pct%)',
-            style: GoogleFonts.ibmPlexMono(
-                fontSize: 11, color: brandTheme.textMuted)),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Text('$count ($pct%)',
+              style: GoogleFonts.ibmPlexMono(
+                  fontSize: 11, color: brandTheme.textMuted)),
+        ),
       ],
     );
   }
@@ -1076,38 +1149,15 @@ class _DepartmentAnalyticsScreenState
           desc: 'Students with incomplete profiles',
           color: brandTheme.statusPending,
         ),
-      if (data.resumeMissing > 0)
-        _AttentionItem(
-          icon: Icons.description_outlined,
-          label: 'Resume Missing',
-          count: data.resumeMissing,
-          desc: 'Students without uploaded resumes',
-          color: brandTheme.statusRejected,
-        ),
-      if (data.attendanceNotMarked > 0)
-        _AttentionItem(
-          icon: Icons.event_busy_rounded,
-          label: 'Attendance Not Marked',
-          count: data.attendanceNotMarked,
-          desc: 'Applied but never scanned QR',
-          color: brandTheme.brassPrimary,
-        ),
-      if (data.eligibleButNotApplied > 0)
-        _AttentionItem(
-          icon: Icons.how_to_reg_rounded,
-          label: 'Eligible but Not Applied',
-          count: data.eligibleButNotApplied,
-          desc: 'Approved students who haven\'t applied',
-          color: brandTheme.statusApplied,
-        ),
-      if (data.documentsPending > 0)
-        _AttentionItem(
-          icon: Icons.folder_off_rounded,
-          label: 'Documents Pending',
-          count: data.documentsPending,
-          desc: 'Students with pending ID proof',
-          color: brandTheme.statusShortlisted,
-        ),
+      _AttentionItem(
+        icon: Icons.description_outlined,
+        label: 'Resume Missing / Pending',
+        count: data.resumeMissing,
+        desc: data.resumeMissing > 0
+            ? 'Students without an uploaded resume'
+            : 'All student resumes uploaded',
+        color: data.resumeMissing > 0 ? brandTheme.statusRejected : brandTheme.statusShortlisted,
+      ),
     ];
 
     if (items.isEmpty) {
@@ -1170,6 +1220,18 @@ class _DepartmentAnalyticsScreenState
                               style: GoogleFonts.inter(
                                   fontSize: 11,
                                   color: brandTheme.textMuted)),
+                          if (item.label.contains('Resume') && data.resumeMissingStudentNames.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Students: ${data.resumeMissingStudentNames.join(', ')}',
+                              maxLines: 4,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: brandTheme.statusRejected),
+                            ),
+                          ],
                         ],
                       ),
                     ),

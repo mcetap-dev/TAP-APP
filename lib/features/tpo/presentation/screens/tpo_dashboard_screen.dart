@@ -1512,25 +1512,28 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                                   ],
                                 ),
                               ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: statusBg,
-                                      borderRadius: BorderRadius.circular(100),
+                              Flexible(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: statusBg,
+                                        borderRadius: BorderRadius.circular(100),
+                                      ),
+                                      child: Text(
+                                        status.toUpperCase(),
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: statusText),
+                                      ),
                                     ),
-                                    child: Text(
-                                      status.toUpperCase(),
-                                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: statusText),
-                                    ),
-                                  ),
-                                  if (dateStr.isNotEmpty) ...[
-                                    const SizedBox(height: 4),
-                                    Text(dateStr, style: GoogleFonts.ibmPlexMono(fontSize: 10, color: brandTheme.textMuted)),
+                                    if (dateStr.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(dateStr, overflow: TextOverflow.ellipsis, style: GoogleFonts.ibmPlexMono(fontSize: 10, color: brandTheme.textMuted)),
+                                    ],
                                   ],
-                                ],
+                                ),
                               ),
                               const SizedBox(width: 8),
                               PopupMenuButton<String>(

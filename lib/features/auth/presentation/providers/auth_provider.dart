@@ -4,6 +4,8 @@ import '../../data/datasources/auth_remote_datasource.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../../audit/domain/entities/audit_log_entry.dart';
 import '../../../audit/domain/repositories/audit_log_repository.dart';
+import '../../../../core/services/email_notification_service.dart';
+import '../../../../core/services/push_notification_service.dart';
 
 // ── Datasource provider ────────────────────────────────────────────────────
 final authDatasourceProvider = Provider<AuthRemoteDatasource>((ref) {
@@ -33,9 +35,11 @@ final currentProfileProvider = FutureProvider<UserProfile?>((ref) async {
 class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   final AuthRemoteDatasource _datasource;
   final AuditLogRepository _auditLogRepo;
+  final EmailNotificationService? _emailService;
+  final PushNotificationService? _pushService;
   RealtimeChannel? _profileChannel;
 
-  AuthNotifier(this._datasource, this._auditLogRepo) : super(const AsyncValue.loading()) {
+  AuthNotifier(this._datasource, this._auditLogRepo, [this._emailService, this._pushService]) : super(const AsyncValue.loading()) {
     _init();
   }
 
@@ -44,6 +48,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     if (user != null) {
       _loadProfile(user.id);
       _subscribeToProfileChanges(user.id);
+      _pushService?.registerDeviceToken();
     } else {
       state = const AsyncValue.data(null);
     }
@@ -128,6 +133,22 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
           action: AuditAction.login,
           description: 'Logged in successfully.',
         );
+
+        // Dispatch real-time login email notification
+        try {
+          final profile = await _datasource.fetchProfile(userId);
+          if (profile != null && profile.email.isNotEmpty) {
+            _emailService?.sendLoginAlertEmail(
+              recipientEmail: profile.email,
+              userName: profile.name,
+            );
+          }
+        } catch (_) {}
+
+        // Register FCM Push Token for logged in user
+        try {
+          await _pushService?.registerDeviceToken();
+        } catch (_) {}
       } else {
         state = const AsyncValue.data(null);
       }
@@ -165,6 +186,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   Future<void> signOut() async {
     state = const AsyncValue.loading();
     try {
+      await _pushService?.unregisterDeviceToken();
       await _datasource.signOut();
       state = const AsyncValue.data(null);
     } catch (e, st) {
@@ -172,12 +194,17 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     }
   }
 
-  void refreshProfile(String userId) => _loadProfile(userId);
+  void refreshProfile(String userId) {
+    _loadProfile(userId);
+    _pushService?.registerDeviceToken();
+  }
 }
 
 final authNotifierProvider =
     StateNotifierProvider<AuthNotifier, AsyncValue<UserProfile?>>((ref) {
   final datasource = ref.watch(authDatasourceProvider);
   final auditLogRepo = ref.watch(auditLogRepositoryProvider);
-  return AuthNotifier(datasource, auditLogRepo);
+  final emailService = ref.watch(emailNotificationServiceProvider);
+  final pushService = ref.watch(pushNotificationServiceProvider);
+  return AuthNotifier(datasource, auditLogRepo, emailService, pushService);
 });

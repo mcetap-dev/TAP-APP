@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
@@ -315,12 +316,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
     if (mounted) {
       if (success) {
-        if (widget.isEditMode) {
-          _showSnack('Profile updated successfully!');
-          Navigator.of(context).pop();
-        } else {
-          _showSnack('Profile complete! Welcome aboard.');
-        }
+        _showSnack(widget.isEditMode
+            ? 'Profile updated successfully!'
+            : 'Profile complete! Welcome aboard.');
+        ref.read(authNotifierProvider.notifier).refreshProfile(userId);
+        context.go('/student');
       } else {
         final err = ref.read(studentOnboardingNotifierProvider).error;
         _showSnack('Failed to save: $err', isError: true);

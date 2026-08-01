@@ -7,6 +7,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../student/domain/entities/drive.dart';
 import '../../../student/domain/entities/application.dart';
 import '../providers/tpo_provider.dart';
+import '../../../../core/services/email_notification_service.dart';
 
 class RoundManagementScreen extends ConsumerStatefulWidget {
   final Drive drive;
@@ -345,20 +346,23 @@ class _RoundExpandedSectionState
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: brandTheme.cardBorder),
                 ),
-                child: Row(
-                  children: [
-                    _statBadge('Total', '$total', brandTheme.textMuted),
-                    _statBadge('Pending', '$pending',
-                        Colors.orange.shade300),
-                    _statBadge('Shortlisted', '$shortlisted',
-                        brandTheme.statusShortlisted),
-                    _statBadge(
-                        'Rejected', '$rejected', brandTheme.statusRejected),
-                    _statBadge(
-                        'Absent', '$absentCount', brandTheme.statusPending),
-                    _statBadge(
-                        'Progress', '$progress%', brandTheme.brassPrimary),
-                  ],
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _statBadge('Total', '$total', brandTheme.textMuted),
+                      const SizedBox(width: 12),
+                      _statBadge('Pending', '$pending', Colors.orange.shade300),
+                      const SizedBox(width: 12),
+                      _statBadge('Shortlisted', '$shortlisted', brandTheme.statusShortlisted),
+                      const SizedBox(width: 12),
+                      _statBadge('Rejected', '$rejected', brandTheme.statusRejected),
+                      const SizedBox(width: 12),
+                      _statBadge('Absent', '$absentCount', brandTheme.statusPending),
+                      const SizedBox(width: 12),
+                      _statBadge('Progress', '$progress%', brandTheme.brassPrimary),
+                    ],
+                  ),
                 ),
               ),
 
@@ -393,21 +397,24 @@ class _RoundExpandedSectionState
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      _filterChip('All', 'all', brandTheme),
-                      const SizedBox(width: 6),
-                      _filterChip('Pending', 'pending', brandTheme),
-                      const SizedBox(width: 6),
-                      _filterChip(
-                          'Shortlisted', 'shortlisted', brandTheme),
-                      const SizedBox(width: 6),
-                      _filterChip(
-                          'Rejected', 'rejected', brandTheme),
-                      const SizedBox(width: 6),
-                      _filterChip(
-                          'Absent', 'absent', brandTheme),
-                    ],
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        _filterChip('All', 'all', brandTheme),
+                        const SizedBox(width: 6),
+                        _filterChip('Pending', 'pending', brandTheme),
+                        const SizedBox(width: 6),
+                        _filterChip(
+                            'Shortlisted', 'shortlisted', brandTheme),
+                        const SizedBox(width: 6),
+                        _filterChip(
+                            'Rejected', 'rejected', brandTheme),
+                        const SizedBox(width: 6),
+                        _filterChip(
+                            'Absent', 'absent', brandTheme),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -426,35 +433,38 @@ class _RoundExpandedSectionState
                 child: Row(
                   children: [
                     Text(
-                      '${_selectedIds.length} selected',
+                      '${_selectedIds.length} sel',
                       style: GoogleFonts.inter(
-                          fontSize: 12,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                           color: brandTheme.brassPrimary),
                     ),
-                    const Spacer(),
-                    Flexible(
-                      child: _bulkAction(
-                          'Next',
-                          Icons.arrow_forward_rounded,
-                          brandTheme.statusShortlisted,
-                          _bulkMoveNext),
-                    ),
                     const SizedBox(width: 6),
-                    Flexible(
-                      child: _bulkAction(
-                          'Reject',
-                          Icons.close_rounded,
-                          brandTheme.statusRejected,
-                          _bulkReject),
-                    ),
-                    const SizedBox(width: 6),
-                    Flexible(
-                      child: _bulkAction(
-                          'Absent',
-                          Icons.event_busy_rounded,
-                          brandTheme.statusPending,
-                          _bulkAbsent),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _bulkAction(
+                                'Next',
+                                Icons.arrow_forward_rounded,
+                                brandTheme.statusShortlisted,
+                                _bulkMoveNext),
+                            const SizedBox(width: 4),
+                            _bulkAction(
+                                'Reject',
+                                Icons.close_rounded,
+                                brandTheme.statusRejected,
+                                _bulkReject),
+                            const SizedBox(width: 4),
+                            _bulkAction(
+                                'Absent',
+                                Icons.event_busy_rounded,
+                                brandTheme.statusPending,
+                                _bulkAbsent),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -495,26 +505,24 @@ class _RoundExpandedSectionState
   // Stat badge
   // ---------------------------------------------------------------------------
   Widget _statBadge(String label, String value, Color color) {
-    return Expanded(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            value,
-            style: GoogleFonts.fraunces(
-                fontSize: 14, fontWeight: FontWeight.w700, color: color),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-                fontSize: 9, color: color.withValues(alpha: 0.7)),
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          value,
+          style: GoogleFonts.fraunces(
+              fontSize: 13, fontWeight: FontWeight.w700, color: color),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+              fontSize: 9, color: color.withValues(alpha: 0.7)),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
   }
 
@@ -653,7 +661,7 @@ class _RoundExpandedSectionState
 
           // Photo or Initial
           _buildAvatar(photoUrl, name, brandTheme),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
 
           // Name + USN + Dept + Attendance time
           Expanded(
@@ -861,6 +869,32 @@ class _RoundExpandedSectionState
     // Also invalidate next round so it picks up promoted students
     ref.invalidate(roundStudentsProvider(
         (driveId: widget.drive.id, roundNumber: widget.roundNumber + 1)));
+    // Dispatch Round Qualified Emails to promoted students
+    try {
+      final emailService = ref.read(emailNotificationServiceProvider);
+      for (final appId in appIds) {
+        final appData = await Supabase.instance.client
+            .from('applications')
+            .select('student_id, student:profiles(email, name)')
+            .eq('id', appId)
+            .maybeSingle();
+        if (appData != null && appData['student'] != null) {
+          final student = appData['student'] as Map<String, dynamic>;
+          final email = student['email'] as String?;
+          final name = (student['name'] as String?) ?? 'Student';
+          if (email != null && email.contains('@')) {
+            emailService.sendRoundQualifiedEmail(
+              recipientEmail: email,
+              studentName: name,
+              companyName: widget.drive.companyName,
+              qualifiedRound: widget.roundName,
+              nextRoundName: 'Round ${widget.roundNumber + 1}',
+            );
+          }
+        }
+      }
+    } catch (_) {}
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -892,6 +926,32 @@ class _RoundExpandedSectionState
     }
     ref.invalidate(roundStudentsProvider(
         (driveId: widget.drive.id, roundNumber: widget.roundNumber)));
+    // Dispatch Offer Emails
+    try {
+      final emailService = ref.read(emailNotificationServiceProvider);
+      for (final appId in appIds) {
+        final appData = await Supabase.instance.client
+            .from('applications')
+            .select('student_id, student:profiles(email, name)')
+            .eq('id', appId)
+            .maybeSingle();
+        if (appData != null && appData['student'] != null) {
+          final student = appData['student'] as Map<String, dynamic>;
+          final email = student['email'] as String?;
+          final name = (student['name'] as String?) ?? 'Student';
+          if (email != null && email.contains('@')) {
+            emailService.sendOfferReleasedEmail(
+              recipientEmail: email,
+              studentName: name,
+              companyName: widget.drive.companyName,
+              roleTitle: widget.drive.roleTitle,
+              package: widget.drive.ctcOrStipend,
+            );
+          }
+        }
+      }
+    } catch (_) {}
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -912,6 +972,31 @@ class _RoundExpandedSectionState
     );
     ref.invalidate(roundStudentsProvider(
         (driveId: widget.drive.id, roundNumber: widget.roundNumber)));
+    // Dispatch Rejection Emails
+    try {
+      final emailService = ref.read(emailNotificationServiceProvider);
+      for (final appId in appIds) {
+        final appData = await Supabase.instance.client
+            .from('applications')
+            .select('student_id, student:profiles(email, name)')
+            .eq('id', appId)
+            .maybeSingle();
+        if (appData != null && appData['student'] != null) {
+          final student = appData['student'] as Map<String, dynamic>;
+          final email = student['email'] as String?;
+          final name = (student['name'] as String?) ?? 'Student';
+          if (email != null && email.contains('@')) {
+            emailService.sendRoundRejectedEmail(
+              recipientEmail: email,
+              studentName: name,
+              companyName: widget.drive.companyName,
+              rejectedRound: widget.roundName,
+            );
+          }
+        }
+      }
+    } catch (_) {}
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

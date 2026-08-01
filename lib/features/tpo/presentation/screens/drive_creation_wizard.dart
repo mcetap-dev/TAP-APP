@@ -11,6 +11,7 @@ import '../../../admin/domain/entities/department.dart';
 import '../providers/tpo_provider.dart';
 
 import '../../../student/domain/entities/drive.dart';
+import '../../../../core/services/email_notification_service.dart';
 
 class DriveCreationWizard extends ConsumerStatefulWidget {
   final Drive? driveToEdit;
@@ -181,6 +182,86 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
       // Invalidate rounds provider so round management screen refreshes
       if (targetDriveId.isNotEmpty) {
         ref.invalidate(driveRoundsProvider(targetDriveId));
+      }
+
+      // ── Dispatch Drive Published Email to Eligible Students ─────────
+      if (!_isEditMode && targetDriveId.isNotEmpty) {
+        try {
+          final companyRes = await Supabase.instance.client
+              .from('companies')
+              .select('name')
+              .eq('id', companyId)
+              .maybeSingle();
+          final companyName = (companyRes?['name'] as String?) ?? 'Company';
+          final roleTitle = _roleController.text.trim();
+          final package = _ctcController.text.trim();
+          final deadlineStr = '${_selectedDeadline.day}/${_selectedDeadline.month}/${_selectedDeadline.year}';
+
+          // Query eligible approved students
+          final studentProfiles = await Supabase.instance.client
+              .from('profiles')
+              .select('id, email, name, cgpa, active_backlogs, department')
+              .eq('role', 'student')
+              .eq('approval_status', 'approved');
+
+          final emailService = ref.read(emailNotificationServiceProvider);
+
+          for (final student in (studentProfiles as List)) {
+            final email = student['email'] as String?;
+            final studentCgpa = (student['cgpa'] as num?)?.toDouble() ?? 0.0;
+            final studentBacklogs = (student['active_backlogs'] as num?)?.toInt() ?? 0;
+            final studentDept = student['department'] as String?;
+
+            // Filter CGPA Cutoff
+            if (cgpa > 0 && studentCgpa < cgpa) continue;
+
+            // Filter Backlogs Limit
+            if (backlogs >= 0 && studentBacklogs > backlogs) continue;
+
+            // Filter Branch / Department
+            if (_branches.isNotEmpty && studentDept != null) {
+              final isDeptEligible = _branches.any((b) =>
+                  b.toLowerCase() == studentDept.toLowerCase() ||
+                  studentDept.toLowerCase().contains(b.toLowerCase()));
+              if (!isDeptEligible) continue;
+            }
+
+            if (email != null && email.contains('@')) {
+              emailService.sendDrivePublishedEmail(
+                recipientEmail: email,
+                companyName: companyName,
+                roleTitle: roleTitle,
+                package: package,
+                registrationDeadline: deadlineStr,
+                driveDate: deadlineStr,
+              );
+            }
+
+            // Save in-app notification to Supabase notifications table
+            final studentId = student['id'] as String?;
+            if (studentId != null) {
+              await Supabase.instance.client.from('notifications').insert({
+                'user_id': studentId,
+                'title': 'New Drive Announced: $companyName',
+                'body': 'Role: $roleTitle | Package: $package | Deadline: $deadlineStr',
+                'type': 'info',
+                'drive_id': targetDriveId,
+              });
+            }
+          }
+
+          // Directly trigger FCM Push Edge Function (no webhooks needed!)
+          try {
+            await Supabase.instance.client.functions.invoke('send-fcm-push', body: {
+              'id': targetDriveId,
+              'company_id': companyId,
+              'role_title': roleTitle,
+              'package_lpa': package,
+            });
+          } catch (fcmErr) {
+            debugPrint('[DriveCreation] FCM push invoke warning: $fcmErr');
+          }
+        } catch (_) {}
       }
 
       if (mounted) {

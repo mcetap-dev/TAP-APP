@@ -13,7 +13,6 @@ import '../../../../shared/presentation/widgets/status_thread_widget.dart';
 import '../../../../shared/presentation/widgets/skeleton_loader.dart';
 import '../../../../shared/presentation/widgets/state_block_widget.dart';
 import '../providers/student_drive_provider.dart';
-import '../providers/student_timeline_provider.dart';
 import '../../domain/entities/application.dart';
 import '../../domain/entities/drive.dart';
 import 'student_application_timeline_screen.dart';

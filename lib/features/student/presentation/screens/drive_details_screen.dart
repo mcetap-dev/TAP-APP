@@ -1,10 +1,11 @@
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../auth/domain/entities/user_profile.dart';
@@ -28,6 +29,10 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
   bool _consentNoWithdraw = false;
   bool _consentShare = false;
   bool _isSubmitting = false;
+  bool _isAppliedState = false;
+
+  Uint8List? _customResumeBytes;
+  String? _customResumeFileName;
 
   Drive get _drive => widget.drive;
 
@@ -147,6 +152,44 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
       final user = Supabase.instance.client.auth.currentUser;
       if (user == null) return;
 
+      // Check System Setting: allow_multiple_offers policy
+      final sysSettings = await Supabase.instance.client
+          .from('system_settings')
+          .select('allow_multiple_offers')
+          .eq('id', 'global_config')
+          .maybeSingle();
+
+      final allowMultiple = (sysSettings?['allow_multiple_offers'] as bool?) ?? false;
+
+      if (!allowMultiple) {
+        try {
+          final existingOffers = await Supabase.instance.client
+              .from('offers')
+              .select('id, applications!inner(student_id)')
+              .eq('applications.student_id', user.id)
+              .maybeSingle();
+
+          if (existingOffers != null) {
+            final appStatus = await Supabase.instance.client
+                .from('applications')
+                .select('status')
+                .eq('student_id', user.id)
+                .eq('status', 'selected')
+                .maybeSingle();
+
+            if (appStatus != null && mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('⚠️ Policy Restriction: You have already accepted a placement offer. Multiple offers are not permitted.'),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+              return;
+            }
+          }
+        } catch (_) {}
+      }
+
       // Duplicate check
       final existing = await Supabase.instance.client
           .from('applications')
@@ -164,50 +207,90 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
         return;
       }
 
+      // Upload custom resume if student picked a new file for this drive application
+      String? finalResumeUrl = profile?.resumeUrl;
+      if (_customResumeBytes != null && _customResumeFileName != null) {
+        try {
+          final fileExt = _customResumeFileName!.split('.').last;
+          final storagePath = 'applications/${user.id}_${_drive.id}_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+          await Supabase.instance.client.storage
+              .from('resumes')
+              .uploadBinary(storagePath, _customResumeBytes!, fileOptions: const FileOptions(upsert: true));
+          final publicUrl = Supabase.instance.client.storage.from('resumes').getPublicUrl(storagePath);
+          finalResumeUrl = publicUrl;
+        } catch (_) {}
+      }
+
       // Insert application — place student in Round 1 by default
-      final appResponse = await Supabase.instance.client
-          .from('applications')
-          .insert({
-        'student_id': user.id,
-        'drive_id': _drive.id,
-        'status': 'applied',
-        'current_round': 1,
-      }).select('id').maybeSingle();
+      Map<String, dynamic>? appResponse;
+      try {
+        final appInsertData = <String, dynamic>{
+          'student_id': user.id,
+          'drive_id': _drive.id,
+          'status': 'applied',
+          'current_round': 1,
+        };
+        if (finalResumeUrl != null) {
+          appInsertData['resume_version_url'] = finalResumeUrl;
+        }
+
+        appResponse = await Supabase.instance.client
+            .from('applications')
+            .insert(appInsertData)
+            .select('id')
+            .maybeSingle();
+      } catch (insertErr) {
+        // Fallback without resume_version_url if database migration 00020 is not yet applied
+        debugPrint('[DriveDetails] Insert with resume_version_url failed ($insertErr), retrying basic insert...');
+        appResponse = await Supabase.instance.client
+            .from('applications')
+            .insert({
+          'student_id': user.id,
+          'drive_id': _drive.id,
+          'status': 'applied',
+          'current_round': 1,
+        }).select('id').maybeSingle();
+      }
 
       final applicationId = appResponse?['id'] as String?;
 
       // Create application_round_status for Round 1 so student appears in Manage Recruitment
       if (applicationId != null) {
-        final firstRound = await Supabase.instance.client
-            .from('drive_rounds')
-            .select('id')
-            .eq('drive_id', _drive.id)
-            .eq('round_number', 1)
-            .maybeSingle();
+        try {
+          final firstRound = await Supabase.instance.client
+              .from('drive_rounds')
+              .select('id')
+              .eq('drive_id', _drive.id)
+              .eq('round_number', 1)
+              .maybeSingle();
 
-        if (firstRound != null) {
-          await Supabase.instance.client
-              .from('application_round_status')
-              .upsert({
-            'application_id': applicationId,
-            'round_id': firstRound['id'],
-            'result': 'pending',
-          }, onConflict: 'application_id,round_id');
+          if (firstRound != null) {
+            await Supabase.instance.client
+                .from('application_round_status')
+                .upsert({
+              'application_id': applicationId,
+              'round_id': firstRound['id'],
+              'result': 'pending',
+            }, onConflict: 'application_id,round_id');
+          }
+        } catch (roundStatusErr) {
+          debugPrint('[DriveDetails] application_round_status insert warning: $roundStatusErr');
         }
       }
 
-      // Dispatch real email notification to student
+      // Fetch profile for notification and success sheet display
+      Map<String, dynamic>? profileMap;
       try {
-        final profile = await Supabase.instance.client
+        profileMap = await Supabase.instance.client
             .from('profiles')
             .select('name, email')
             .eq('id', user.id)
             .maybeSingle();
 
-        if (profile != null && profile['email'] != null) {
+        if (profileMap != null && profileMap['email'] != null) {
           ref.read(emailNotificationServiceProvider).sendApplicationSubmittedEmail(
-            recipientEmail: profile['email'] as String,
-            studentName: (profile['name'] as String?) ?? 'Student',
+            recipientEmail: profileMap['email'] as String,
+            studentName: (profileMap['name'] as String?) ?? 'Student',
             companyName: _drive.companyName,
             roleTitle: _drive.roleTitle,
           );
@@ -220,14 +303,21 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
       ref.invalidate(studentAppliedDriveIdsProvider);
 
       if (mounted) {
-        _showSuccessSheet(profile);
+        setState(() {
+          _isAppliedState = true;
+        });
+        _showSuccessSheet(null);
       }
     } catch (e) {
       debugPrint('[DriveDetails] Application submit failed: $e');
+      final errorMsg = e.toString().contains('already applied')
+          ? 'You have already registered for this drive.'
+          : (e is PostgrestException ? e.message : 'Unable to submit application: $e');
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Unable to submit your application. Please try again later.'),
+          SnackBar(
+            content: Text(errorMsg),
             behavior: SnackBarBehavior.floating,
             backgroundColor: Colors.redAccent,
           ),
@@ -262,9 +352,10 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
     final profile = profileAsync.valueOrNull;
     final eligibility = _checkEligibility(profile);
 
-    final alreadyApplied = ref.watch(studentAppliedDriveIdsProvider).whenOrNull(
+    final dbApplied = ref.watch(studentAppliedDriveIdsProvider).whenOrNull(
       data: (ids) => ids.contains(_drive.id),
     ) ?? false;
+    final alreadyApplied = _isAppliedState || dbApplied;
 
     final daysLeft = _drive.applicationDeadline.difference(DateTime.now()).inDays;
     final deadlineLabel = daysLeft > 0 ? '$daysLeft days left' : 'Closing today';
@@ -505,7 +596,41 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
                       const SizedBox(height: AppSpacing.sp3),
                       _summaryRow('Company', _drive.companyName, brandTheme),
                       _summaryRow('Role', _drive.roleTitle, brandTheme),
-                      _summaryRow('Resume', profile?.resumeUrl != null ? _extractFileName(profile!.resumeUrl!) : '—', brandTheme),
+                      _summaryRow(
+                        'Resume',
+                        _customResumeFileName ?? (profile?.resumeUrl != null ? _extractFileName(profile!.resumeUrl!) : 'Default Profile Resume'),
+                        brandTheme,
+                      ),
+                      const SizedBox(height: 8),
+                      // Option to change resume for this application
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final result = await FilePicker.platform.pickFiles(
+                            type: FileType.custom,
+                            allowedExtensions: ['pdf'],
+                            withData: true,
+                          );
+                          if (result != null && result.files.isNotEmpty) {
+                            final file = result.files.first;
+                            if (file.bytes != null) {
+                              setState(() {
+                                _customResumeBytes = file.bytes;
+                                _customResumeFileName = file.name;
+                              });
+                            }
+                          }
+                        },
+                        icon: Icon(Icons.upload_file_rounded, size: 16, color: brandTheme.brassPrimary),
+                        label: Text(
+                          _customResumeFileName != null ? 'Change Attached Resume' : 'Attach Custom Resume (PDF)',
+                          style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: brandTheme.brassPrimary),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: brandTheme.brassPrimary.withValues(alpha: 0.5)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                       _summaryRow('CGPA', profile?.cgpa?.toStringAsFixed(2) ?? '—', brandTheme),
                       _summaryRow('Department', profile?.department ?? '—', brandTheme),
                       _summaryRow('Semester', profile?.semester?.toString() ?? '—', brandTheme),

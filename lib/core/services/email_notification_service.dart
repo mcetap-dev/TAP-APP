@@ -89,6 +89,11 @@ class EmailNotificationService {
             if (res.status >= 400) {
               throw Exception('Edge function send-email returned error status ${res.status}: ${res.data}');
             }
+
+            final resData = res.data is Map ? res.data as Map : {};
+            if (resData['success'] != true) {
+              throw Exception('Edge function send-email failed: ${resData['error']}');
+            }
             sent = true;
           }
         } catch (e) {
@@ -176,6 +181,33 @@ class EmailNotificationService {
   // ───────────────────────────────────────────────────────────────────────────
   // Authentication & Security Emails
   // ───────────────────────────────────────────────────────────────────────────
+  void sendLoginAlertEmail({required String recipientEmail, required String userName}) {
+    sendEmail(
+      recipientEmail: recipientEmail,
+      subject: 'New Login Security Notice',
+      emailType: 'login_alert',
+      metadata: {
+        'userName': userName,
+        'email': recipientEmail,
+        'time': DateTime.now().toIso8601String(),
+      },
+      htmlBody: _wrapTemplate(
+        'Login Security Alert',
+        '''
+        <h2>New Login Detected</h2>
+        <p>Hello <strong>$userName</strong>,</p>
+        <p>A new login to your Placement Connect account was registered.</p>
+        <table class="info-table">
+          <tr><td class="label">Account Email</td><td class="value">$recipientEmail</td></tr>
+          <tr><td class="label">Login Time</td><td class="value">${DateTime.now().toString().split('.')[0]}</td></tr>
+          <tr><td class="label">Status</td><td class="value"><span class="badge badge-success">Successful Login</span></td></tr>
+        </table>
+        <p>If this was you, no further action is required.</p>
+        ''',
+      ),
+    );
+  }
+
   void sendOtpEmail({required String recipientEmail, required String otp}) {
     sendEmail(
       recipientEmail: recipientEmail,

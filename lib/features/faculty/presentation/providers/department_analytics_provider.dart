@@ -84,6 +84,7 @@ class DepartmentAnalyticsData {
   // Section 6 — Students needing attention
   final int profileIncomplete;
   final int resumeMissing;
+  final List<String> resumeMissingStudentNames;
   final int attendanceNotMarked;
   final int eligibleButNotApplied;
   final int documentsPending;
@@ -116,6 +117,7 @@ class DepartmentAnalyticsData {
     this.roundPerformance = const [],
     this.profileIncomplete = 0,
     this.resumeMissing = 0,
+    this.resumeMissingStudentNames = const [],
     this.attendanceNotMarked = 0,
     this.eligibleButNotApplied = 0,
     this.documentsPending = 0,
@@ -201,7 +203,7 @@ Future<DepartmentAnalyticsData> fetchDepartmentAnalytics(
   //                    profile_completed (added in 00013)
   final q1 = await _runQuery('profiles', () => client
       .from('profiles')
-      .select('id, cgpa, resume_url, photo_url, id_proof_url, profile_completed')
+      .select('id, name, usn, cgpa, resume_url, photo_url, profile_completed')
       .eq('department', department)
       .eq('role', 'student')
       .eq('approval_status', 'approved'));
@@ -564,6 +566,7 @@ DepartmentAnalyticsData _computeAnalytics({
   // ── Section 6 — Students needing attention ─────────────────────────
   int profileIncomplete = 0;
   int resumeMissing = 0;
+  final List<String> resumeMissingStudentNames = [];
   int documentsPending = 0;
   for (final p in profilesList) {
     final pMap = p as Map<String, dynamic>;
@@ -571,6 +574,9 @@ DepartmentAnalyticsData _computeAnalytics({
     if (pMap['resume_url'] == null ||
         (pMap['resume_url'] as String?)?.isEmpty == true) {
       resumeMissing++;
+      final name = (pMap['name'] as String?) ?? 'Student';
+      final usn = pMap['usn'] as String?;
+      resumeMissingStudentNames.add(usn != null && usn.isNotEmpty ? '$name ($usn)' : name);
     }
     if (pMap['id_proof_url'] == null ||
         (pMap['id_proof_url'] as String?)?.isEmpty == true) {
@@ -659,6 +665,7 @@ DepartmentAnalyticsData _computeAnalytics({
     roundPerformance: roundPerformanceList,
     profileIncomplete: profileIncomplete,
     resumeMissing: resumeMissing,
+    resumeMissingStudentNames: resumeMissingStudentNames,
     attendanceNotMarked: attendanceNotMarked,
     eligibleButNotApplied: eligibleNotApplied < 0 ? 0 : eligibleNotApplied,
     documentsPending: documentsPending,

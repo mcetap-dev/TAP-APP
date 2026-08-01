@@ -56,153 +56,93 @@ class ApplicationTimelineData {
 }
 
 /// Fetches full timeline data for all of the current student's applications.
-final studentTimelineProvider = StreamProvider<List<ApplicationTimelineData>>((ref) async* {
+final studentTimelineProvider = FutureProvider<List<ApplicationTimelineData>>((ref) async {
   final user = Supabase.instance.client.auth.currentUser;
-  if (user == null) {
-    yield const [];
-    return;
-  }
+  if (user == null) return [];
 
-  final controller = StreamController<List<ApplicationTimelineData>>.broadcast();
+  // Execute independent parallel queries for instantaneous data fetching
+  final results = await Future.wait([
+    // [0] Fetch applications with nested drive + company + rounds
+    Supabase.instance.client
+        .from('applications')
+        .select('''
+          id, drive_id, status, current_round, resume_version_url, applied_at, updated_at,
+          drive:drives(
+            id, role, package_lpa,
+            end_date,
+            company:companies(name),
+            drive_rounds(id, round_number, round_name, instructions, scheduled_date, round_date, round_time, venue_or_link)
+          )
+        ''')
+        .eq('student_id', user.id)
+        .order('applied_at', ascending: false),
 
-  Future<void> fetchData() async {
-    try {
-      // Fetch applications with drive + company + rounds
-      final appsResponse = await Supabase.instance.client
-          .from('applications')
-          .select('''
-            id, drive_id, status, current_round, applied_at, updated_at,
-            drive:drives(
-              id, role_title, role, ctc_or_stipend, package_lpa,
-              end_date, application_deadline, status as drive_status,
-              company:companies(name),
-              drive_rounds(id, round_number, round_name, instructions, scheduled_date, round_date, round_time, venue_or_link)
-            )
-          ''')
-          .eq('student_id', user.id)
-          .order('applied_at', ascending: false);
+    // [1] Fetch profile for resume
+    Supabase.instance.client
+        .from('profiles')
+        .select('resume_url')
+        .eq('id', user.id)
+        .maybeSingle(),
+  ]);
 
-      final apps = (appsResponse as List).cast<Map<String, dynamic>>();
+  final apps = (results[0] as List).cast<Map<String, dynamic>>();
+  final profileResponse = results[1] as Map<String, dynamic>?;
+  final resumeUrl = profileResponse?['resume_url'] as String? ?? '';
 
-      // Fetch round progress for all applications
-      final appIds = apps.map((a) => a['id'] as String).toList();
-      List<Map<String, dynamic>> allProgress = [];
-      if (appIds.isNotEmpty) {
-        final progressResponse = await Supabase.instance.client
-            .from('application_round_status')
-            .select('*, round:drive_rounds(round_number, round_name)')
-            .inFilter('application_id', appIds);
-        allProgress = (progressResponse as List).cast<Map<String, dynamic>>();
-      }
+  if (apps.isEmpty) return [];
 
-      // Fetch notifications
-      final notifsResponse = await Supabase.instance.client
-          .from('notifications')
-          .select('id, title, body, type, read, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', ascending: false)
-          .limit(10);
+  // Fetch round progress for all applications in parallel
+  final appIds = apps.map((a) => a['id'] as String).toList();
+  List<Map<String, dynamic>> allProgress = [];
+  try {
+    final progressResponse = await Supabase.instance.client
+        .from('application_round_status')
+        .select('*, round:drive_rounds(round_number, round_name)')
+        .inFilter('application_id', appIds);
+    allProgress = (progressResponse as List).cast<Map<String, dynamic>>();
+  } catch (_) {}
 
-      // Fetch profile for resume
-      final profileResponse = await Supabase.instance.client
-          .from('profiles')
-          .select('resume_url')
-          .eq('id', user.id)
-          .maybeSingle();
+  // Map into ApplicationTimelineData
+  return apps.map((app) {
+    final drive = app['drive'] as Map<String, dynamic>? ?? {};
+    final company = drive['company'] as Map<String, dynamic>? ?? {};
+    final rounds = (drive['drive_rounds'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 
-      final resumeUrl = profileResponse?['resume_url'] as String? ?? '';
+    // Sort rounds by round_number
+    rounds.sort((a, b) => (a['round_number'] as int? ?? 0).compareTo(b['round_number'] as int? ?? 0));
 
-      // Build timeline data
-      final timelineData = apps.map((app) {
-        final drive = app['drive'] as Map<String, dynamic>? ?? {};
-        final company = drive['company'] as Map<String, dynamic>? ?? {};
-        final rounds = (drive['drive_rounds'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+    // Get progress for this application
+    final appProgress = allProgress.where((p) => p['application_id'] == app['id']).toList();
 
-        // Sort rounds by round_number
-        rounds.sort((a, b) => (a['round_number'] as int? ?? 0).compareTo(b['round_number'] as int? ?? 0));
-
-        // Get progress for this application
-        final appProgress = allProgress.where((p) => p['application_id'] == app['id']).toList();
-
-        String ctcDisplay = 'Disclosed on selection';
-        if (drive['ctc_or_stipend'] != null) {
-          ctcDisplay = drive['ctc_or_stipend'].toString();
-        } else if (drive['package_lpa'] != null) {
-          ctcDisplay = '₹${drive['package_lpa']} LPA';
-        }
-
-        final deadlineStr = drive['end_date'] as String? ?? drive['application_deadline'] as String? ?? '';
-        final deadline = DateTime.tryParse(deadlineStr) ?? DateTime.now().add(const Duration(days: 14));
-
-        return ApplicationTimelineData(
-          applicationId: app['id'] as String,
-          driveId: app['drive_id'] as String,
-          status: app['status'] as String? ?? 'applied',
-          currentRound: app['current_round'] as int? ?? 0,
-          appliedAt: DateTime.tryParse(app['applied_at'] as String? ?? '') ?? DateTime.now(),
-          companyName: company['name'] as String? ?? 'Company',
-          roleTitle: drive['role_title'] as String? ?? drive['role'] as String? ?? 'Role',
-          ctcDisplay: ctcDisplay,
-          applicationDeadline: deadline,
-          driveStatus: drive['drive_status'] as String? ?? drive['status'] as String? ?? 'upcoming',
-          resumeUrl: resumeUrl,
-          rounds: rounds,
-          roundProgress: appProgress,
-        );
-      }).toList();
-
-      if (!controller.isClosed) {
-        controller.add(timelineData);
-      }
-    } catch (e) {
-      if (!controller.isClosed) {
-        controller.addError(e);
-      }
+    String ctcDisplay = 'Disclosed on selection';
+    if (drive['ctc_or_stipend'] != null) {
+      ctcDisplay = drive['ctc_or_stipend'].toString();
+    } else if (drive['package_lpa'] != null) {
+      ctcDisplay = '₹${drive['package_lpa']} LPA';
     }
-  }
 
-  // Initial fetch
-  await fetchData();
+    final deadlineStr = drive['end_date'] as String? ?? drive['application_deadline'] as String? ?? '';
+    final deadline = DateTime.tryParse(deadlineStr) ?? DateTime.now().add(const Duration(days: 14));
 
-  // Subscribe to Realtime changes on applications + application_round_status
-  final channel = Supabase.instance.client
-      .channel('student-timeline-${user.id}')
-      .onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'applications',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'student_id',
-          value: user.id,
-        ),
-        callback: (_) => fetchData(),
-      )
-      .onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'application_round_status',
-        callback: (_) => fetchData(),
-      )
-      .onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'notifications',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'user_id',
-          value: user.id,
-        ),
-        callback: (_) => fetchData(),
-      )
-      .subscribe();
+    final appResumeUrl = app['resume_version_url'] as String?;
+    final finalResumeUrl = (appResumeUrl != null && appResumeUrl.isNotEmpty) ? appResumeUrl : resumeUrl;
 
-  ref.onDispose(() {
-    channel.unsubscribe();
-    controller.close();
-  });
-
-  yield* controller.stream;
+    return ApplicationTimelineData(
+      applicationId: app['id'] as String,
+      driveId: app['drive_id'] as String,
+      status: app['status'] as String? ?? 'applied',
+      currentRound: app['current_round'] as int? ?? 0,
+      appliedAt: DateTime.tryParse(app['applied_at'] as String? ?? '') ?? DateTime.now(),
+      companyName: company['name'] as String? ?? 'Company',
+      roleTitle: drive['role_title'] as String? ?? drive['role'] as String? ?? 'Role',
+      ctcDisplay: ctcDisplay,
+      applicationDeadline: deadline,
+      driveStatus: drive['drive_status'] as String? ?? drive['status'] as String? ?? 'upcoming',
+      resumeUrl: finalResumeUrl,
+      rounds: rounds,
+      roundProgress: appProgress,
+    );
+  }).toList();
 });
 
 /// Latest notifications for the student.

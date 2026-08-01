@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:printing/printing.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../../core/theme/theme_extensions.dart';
 
 /// Export format options.
@@ -294,10 +297,22 @@ class _AttendanceExportDialogState extends State<_AttendanceExportDialog> {
   Future<void> _exportPdf(List<Map<String, dynamic>> records,
       {required String fileName, String? title}) async {
     final pdf = _buildPdf(records, title: title);
-    await Printing.layoutPdf(
-      onLayout: (format) async => pdf.save(),
-      name: '$fileName.pdf',
-    );
+    final bytes = await pdf.save();
+
+    final directory = await getTemporaryDirectory();
+    final cleanFileName = fileName.replaceAll(RegExp(r'[^\w\.-]'), '_');
+    final filePath = '${directory.path}/$cleanFileName.pdf';
+    await File(filePath).writeAsBytes(bytes);
+
+    try {
+      await Share.shareXFiles(
+        [XFile(filePath)],
+        text: title ?? 'Drive Attendance Report PDF',
+        subject: '$fileName PDF',
+      );
+    } catch (_) {
+      await Printing.sharePdf(bytes: bytes, filename: '$fileName.pdf');
+    }
   }
 
   // ── Main Export Handler ────────────────────────────────────────────

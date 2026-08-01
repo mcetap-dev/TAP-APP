@@ -119,12 +119,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return '/student';
         }
 
-        // If profile is completed, /student/profile-edit should not open — go to profile page
-        if (profile.role == UserRole.student &&
-            profile.profileCompleted &&
-            state.matchedLocation == '/student/profile-edit') {
-          return '/student';
-        }
+
       }
 
       return null;

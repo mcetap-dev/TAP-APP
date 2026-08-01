@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../shared/presentation/widgets/subtle_divider.dart';
 import '../../domain/entities/department.dart';
@@ -40,17 +41,73 @@ class _SystemSettingsScreenState extends ConsumerState<SystemSettingsScreen> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('system_settings')
+          .select()
+          .eq('id', 'global_config')
+          .maybeSingle();
+
+      if (res != null && mounted) {
+        setState(() {
+          _activeYear = (res['active_academic_year'] as String?) ?? '2025-26';
+          _activeBatch = (res['graduating_batch'] as String?) ?? '2026';
+          _allowMultipleOffers = (res['allow_multiple_offers'] as bool?) ?? false;
+          _requireFacultyApproval = (res['require_faculty_approval'] as bool?) ?? true;
+          _consentMandatory = (res['consent_form_mandatory'] as bool?) ?? true;
+          _autoNotifyStudents = (res['auto_notify_students'] as bool?) ?? true;
+          _defaultCgpaController.text = (res['default_cgpa']?.toString()) ?? '7.0';
+          _maxBacklogsController.text = (res['max_backlogs']?.toString()) ?? '0';
+        });
+      }
+    } catch (_) {}
+  }
+
   void _save() async {
     setState(() => _isSaving = true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) {
-      setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Settings saved successfully!'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      await Supabase.instance.client.from('system_settings').upsert({
+        'id': 'global_config',
+        'active_academic_year': _activeYear,
+        'graduating_batch': _activeBatch,
+        'allow_multiple_offers': _allowMultipleOffers,
+        'require_faculty_approval': _requireFacultyApproval,
+        'consent_form_mandatory': _consentMandatory,
+        'auto_notify_students': _autoNotifyStudents,
+        'default_cgpa': double.tryParse(_defaultCgpaController.text.trim()) ?? 7.0,
+        'max_backlogs': int.tryParse(_maxBacklogsController.text.trim()) ?? 0,
+        'updated_at': DateTime.now().toIso8601String(),
+        if (userId != null) 'updated_by': userId,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Placement policy & system settings saved!'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving settings: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
     }
   }
 
@@ -197,104 +254,47 @@ class _SystemSettingsScreenState extends ConsumerState<SystemSettingsScreen> {
           const SizedBox(height: 10),
           if (brandTheme != null)
             _card(theme, brandTheme, [
-              ListTile(
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: brandTheme.brassPrimary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(Icons.mark_email_read_rounded, color: brandTheme.brassPrimary),
-                ),
-                title: Text('Dispatch Email Tests', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
-                subtitle: Text('Send test emails for Welcome, Faculty Appt, Application, Attendance, Status updates & Offers.', style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
-                trailing: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: brandTheme.brassPrimary,
-                    foregroundColor: brandTheme.onBrass,
-                  ),
-                  onPressed: () => _showEmailTesterDialog(context, brandTheme),
-                  child: const Text('Test Endpoints'),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: brandTheme.brassPrimary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.mark_email_read_rounded, color: brandTheme.brassPrimary),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Dispatch Email Tests', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14)),
+                          const SizedBox(height: 2),
+                          Text('Send test emails for Welcome, Faculty Appt, Application, Attendance, Status & Offers.', style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: brandTheme.brassPrimary,
+                        foregroundColor: brandTheme.onBrass,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      onPressed: () => _showEmailTesterDialog(context, brandTheme),
+                      child: Text('Test', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
+                    ),
+                  ],
                 ),
               ),
             ]),
 
           const SizedBox(height: 20),
 
-          // ─── Section 3: Default Criteria ───
-          _sectionHeader('📐 Default Eligibility Criteria', theme, brandTheme),
-          const SizedBox(height: 10),
-          _card(theme, brandTheme, [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Minimum CGPA', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-                        Text('Applied when drives don\'t specify a cutoff.', style: GoogleFonts.inter(fontSize: 11, color: brandTheme?.textMuted)),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    width: 80,
-                    child: TextFormField(
-                      controller: _defaultCgpaController,
-                      textAlign: TextAlign.center,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-                      style: GoogleFonts.ibmPlexMono(fontWeight: FontWeight.w600, fontSize: 16),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: brandTheme?.surfaceAlt ?? theme.colorScheme.surfaceContainerLowest,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SubtleDivider(height: 1),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Max Active Backlogs', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-                        Text('Maximum allowed active backlogs for placement eligibility.', style: GoogleFonts.inter(fontSize: 11, color: brandTheme?.textMuted)),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    width: 80,
-                    child: TextFormField(
-                      controller: _maxBacklogsController,
-                      textAlign: TextAlign.center,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      style: GoogleFonts.ibmPlexMono(fontWeight: FontWeight.w600, fontSize: 16),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: brandTheme?.surfaceAlt ?? theme.colorScheme.surfaceContainerLowest,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ]),
-
-          const SizedBox(height: 20),
-
-          // ─── Section 4: Departments with Branch Codes ───
+          // ─── Section 3: Departments with Branch Codes ───
           _sectionHeader('🏛️ Departments & USN Branch Mapping', theme, brandTheme),
           const SizedBox(height: 10),
           deptsAsync.when(
