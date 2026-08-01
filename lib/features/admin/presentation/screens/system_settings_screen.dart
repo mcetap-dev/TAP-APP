@@ -592,100 +592,156 @@ class _SystemSettingsScreenState extends ConsumerState<SystemSettingsScreen> {
                 children: [
                   OutlinedButton(
                     onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
                       emailService.sendWelcomeEmail(
-                        recipientEmail: emailCtrl.text.trim(),
+                        recipientEmail: email,
                         studentName: 'Test Student',
                         role: 'Student',
                         department: 'CSE',
                       );
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Welcome email test dispatched!')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Welcome email test dispatched to $email!')));
                     },
                     child: const Text('Welcome'),
                   ),
                   OutlinedButton(
                     onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
                       emailService.sendFacultyAppointmentEmail(
-                        recipientEmail: emailCtrl.text.trim(),
+                        recipientEmail: email,
                         facultyName: 'Dr. Smith',
                         department: 'CSE',
                       );
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Faculty Appt email test dispatched!')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Faculty Appt email test dispatched to $email!')));
                     },
                     child: const Text('Faculty Appt'),
                   ),
                   OutlinedButton(
                     onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
                       emailService.sendApplicationSubmittedEmail(
-                        recipientEmail: emailCtrl.text.trim(),
+                        recipientEmail: email,
                         studentName: 'Test Student',
                         companyName: 'Acme Corp',
                         roleTitle: 'Software Engineer',
                       );
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Application email test dispatched!')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Application email test dispatched to $email!')));
                     },
                     child: const Text('Application'),
                   ),
                   OutlinedButton(
                     onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
                       emailService.sendAttendanceConfirmationEmail(
-                        recipientEmail: emailCtrl.text.trim(),
+                        recipientEmail: email,
                         companyName: 'Acme Corp',
                         date: '2026-08-01',
                         time: '10:00 AM',
                       );
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Attendance email test dispatched!')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Attendance email test dispatched to $email!')));
                     },
                     child: const Text('Attendance'),
                   ),
                   OutlinedButton(
                     onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
                       emailService.sendRoundQualifiedEmail(
-                        recipientEmail: emailCtrl.text.trim(),
+                        recipientEmail: email,
                         studentName: 'Test Student',
                         companyName: 'Acme Corp',
                         qualifiedRound: 'Online Test',
                         nextRoundName: 'Technical Interview',
                       );
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Qualified email test dispatched!')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Qualified email test dispatched to $email!')));
                     },
                     child: const Text('Qualified'),
                   ),
                   OutlinedButton(
                     onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
                       emailService.sendRoundRejectedEmail(
-                        recipientEmail: emailCtrl.text.trim(),
+                        recipientEmail: email,
                         studentName: 'Test Student',
                         companyName: 'Acme Corp',
                         rejectedRound: 'Technical Interview',
                         remarks: 'Keep applying for future drives.',
                       );
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Rejected email test dispatched!')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Rejected email test dispatched to $email!')));
                     },
                     child: const Text('Rejected'),
                   ),
                   OutlinedButton(
                     onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
                       emailService.sendOfferReleasedEmail(
-                        recipientEmail: emailCtrl.text.trim(),
+                        recipientEmail: email,
                         studentName: 'Test Student',
                         companyName: 'Acme Corp',
                         roleTitle: 'Software Engineer',
                         package: '12 LPA',
                       );
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offer email test dispatched!')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Offer email test dispatched to $email!')));
                     },
                     child: const Text('Offer Released'),
                   ),
                   OutlinedButton(
                     onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
                       emailService.sendReminderEmail(
-                        recipientEmail: emailCtrl.text.trim(),
+                        recipientEmail: email,
                         studentName: 'Test Student',
                         reminderTitle: 'Resume Upload Pending',
                         message: 'Please upload your latest resume to apply for upcoming drives.',
                         deadline: 'Tomorrow 5:00 PM',
                       );
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reminder email test dispatched!')));
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reminder email test dispatched to $email!')));
                     },
                     child: const Text('Reminder'),
                   ),
