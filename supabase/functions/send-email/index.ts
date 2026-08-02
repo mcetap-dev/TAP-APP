@@ -102,20 +102,46 @@ serve(async (req) => {
     console.log(`[send-email] Using SMTP ${senderHost}:${senderPort} (default)`);
 
     let smtpMeta: { messageId: string | null; responseCode: string; serverResponse: string } | null = null;
+    let transport = "gmail-smtp";
+
+    // Resend (transactional ESP) preferred when configured; it carries proper
+    // domain-level SPF/DKIM/DMARC, which avoids M365 Junk classification.
+    const resendApiKey = Deno.env.get("RESEND_API_KEY") || "";
+    const resendFromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "";
+
     try {
-      smtpMeta = await sendSmtpEmail({
-        hostname: senderHost,
-        port: senderPort,
-        username: senderEmail,
-        password: senderPassword,
-        from: `${COLLEGE_NAME} <${senderEmail}>`,
-        to: recipient,
-        subject: subject,
-        html: html,
-      });
-      console.log(
-        `[send-email] SMTP accepted. code=${smtpMeta.responseCode} Message-ID=${smtpMeta.messageId} reply="${smtpMeta.serverResponse.trim()}"`
-      );
+      if (resendApiKey && resendFromEmail) {
+        try {
+          await sendViaResend({
+            from: resendFromEmail,
+            to: recipient,
+            subject,
+            html,
+            text: htmlToText(html),
+            replyTo: senderEmail,
+          });
+          transport = "resend";
+          console.log(`[send-email] Delivered via Resend to ${recipient}`);
+        } catch (err: any) {
+          console.error(`[send-email] Resend failed (${err?.message}); falling back to Gmail SMTP`);
+        }
+      }
+
+      if (transport !== "resend") {
+        smtpMeta = await sendSmtpEmail({
+          hostname: senderHost,
+          port: senderPort,
+          username: senderEmail,
+          password: senderPassword,
+          from: `${COLLEGE_NAME} <${senderEmail}>`,
+          to: recipient,
+          subject: subject,
+          html: html,
+        });
+        console.log(
+          `[send-email] SMTP accepted. code=${smtpMeta.responseCode} Message-ID=${smtpMeta.messageId} reply="${smtpMeta.serverResponse.trim()}"`
+        );
+      }
     } catch (err: any) {
       status = "failed";
       errorMessage = err?.message || String(err);
@@ -370,6 +396,41 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<SmtpResult> {
     try { writer.releaseLock(); } catch (_) {}
     try { reader.releaseLock(); } catch (_) {}
     try { conn.close(); } catch (_) {}
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Resend (transactional ESP) transport — used when RESEND_API_KEY is set so
+// mail carries domain-level SPF/DKIM/DMARC and lands in M365 inboxes instead
+// of Junk. Falls back to the Gmail SMTP path above on any failure.
+// ─────────────────────────────────────────────────────────────────────────────
+async function sendViaResend(params: {
+  from: string;
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  replyTo: string;
+}): Promise<void> {
+  const apiKey = Deno.env.get("RESEND_API_KEY") || "";
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: `${COLLEGE_NAME} <${params.from}>`,
+      to: [params.to],
+      subject: params.subject,
+      html: params.html,
+      text: params.text,
+      reply_to: params.replyTo,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Resend API error (${res.status}): ${body}`);
   }
 }
 
