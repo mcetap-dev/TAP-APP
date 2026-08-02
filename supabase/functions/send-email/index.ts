@@ -32,12 +32,6 @@ serve(async (req) => {
     const smtpEmail = Deno.env.get("SMTP_EMAIL") || "";
     const smtpPassword = Deno.env.get("SMTP_PASSWORD") || "";
 
-    // Outlook / Office365 sender used for student (@ms.mcehassan.ac.in) mail.
-    const outlookHost = Deno.env.get("OUTLOOK_SMTP_HOST") || "smtp.office365.com";
-    const outlookPort = parseInt(Deno.env.get("OUTLOOK_SMTP_PORT") || "587");
-    const outlookEmail = Deno.env.get("OUTLOOK_SMTP_EMAIL") || "";
-    const outlookPassword = Deno.env.get("OUTLOOK_SMTP_PASSWORD") || "";
-
     if (!smtpEmail || !smtpPassword) {
       throw new Error(
         "SMTP credentials missing. Please set SMTP_EMAIL and SMTP_PASSWORD in Supabase Secrets."
@@ -100,16 +94,12 @@ serve(async (req) => {
     let status = "sent";
     let errorMessage: string | null = null;
 
-    // Route student mail through the Outlook sender so it lands in Outlook
-    // inboxes reliably; fall back to the default SMTP for staff/others.
-    const isStudentRecipient = recipient.trim().toLowerCase().endsWith("@ms.mcehassan.ac.in");
-    const useOutlook = isStudentRecipient && outlookEmail && outlookPassword;
-
-    const senderHost = useOutlook ? outlookHost : smtpHost;
-    const senderPort = useOutlook ? outlookPort : smtpPort;
-    const senderEmail = useOutlook ? outlookEmail : smtpEmail;
-    const senderPassword = useOutlook ? outlookPassword : smtpPassword;
-    console.log(`[send-email] Using SMTP ${senderHost}:${senderPort} (${useOutlook ? "Outlook" : "default"})`);
+    // Always send through the default Gmail SMTP sender for every recipient.
+    const senderHost = smtpHost;
+    const senderPort = smtpPort;
+    const senderEmail = smtpEmail;
+    const senderPassword = smtpPassword;
+    console.log(`[send-email] Using SMTP ${senderHost}:${senderPort} (default)`);
 
     try {
       await sendSmtpEmail({
