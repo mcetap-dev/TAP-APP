@@ -297,6 +297,42 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
         }
       } catch (_) {}
 
+      // ── FCM push on apply: confirmation to student + alert to TPO/admin ──
+      final studentName = (profileMap?['name'] as String?) ?? 'Student';
+      final pushTargets = <Map<String, dynamic>>[
+        {
+          'user_ids': [user.id],
+          'drive_id': _drive.id,
+          'title': 'Application Submitted',
+          'body': 'You have applied to ${_drive.companyName} - ${_drive.roleTitle}. Good luck!',
+        },
+      ];
+      try {
+        final staffRows = await Supabase.instance.client
+            .from('profiles')
+            .select('id')
+            .inFilter('role', ['tpo', 'admin']);
+        final staffIds = (staffRows as List).map((r) => r['id'] as String).toList();
+        if (staffIds.isNotEmpty) {
+          pushTargets.add({
+            'user_ids': staffIds,
+            'drive_id': _drive.id,
+            'title': 'New Application',
+            'body': '$studentName applied to ${_drive.companyName} - ${_drive.roleTitle}',
+          });
+        }
+      } catch (e) {
+        debugPrint('[DriveDetails] Staff lookup warning: $e');
+      }
+
+      for (final target in pushTargets) {
+        try {
+          await Supabase.instance.client.functions.invoke('send-fcm-push', body: target);
+        } catch (e) {
+          debugPrint('[DriveDetails] FCM push warning: $e');
+        }
+      }
+
       // Refresh providers
       ref.invalidate(studentApplicationsProvider);
       ref.invalidate(studentEligibleDrivesProvider);
