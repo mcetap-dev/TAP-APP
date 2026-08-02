@@ -433,7 +433,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                 ),
                               ),
                             ),
-                            const SizedBox(height: AppSpacing.sp6),
+                            const SizedBox(height: AppSpacing.sp2),
+
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: GestureDetector(
+                                onTap: () => context.push('/forgot-password'),
+                                child: Text(
+                                  'Forgot password?',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: brandTheme.brassPrimary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: AppSpacing.sp4),
 
                             // Primary Brass Button
                             GestureDetector(

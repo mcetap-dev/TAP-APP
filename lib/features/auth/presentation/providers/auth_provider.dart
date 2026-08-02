@@ -39,6 +39,20 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
   final PushNotificationService? _pushService;
   RealtimeChannel? _profileChannel;
 
+  /// Set while a signup is waiting on email OTP verification. Lets the router
+  /// keep the user on the OTP screen.
+  String? _pendingOtpEmail;
+  String? _lastOtpError;
+
+  String? get pendingOtpEmail => _pendingOtpEmail;
+  String? get lastOtpError => _lastOtpError;
+
+  /// Abandons an in-progress OTP session (e.g. user leaves the OTP screen).
+  void clearPendingOtp() {
+    _pendingOtpEmail = null;
+    _lastOtpError = null;
+  }
+
   AuthNotifier(this._datasource, this._auditLogRepo, [this._emailService, this._pushService]) : super(const AsyncValue.loading()) {
     _init();
   }
@@ -182,11 +196,85 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
         department: department,
         rollNumber: rollNumber,
       );
+      _pendingOtpEmail = email;
+      _lastOtpError = null;
+      try {
+        await _datasource.requestOtp(email: email, purpose: 'signup');
+      } catch (e) {
+        // Don't fail signup: the OTP screen exposes the error and a Resend
+        // action, so the user can retry delivery without re-registering.
+        _lastOtpError = e.toString();
+      }
       state = const AsyncValue.data(null);
+    } catch (e, st) {
+      _pendingOtpEmail = null;
+      state = AsyncValue.error(e, st);
+      rethrow;
+    }
+  }
+
+  Future<void> resendOtp(String email) async {
+    try {
+      await _datasource.requestOtp(email: email, purpose: 'signup');
+      _lastOtpError = null;
+    } catch (e) {
+      _lastOtpError = e.toString();
+      rethrow;
+    }
+  }
+
+  Future<void> verifySignupOtp({
+    required String email,
+    required String code,
+  }) async {
+    state = const AsyncValue.loading();
+    try {
+      await _datasource.verifyOtp(email: email, code: code, purpose: 'signup');
+      _pendingOtpEmail = null;
+      _lastOtpError = null;
+
+      final user = _datasource.currentUser;
+      if (user == null) {
+        state = const AsyncValue.data(null);
+        return;
+      }
+
+      try {
+        await _datasource.markEmailVerified(user.id);
+      } catch (_) {}
+
+      // Dispatch the welcome email once verification succeeds.
+      final profile = await _datasource.fetchProfile(user.id);
+      if (profile != null && profile.email.isNotEmpty) {
+        _emailService?.sendWelcomeEmail(
+          recipientEmail: profile.email,
+          studentName: profile.name,
+          role: profile.role.displayName,
+          department: profile.department ?? 'Computer Science and Engineering',
+        );
+      }
+
+      await _loadProfile(user.id);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
     }
+  }
+
+  Future<void> requestPasswordResetOtp(String email) async {
+    await _datasource.requestOtp(email: email, purpose: 'password_reset');
+  }
+
+  Future<void> resetPasswordWithOtp({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    await _datasource.resetPasswordWithOtp(
+      email: email,
+      code: code,
+      newPassword: newPassword,
+    );
   }
 
   Future<void> signOut() async {

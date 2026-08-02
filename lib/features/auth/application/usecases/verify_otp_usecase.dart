@@ -39,6 +39,6 @@ class VerifyOtpUseCase {
     await secureStorage.delete('pending_signup_role');
     await secureStorage.delete('pending_signup_name');
 
-    return result;
+    return (state: result, failure: null);
   }
 }

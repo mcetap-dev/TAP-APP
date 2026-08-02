@@ -72,16 +72,65 @@ class AuthRemoteDatasource {
     );
   }
 
-  // ── Verify OTP ────────────────────────────────────────────────────────────
-  Future<AuthResponse> verifyOtp({
+  // ── Custom OTP (edge function, SMTP-delivered) ───────────────────────────
+  /// Requests a 6-digit verification code, emailed via the send-otp edge
+  /// function (which delivers through SMTP so college mailboxes accept it).
+  Future<void> requestOtp({
     required String email,
-    required String token,
+    required String purpose,
   }) async {
-    return _client.auth.verifyOTP(
-      email: email,
-      token: token,
-      type: OtpType.email,
-    );
+    final res = await _client.functions.invoke('send-otp', body: {
+      'action': 'send',
+      'email': email,
+      'purpose': purpose,
+    });
+    final data = res.data is Map ? res.data as Map : {};
+    if (res.status >= 400 || data['success'] != true) {
+      throw Exception(data['error']?.toString() ?? 'Failed to send verification code.');
+    }
+  }
+
+  // ── Verify OTP ────────────────────────────────────────────────────────────
+  Future<void> verifyOtp({
+    required String email,
+    required String code,
+    required String purpose,
+  }) async {
+    final res = await _client.functions.invoke('send-otp', body: {
+      'action': 'verify',
+      'email': email,
+      'code': code,
+      'purpose': purpose,
+    });
+    final data = res.data is Map ? res.data as Map : {};
+    if (res.status >= 400 || data['success'] != true) {
+      throw Exception(data['error']?.toString() ?? 'Verification failed.');
+    }
+  }
+
+  /// Records that the user completed email OTP verification.
+  Future<void> markEmailVerified(String userId) async {
+    await _client.from('profiles').update({'email_verified': true}).eq('id', userId);
+  }
+
+  /// Verifies a password-reset OTP and sets a new password server-side
+  /// (works without an active session via the edge function).
+  Future<void> resetPasswordWithOtp({
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    final res = await _client.functions.invoke('send-otp', body: {
+      'action': 'reset_password',
+      'email': email,
+      'code': code,
+      'purpose': 'password_reset',
+      'newPassword': newPassword,
+    });
+    final data = res.data is Map ? res.data as Map : {};
+    if (res.status >= 400 || data['success'] != true) {
+      throw Exception(data['error']?.toString() ?? 'Password reset failed.');
+    }
   }
 
   // ── Sign Out ──────────────────────────────────────────────────────────────

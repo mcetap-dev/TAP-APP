@@ -6,6 +6,7 @@ import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/signup_screen.dart';
 import '../../features/auth/presentation/screens/otp_verification_screen.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/pending_approval_screen.dart';
 import '../../features/student/presentation/screens/student_dashboard_screen.dart';
 import '../../features/student/presentation/screens/profile_setup_screen.dart';
@@ -63,11 +64,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final profile = authState.valueOrNull;
       final isLoggedIn = profile != null;
 
-      final authPaths = {'/login', '/signup', '/verify-otp'};
+      final authPaths = {'/login', '/signup', '/verify-otp', '/forgot-password'};
       final isOnAuth = authPaths.any((p) => state.matchedLocation.startsWith(p));
 
       // Still loading — don't redirect
       if (authState.isLoading) return null;
+
+      // Pending email OTP verification — keep the user on the OTP screen.
+      // Prevents skipping email verification after signup.
+      final pendingOtp = ref.read(authNotifierProvider.notifier).pendingOtpEmail;
+      if (pendingOtp != null && state.matchedLocation != '/verify-otp') {
+        return '/verify-otp';
+      }
 
       // Not logged in → must be on auth screen
       if (!isLoggedIn && !isOnAuth) return '/login';
@@ -142,6 +150,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final email = state.extra as String? ?? '';
           return OtpVerificationScreen(email: email);
         },
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        name: 'forgot-password',
+        builder: (_, __) => const ForgotPasswordScreen(),
       ),
       GoRoute(
         path: '/pending-approval',

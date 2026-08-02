@@ -25,6 +25,6 @@ class SignUpUseCase {
       password: password,
       fullName: fullName,
       role: role,
-    );
+    ).then((state) => (state: state, failure: null));
   }
 }

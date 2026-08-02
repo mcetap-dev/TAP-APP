@@ -11,6 +11,7 @@ class SignInUseCase {
     required String email,
     required String password,
   }) async {
-    return repository.signIn(email: email, password: password);
+    final state = await repository.signIn(email: email, password: password);
+    return (state: state, failure: null);
   }
 }

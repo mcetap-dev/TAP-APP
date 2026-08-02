@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import '../providers/auth_provider.dart';
 import '../../../../core/theme/theme_extensions.dart';
 
 class OtpVerificationScreen extends ConsumerStatefulWidget {
@@ -17,8 +17,34 @@ class OtpVerificationScreen extends ConsumerStatefulWidget {
 class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   final _controllers = List.generate(6, (_) => TextEditingController());
   final _focusNodes = List.generate(6, (_) => FocusNode());
+  late final String _email;
   bool _isLoading = false;
   bool _isResending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // If the router forced us here without an extra (pending OTP), fall back
+    // to the notifier's tracked email.
+    _email = widget.email.isNotEmpty
+        ? widget.email
+        : (ref.read(authNotifierProvider.notifier).pendingOtpEmail ?? widget.email);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final err = ref.read(authNotifierProvider.notifier).lastOtpError;
+      if (err != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Could not send the code automatically ($err). Tap Resend to try again.'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -39,11 +65,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await Supabase.instance.client.auth.verifyOTP(
-        email: widget.email,
-        token: _otp,
-        type: OtpType.email,
+      await ref.read(authNotifierProvider.notifier).verifySignupOtp(
+        email: _email,
+        code: _otp,
       );
+      // Router redirects to the role-appropriate screen once the profile loads.
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -64,10 +90,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   Future<void> _resend() async {
     setState(() => _isResending = true);
     try {
-      await Supabase.instance.client.auth.resend(
-        type: OtpType.email,
-        email: widget.email,
-      );
+      await ref.read(authNotifierProvider.notifier).resendOtp(_email);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -92,8 +115,11 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   }
 
   String _friendlyError(String raw) {
-    if (raw.contains('Token has expired')) return 'Code expired. Please request a new code.';
-    if (raw.contains('invalid')) return 'Incorrect code. Please check and try again.';
+    if (raw.contains('expired')) return 'Code expired. Please request a new code.';
+    if (raw.contains('No active code')) return 'No active code found. Please request a new one.';
+    if (raw.contains('Too many incorrect attempts')) return 'Too many incorrect attempts. Please request a new code.';
+    if (raw.contains('Incorrect code')) return 'Incorrect code. Please check and try again.';
+    if (raw.contains('Please wait')) return raw.replaceFirst('Exception: ', '');
     return 'Verification failed. Please try again.';
   }
 
@@ -143,7 +169,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  'We sent a 6-digit code to\n${widget.email}',
+                  'We sent a 6-digit code to\n$_email',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.inter(
                     color: brandTheme?.textMuted ?? theme.colorScheme.onSurface.withValues(alpha: 0.6),
@@ -250,7 +276,10 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                 const SizedBox(height: 20),
 
                 GestureDetector(
-                  onTap: () => context.go('/login'),
+                  onTap: () {
+                    ref.read(authNotifierProvider.notifier).clearPendingOtp();
+                    context.go('/login');
+                  },
                   child: Text(
                     '← Back to sign in',
                     style: GoogleFonts.inter(
