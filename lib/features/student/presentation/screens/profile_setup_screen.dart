@@ -31,7 +31,11 @@ class ProfileSetupScreen extends ConsumerStatefulWidget {
   /// When true the wizard loads existing data and allows editing.
   final bool isEditMode;
 
-  const ProfileSetupScreen({this.isEditMode = false, super.key});
+  /// Step to open on (edit mode only). Lets each profile section open its own
+  /// step directly instead of restarting the whole wizard.
+  final int initialStep;
+
+  const ProfileSetupScreen({this.isEditMode = false, this.initialStep = 0, super.key});
 
   @override
   ConsumerState<ProfileSetupScreen> createState() => _ProfileSetupScreenState();
@@ -85,6 +89,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   @override
   void initState() {
     super.initState();
+    _currentStep = widget.isEditMode ? widget.initialStep : 0;
     _nameController = TextEditingController();
     _phoneController = TextEditingController();
     _sslcController = TextEditingController();
@@ -167,11 +172,21 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   }
 
   void _onBack() {
-    if (_currentStep > 0) {
-      setState(() => _currentStep -= 1);
-    } else if (widget.isEditMode) {
+    if (widget.isEditMode) {
+      // Edit mode opens a single section — back returns to the profile page
       Navigator.of(context).pop();
+    } else if (_currentStep > 0) {
+      setState(() => _currentStep -= 1);
     }
+  }
+
+  /// Edit mode: validates only the current section, then saves and returns to
+  /// the profile page. Other sections are preserved (pre-filled from profile).
+  void _saveFromCurrentStep() {
+    if (_currentStep == 0 && !_personalFormKey.currentState!.validate()) return;
+    if (_currentStep == 1 && !_academicFormKey.currentState!.validate()) return;
+    if (_currentStep == 2 && !_educationFormKey.currentState!.validate()) return;
+    _submit();
   }
 
   void _jumpToStep(int step) {
@@ -320,7 +335,12 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
             ? 'Profile updated successfully!'
             : 'Profile complete! Welcome aboard.');
         ref.read(authNotifierProvider.notifier).refreshProfile(userId);
-        context.go('/student');
+        if (widget.isEditMode) {
+          // Return to the profile page instead of resetting the stack
+          Navigator.of(context).pop();
+        } else {
+          context.go('/student');
+        }
       } else {
         final err = ref.read(studentOnboardingNotifierProvider).error;
         _showSnack('Failed to save: $err', isError: true);
@@ -456,10 +476,12 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                   Expanded(
                     flex: 2,
                     child: _NavButton(
-                      label: _currentStep == 4
-                          ? (widget.isEditMode ? 'Save Changes' : 'Save & Finish')
-                          : 'Continue',
-                      onTap: isSubmitting ? null : _onNext,
+                      label: widget.isEditMode
+                          ? (_currentStep == 4 ? 'Save Changes' : 'Save Section')
+                          : (_currentStep == 4 ? 'Save & Finish' : 'Continue'),
+                      onTap: isSubmitting
+                          ? null
+                          : (widget.isEditMode ? _saveFromCurrentStep : _onNext),
                       isLoading: isSubmitting,
                       brandTheme: brandTheme,
                       theme: theme,

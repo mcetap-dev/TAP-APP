@@ -175,7 +175,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/student/profile-edit',
         name: 'student-profile-edit',
-        builder: (_, __) => const ProfileSetupScreen(isEditMode: true),
+        builder: (context, state) => ProfileSetupScreen(
+          isEditMode: true,
+          initialStep: state.extra as int? ?? 0,
+        ),
       ),
       GoRoute(
         path: '/student/consent-form',

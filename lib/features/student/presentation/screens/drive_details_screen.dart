@@ -694,15 +694,13 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
         child: alreadyApplied
             ? GestureDetector(
                 onTap: () {
-                  // Navigate to student dashboard, Timeline tab (index 2)
-                  context.go('/student');
-                  // Small delay to let navigation settle, then switch tab
-                  Future.delayed(const Duration(milliseconds: 100), () {
-                    if (context.mounted) {
-                      // The dashboard uses _currentNavIndex, default is 0
-                      // We need to trigger the Timeline tab
-                    }
-                  });
+                  // Return to the previous screen (dashboard/eligible drives)
+                  // instead of resetting the whole navigation stack.
+                  if (context.canPop()) {
+                    context.pop();
+                  } else {
+                    context.go('/student');
+                  }
                 },
                 child: Container(
                   width: double.infinity,
@@ -985,7 +983,11 @@ class _SuccessSheet extends StatelessWidget {
                   child: GestureDetector(
                     onTap: () {
                       Navigator.of(context).pop();
-                      context.go('/student');
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/student');
+                      }
                     },
                     child: Container(
                       height: 48,
@@ -1004,7 +1006,11 @@ class _SuccessSheet extends StatelessWidget {
                   child: GestureDetector(
                     onTap: () {
                       Navigator.of(context).pop();
-                      context.go('/student');
+                      if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/student');
+                      }
                     },
                     child: Container(
                       height: 48,

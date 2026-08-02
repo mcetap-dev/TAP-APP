@@ -702,7 +702,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                 const SizedBox(height: AppSpacing.sp4),
                 // Edit Profile button
                 GestureDetector(
-                  onTap: () => context.push('/student/profile-edit'),
+                  onTap: () => context.push('/student/profile-edit', extra: 0),
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 11),
                     decoration: BoxDecoration(
@@ -743,6 +743,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
             title: 'Personal Information',
             theme: theme,
             brandTheme: brandTheme,
+            onEdit: () => context.push('/student/profile-edit', extra: 0),
             rows: [
               _infoRow('Name', name),
               _infoRow('College Email', profile?.email ?? '—'),
@@ -761,6 +762,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
             title: 'Academic Information',
             theme: theme,
             brandTheme: brandTheme,
+            onEdit: () => context.push('/student/profile-edit', extra: 1),
             rows: [
               _infoRow('USN', usn.isNotEmpty ? usn : '—'),
               _infoRow('Department', dept.isNotEmpty ? dept : '—'),
@@ -778,6 +780,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
             title: 'Education',
             theme: theme,
             brandTheme: brandTheme,
+            onEdit: () => context.push('/student/profile-edit', extra: 2),
             rows: [
               _infoRow('SSLC Percentage', profile?.tenthPercent != null ? '${profile!.tenthPercent}%' : '—'),
               _infoRow('PUC / Diploma', profile?.twelfthOrDiplomaPercent != null ? '${profile!.twelfthOrDiplomaPercent}%' : '—'),
@@ -887,6 +890,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
     required ThemeData theme,
     required AppBrandTheme brandTheme,
     required List<Widget> rows,
+    VoidCallback? onEdit,
   }) {
     return Container(
       width: double.infinity,
@@ -903,7 +907,38 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
             children: [
               Icon(icon, size: 18, color: brandTheme.brassPrimary),
               const SizedBox(width: AppSpacing.sp2),
-              Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 14)),
+              Expanded(
+                child: Text(title,
+                    style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w700, fontSize: 14)),
+              ),
+              if (onEdit != null)
+                GestureDetector(
+                  onTap: onEdit,
+                  behavior: HitTestBehavior.opaque,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sp3, vertical: AppSpacing.sp1),
+                    decoration: BoxDecoration(
+                      color: brandTheme.brassSoft.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.edit_rounded,
+                            size: 14, color: brandTheme.brassPrimary),
+                        const SizedBox(width: 4),
+                        Text('Edit',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: brandTheme.brassPrimary,
+                            )),
+                      ],
+                    ),
+                  ),
+                ),
             ],
           ),
           const SizedBox(height: AppSpacing.sp3),
@@ -1098,7 +1133,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                   child: _resumeActionButton(
                     label: 'Replace',
                     icon: Icons.swap_horiz_rounded,
-                    onTap: () => context.push('/student/profile-edit'),
+                    onTap: () => context.push('/student/profile-edit', extra: 3),
                     brandTheme: brandTheme,
                     isPrimary: false,
                   ),
@@ -1109,7 +1144,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
             _infoRow('Status', 'Not uploaded'),
             const SizedBox(height: AppSpacing.sp3),
             GestureDetector(
-              onTap: () => context.push('/student/profile-edit'),
+              onTap: () => context.push('/student/profile-edit', extra: 3),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 10),
