@@ -48,6 +48,13 @@ class TpoRepositoryImpl implements TpoRepository {
         .from('profiles')
         .update({'role': 'faculty_coordinator'}).eq('id', profileId);
 
+    // Roles are exclusive: remove any previous TPO appointment so this user
+    // is not shown as TPO while being a department coordinator
+    await _supabase
+        .from('tpo_appointments')
+        .delete()
+        .eq('profile_id', profileId);
+
     // Dispatch email notification asynchronously
     try {
       final profile = await _supabase

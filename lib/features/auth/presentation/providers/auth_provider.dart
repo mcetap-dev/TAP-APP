@@ -96,6 +96,12 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
         final user = _datasource.currentUser;
         if (user != null) {
           final metaRole = user.userMetadata?['role'] as String? ?? 'student';
+          // Privileged roles are never auto-assigned from metadata: they require
+          // an existing profiles row created by an admin appointment.
+          if (metaRole == 'admin' || metaRole == 'tpo') {
+            state = const AsyncValue.data(null);
+            return;
+          }
           final metaName = user.userMetadata?['name'] as String? ?? user.userMetadata?['full_name'] as String? ?? user.email?.split('@').first ?? 'User';
           profile = UserProfile(
             id: user.id,

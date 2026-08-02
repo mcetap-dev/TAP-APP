@@ -114,7 +114,9 @@ class AuthRemoteDatasource {
           ?? user.userMetadata?['full_name'] as String?
           ?? email.split('@').first;
 
-      // Determine role from metadata or email domain — NO student fallback
+      // Determine role from metadata or email domain — NO student fallback.
+      // Privileged roles (admin/tpo) are NEVER guessed from email: they require
+      // an existing `profiles` row created by an admin appointment.
       UserRole role;
       if (metaRole != null && metaRole.isNotEmpty) {
         try {
@@ -123,12 +125,17 @@ class AuthRemoteDatasource {
           debugPrint('[fetchProfile] Unknown metaRole "$metaRole" for $email. Returning null.');
           return null;
         }
-      } else if (email.startsWith('admin')) {
-        role = UserRole.admin;
-      } else if (email.startsWith('tap') || email.startsWith('tpo')) {
-        role = UserRole.tpo;
-      } else if (email.contains('faculty')) {
-        role = UserRole.facultyCoordinator;
+        if (role == UserRole.admin || role == UserRole.tpo) {
+          debugPrint(
+              '[fetchProfile] Privileged role "$metaRole" for $email has no profiles row. '
+              'Refusing to auto-assign. Returning null.');
+          return null;
+        }
+      } else if (email.endsWith('@ms.mcehassan.ac.in')) {
+        role = UserRole.student;
+      } else if (email.endsWith('@mcehassan.ac.in')) {
+        // Faculty role — coordinator/TPO status is granted later by appointment
+        role = UserRole.faculty;
       } else {
         // Cannot determine role — return null so login fails visibly
         debugPrint('[fetchProfile] Cannot determine role for $email. Profile not found in DB.');

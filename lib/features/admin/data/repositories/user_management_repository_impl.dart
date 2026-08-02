@@ -50,6 +50,12 @@ class UserManagementRepositoryImpl implements UserManagementRepository {
       throw Exception('System Administrators ($name) cannot be appointed as TPO.');
     }
 
+    if (currentRole == 'faculty_coordinator') {
+      throw Exception(
+          '$name is currently a Faculty Coordinator for a department. '
+          'Reassign the department coordinator to someone else before appointing them as TPO.');
+    }
+
     // 2. Use SECURITY DEFINER RPC to bypass RLS and update the role
     await _supabase.rpc('admin_set_user_role', params: {
       'p_profile_id': profileId,
@@ -62,7 +68,13 @@ class UserManagementRepositoryImpl implements UserManagementRepository {
       'appointed_by': appointedBy,
     }, onConflict: 'profile_id');
 
-    // 4. Log the audit action
+    // 4. Roles are exclusive: remove any previous coordinator appointment
+    await _supabase
+        .from('faculty_coordinators')
+        .delete()
+        .eq('profile_id', profileId);
+
+    // 5. Log the audit action
     await _auditLogRepo.logAction(
       action: AuditAction.roleChange,
       targetTable: 'profiles',
@@ -107,6 +119,10 @@ class UserManagementRepositoryImpl implements UserManagementRepository {
       throw Exception('System Administrators ($name) cannot be appointed as Faculty Coordinator.');
     }
 
+    if (currentRole == 'tpo') {
+      throw Exception('TPO Officer ($name) cannot be re-appointed as Faculty Coordinator.');
+    }
+
     // 2. Set user role to faculty_coordinator and update department
     await _supabase.rpc('admin_set_user_role', params: {
       'p_profile_id': profileId,
@@ -124,7 +140,13 @@ class UserManagementRepositoryImpl implements UserManagementRepository {
       'appointed_by': appointedBy,
     }, onConflict: 'profile_id');
 
-    // 4. Log audit action
+    // 4. Roles are exclusive: remove any previous TPO appointment
+    await _supabase
+        .from('tpo_appointments')
+        .delete()
+        .eq('profile_id', profileId);
+
+    // 5. Log audit action
     await _auditLogRepo.logAction(
       action: AuditAction.roleChange,
       targetTable: 'profiles',
@@ -135,12 +157,15 @@ class UserManagementRepositoryImpl implements UserManagementRepository {
 
   @override
   Future<List<UserProfile>> getTpoList() async {
+    // Source of truth is profiles.role, NOT the tpo_appointments table.
+    // This prevents demoted/promoted coordinators from lingering as TPOs.
     final response = await _supabase
-        .from('tpo_appointments')
-        .select('*, profile:profiles!tpo_appointments_profile_id_fkey(*)');
+        .from('profiles')
+        .select('*')
+        .eq('role', 'tpo');
 
     return (response as List)
-        .map((map) => UserProfile.fromMap(map['profile']))
+        .map((map) => UserProfile.fromMap(map))
         .toList();
   }
 

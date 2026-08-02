@@ -159,7 +159,8 @@ class AdminDashboardScreen extends ConsumerWidget {
               mainAxisSpacing: AppSpacing.sp3,
               childAspectRatio: 1.3,
               children: [
-                _card(Icons.people_outline_rounded, 'Users & Roles', brandTheme.brassPrimary, theme, brandTheme, onTap: () => context.push('/admin/appoint-tpo')),
+                _card(Icons.people_outline_rounded, 'Appoint TPO', brandTheme.brassPrimary, theme, brandTheme, onTap: () => context.push('/admin/appoint-tpo')),
+                _card(Icons.verified_user_outlined, 'Appoint Faculty Coordinator', brandTheme.brassSoft, theme, brandTheme, onTap: () => context.push('/admin/appoint-fc')),
                 _card(Icons.assessment_outlined, 'Compliance Reports', brandTheme.statusPending, theme, brandTheme, onTap: () => context.push('/admin/reports')),
                 _card(Icons.security_rounded, 'Audit Logs', brandTheme.statusShortlisted, theme, brandTheme, onTap: () => context.push('/admin/audit-logs')),
                 _card(Icons.settings_suggest_rounded, 'System Settings', brandTheme.brassA, theme, brandTheme, onTap: () => context.push('/admin/settings')),
