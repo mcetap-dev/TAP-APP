@@ -200,6 +200,9 @@ serve(async (req) => {
     const messageBody = body.body ||
       `Role: ${roleTitle}${packageLpa ? ` | CTC: ${packageLpa}` : ""}. Apply before deadline!`;
     const imageUrl = body.image || record.image_url || null;
+    // Callers that already created an in-app notification row (DB triggers,
+    // sendNotification, wizard) pass this to avoid duplicate in-app rows.
+    const skipInApp = body.skip_in_app === true;
 
     const accessToken = await getAccessToken(serviceAccount);
 
@@ -233,7 +236,7 @@ serve(async (req) => {
     // ── Persist in-app notifications for directly-targeted pushes ──────────
     // For drive webhooks the DB trigger (notify_students_on_new_drive) already
     // creates in-app rows, so we only do it here for manual/targeted sends.
-    if (sentUserIds.length > 0 && !isDriveWebhook) {
+    if (sentUserIds.length > 0 && !isDriveWebhook && !skipInApp) {
       const uniqueUserIds = [...new Set(sentUserIds)];
       const rows = uniqueUserIds.map((uid) => ({
         user_id: uid,

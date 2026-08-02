@@ -95,6 +95,16 @@ class StudentAttendanceRemoteDataSource {
       } catch (_) {}
     }
 
+    // Push notification confirming attendance
+    try {
+      await _client.functions.invoke('send-fcm-push', body: {
+        'user_ids': [studentId],
+        'drive_id': driveId,
+        'title': 'Attendance Confirmed',
+        'body': 'Your attendance for ${companyName.isNotEmpty ? companyName : 'the drive'} has been confirmed.',
+      });
+    } catch (_) {}
+
     return {
       'id': inserted['id'],
       'drive_id': driveId,

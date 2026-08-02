@@ -948,6 +948,18 @@ class _RoundExpandedSectionState
               package: widget.drive.ctcOrStipend,
             );
           }
+          // Push notification to the offered student
+          try {
+            await Supabase.instance.client.functions.invoke('send-fcm-push', body: {
+              'user_ids': [appData['student_id']],
+              'drive_id': widget.drive.id,
+              'application_id': appId,
+              'title': 'Offer Released',
+              'body': 'Congratulations! You have been offered for ${widget.drive.companyName} - ${widget.drive.roleTitle}. Check your offers.',
+            });
+          } catch (pushErr) {
+            debugPrint('[RoundManagement] Offer push warning: $pushErr');
+          }
         }
       }
     } catch (_) {}

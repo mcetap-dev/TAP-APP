@@ -70,6 +70,17 @@ class TpoRepositoryImpl implements TpoRepository {
           department: department,
         );
       }
+
+      // Push notification to the newly appointed faculty coordinator
+      if (profile != null) {
+        try {
+          await _supabase.functions.invoke('send-fcm-push', body: {
+            'user_ids': [profileId],
+            'title': 'Faculty Appointment',
+            'body': 'You have been appointed as Faculty Coordinator for $department.',
+          });
+        } catch (_) {}
+      }
     } catch (_) {}
   }
 
@@ -257,12 +268,15 @@ class TpoRepositoryImpl implements TpoRepository {
               // Notify all eligible approved students
               final students = await _supabase
                   .from('profiles')
-                  .select('email')
+                  .select('id, email')
                   .eq('role', 'student')
                   .eq('approval_status', 'approved');
 
+              final studentIds = <String>[];
               for (final s in (students as List)) {
                 final email = s['email'] as String?;
+                final sid = s['id'] as String?;
+                if (sid != null && sid.isNotEmpty) studentIds.add(sid);
                 if (email != null && email.isNotEmpty) {
                   _emailService!.sendDrivePublishedEmail(
                     recipientEmail: email,
@@ -274,16 +288,30 @@ class TpoRepositoryImpl implements TpoRepository {
                   );
                 }
               }
+
+              if (studentIds.isNotEmpty) {
+                try {
+                  await _supabase.functions.invoke('send-fcm-push', body: {
+                    'user_ids': studentIds,
+                    'drive_id': driveId,
+                    'title': 'Drive Activated',
+                    'body': '$companyName - $roleTitle applications are now open. Apply before the deadline!',
+                  });
+                } catch (_) {}
+              }
             } else if (validStatus == 'cancelled') {
               // Notify applicants
               final apps = await _supabase
                   .from('applications')
-                  .select('profile:profiles!applications_student_id_fkey(email)')
+                  .select('student_id, profile:profiles!applications_student_id_fkey(email)')
                   .eq('drive_id', driveId);
 
+              final studentIds = <String>[];
               for (final a in (apps as List)) {
                 final profile = a['profile'];
                 final email = profile is Map ? profile['email'] as String? : null;
+                final sid = a['student_id'] as String?;
+                if (sid != null && sid.isNotEmpty) studentIds.add(sid);
                 if (email != null && email.isNotEmpty) {
                   _emailService!.sendDriveCancelledEmail(
                     recipientEmail: email,
@@ -291,6 +319,17 @@ class TpoRepositoryImpl implements TpoRepository {
                     reason: 'Drive status updated to cancelled by TPO.',
                   );
                 }
+              }
+
+              if (studentIds.isNotEmpty) {
+                try {
+                  await _supabase.functions.invoke('send-fcm-push', body: {
+                    'user_ids': studentIds,
+                    'drive_id': driveId,
+                    'title': 'Drive Cancelled',
+                    'body': 'The drive for $companyName - $roleTitle has been cancelled by TPO.',
+                  });
+                } catch (_) {}
               }
             }
           }
@@ -863,6 +902,18 @@ class TpoRepositoryImpl implements TpoRepository {
         'type': type,
         'drive_id': driveId,
         'application_id': applicationId,
+      });
+    } catch (_) {}
+
+    // Also deliver the same message as a push notification to the student
+    try {
+      await _supabase.functions.invoke('send-fcm-push', body: {
+        'user_ids': [userId],
+        'title': title,
+        'body': body,
+        if (driveId != null) 'drive_id': driveId,
+        if (applicationId != null) 'application_id': applicationId,
+        'skip_in_app': true,
       });
     } catch (_) {}
   }

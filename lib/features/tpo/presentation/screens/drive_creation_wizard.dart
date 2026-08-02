@@ -257,6 +257,7 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
               'company_id': companyId,
               'role_title': roleTitle,
               'package_lpa': package,
+              'skip_in_app': true,
             });
           } catch (fcmErr) {
             debugPrint('[DriveCreation] FCM push invoke warning: $fcmErr');

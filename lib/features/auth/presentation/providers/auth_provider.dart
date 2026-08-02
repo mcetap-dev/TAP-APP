@@ -252,6 +252,15 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
           role: profile.role.displayName,
           department: profile.department ?? 'Computer Science and Engineering',
         );
+
+        // Welcome push notification (best-effort; token may register shortly after)
+        try {
+          await Supabase.instance.client.functions.invoke('send-fcm-push', body: {
+            'user_ids': [user.id],
+            'title': 'Welcome to Placement Connect',
+            'body': 'Your account has been verified. Best of luck with your placements!',
+          });
+        } catch (_) {}
       }
 
       await _loadProfile(user.id);
