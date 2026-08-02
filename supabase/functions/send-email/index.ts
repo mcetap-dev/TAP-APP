@@ -32,12 +32,6 @@ serve(async (req) => {
     const smtpEmail = Deno.env.get("SMTP_EMAIL") || "";
     const smtpPassword = Deno.env.get("SMTP_PASSWORD") || "";
 
-    // Outlook / Microsoft 365 sender used for student (@ms.mcehassan.ac.in) mail.
-    const outlookHost = Deno.env.get("OUTLOOK_SMTP_HOST") || "smtp-mail.outlook.com";
-    const outlookPort = parseInt(Deno.env.get("OUTLOOK_SMTP_PORT") || "587");
-    const outlookEmail = Deno.env.get("OUTLOOK_SMTP_EMAIL") || "";
-    const outlookPassword = Deno.env.get("OUTLOOK_SMTP_PASSWORD") || "";
-
     if (!smtpEmail || !smtpPassword) {
       throw new Error(
         "SMTP credentials missing. Please set SMTP_EMAIL and SMTP_PASSWORD in Supabase Secrets."
@@ -100,19 +94,12 @@ serve(async (req) => {
     let status = "sent";
     let errorMessage: string | null = null;
 
-    // Route student (@ms.mcehassan.ac.in) mail through the Outlook sender so it
-    // lands in the college Microsoft 365 inboxes reliably; all other recipients
-    // use the default Gmail SMTP. Falls back to Gmail unless OUTLOOK_SMTP_EMAIL
-    // holds a real address (guards against a misconfigured secret triggering 535).
-    const isStudentRecipient = recipient.trim().toLowerCase().endsWith("@ms.mcehassan.ac.in");
-    const outlookLooksValid = outlookEmail.includes("@") && outlookEmail.length > 5;
-    const useOutlook = isStudentRecipient && outlookLooksValid && outlookPassword;
-
-    const senderHost = useOutlook ? outlookHost : smtpHost;
-    const senderPort = useOutlook ? outlookPort : smtpPort;
-    const senderEmail = useOutlook ? outlookEmail : smtpEmail;
-    const senderPassword = useOutlook ? outlookPassword : smtpPassword;
-    console.log(`[send-email] Using SMTP ${senderHost}:${senderPort} (${useOutlook ? "Outlook" : "default"})`);
+    // All recipients send through the default Gmail SMTP sender.
+    const senderHost = smtpHost;
+    const senderPort = smtpPort;
+    const senderEmail = smtpEmail;
+    const senderPassword = smtpPassword;
+    console.log(`[send-email] Using SMTP ${senderHost}:${senderPort} (default)`);
 
     let smtpMeta: { messageId: string | null; responseCode: string; serverResponse: string } | null = null;
     try {
