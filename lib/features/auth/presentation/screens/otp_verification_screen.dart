@@ -200,13 +200,13 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                   child: Column(
                     children: [
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: List.generate(
                           6,
-                          (i) => SizedBox(
-                            width: 44,
-                            height: 52,
-                            child: TextFormField(
+                          (i) => Expanded(
+                            child: Container(
+                              height: 52,
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              child: TextFormField(
                               controller: _controllers[i],
                               focusNode: _focusNodes[i],
                               keyboardType: TextInputType.number,
@@ -240,7 +240,8 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 28),
+                    ),
+                    const SizedBox(height: 28),
 
                       ElevatedButton(
                         onPressed: _isLoading ? null : _verify,

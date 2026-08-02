@@ -34,6 +34,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   final _confirmCtrl = TextEditingController();
   bool _obscurePass = true;
   bool _obscureConfirm = true;
+  bool _isStudent = false;
   bool _isLoading = false;
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
@@ -203,25 +204,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                           ),
                           const SizedBox(height: 16),
 
-                          _label('USN / ROLL NUMBER', brandTheme, theme),
-                          const SizedBox(height: 6),
-                          TextFormField(
-                            controller: _usnCtrl,
-                            textInputAction: TextInputAction.next,
-                            textCapitalization: TextCapitalization.characters,
-                            style: GoogleFonts.inter(color: theme.colorScheme.onSurface, fontSize: 14),
-                            validator: (v) {
-                              if (_emailCtrl.text.trim().toLowerCase().endsWith('@ms.mcehassan.ac.in')) {
-                                if (v == null || v.trim().isEmpty) {
-                                  return 'Please enter your USN (e.g. 4MC22CS001)';
-                                }
-                              }
-                              return null;
-                            },
-                            decoration: const InputDecoration(hintText: 'e.g. 4MC22CS001'),
-                          ),
-                          const SizedBox(height: 16),
-
                           _label('COLLEGE EMAIL', brandTheme, theme),
                           const SizedBox(height: 6),
                           TextFormField(
@@ -230,9 +212,34 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                             textInputAction: TextInputAction.next,
                             style: GoogleFonts.inter(color: theme.colorScheme.onSurface, fontSize: 14),
                             validator: _validateEmail,
+                            onChanged: (v) {
+                              final isStudent = v.trim().toLowerCase().endsWith('@ms.mcehassan.ac.in');
+                              if (isStudent != _isStudent) setState(() => _isStudent = isStudent);
+                            },
                             decoration: const InputDecoration(hintText: 'you@ms.mcehassan.ac.in'),
                           ),
                           const SizedBox(height: 16),
+
+                          if (_isStudent) ...[
+                            _label('USN / ROLL NUMBER', brandTheme, theme),
+                            const SizedBox(height: 6),
+                            TextFormField(
+                              controller: _usnCtrl,
+                              textInputAction: TextInputAction.next,
+                              textCapitalization: TextCapitalization.characters,
+                              style: GoogleFonts.inter(color: theme.colorScheme.onSurface, fontSize: 14),
+                              validator: (v) {
+                                if (_emailCtrl.text.trim().toLowerCase().endsWith('@ms.mcehassan.ac.in')) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'Please enter your USN (e.g. 4MC22CS001)';
+                                  }
+                                }
+                                return null;
+                              },
+                              decoration: const InputDecoration(hintText: 'e.g. 4MC22CS001'),
+                            ),
+                            const SizedBox(height: 16),
+                          ],
 
                           _label('PASSWORD', brandTheme, theme),
                           const SizedBox(height: 6),
