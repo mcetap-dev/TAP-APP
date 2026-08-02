@@ -219,7 +219,14 @@ serve(async (req) => {
         });
         sentUserIds.push(t.user_id);
       } catch (e) {
-        failures.push({ user: t.user_id, error: (e as Error).message });
+        const errMsg = (e as Error).message;
+        // Prune stale/unregistered tokens so they stop being retried forever
+        if (errMsg.includes("NotRegistered") || errMsg.includes("UNREGISTERED")) {
+          try {
+            await supabase.from("fcm_tokens").delete().eq("token", t.token);
+          } catch {}
+        }
+        failures.push({ user: t.user_id, error: errMsg });
       }
     }
 

@@ -151,15 +151,18 @@ class PushNotificationService {
     }
 
     try {
-      await _supabase.from('fcm_tokens').upsert(
-        {
-          'user_id': userId,
-          'token': token,
-          'platform': platform,
-          'created_at': DateTime.now().toIso8601String(),
-        },
-        onConflict: 'user_id,token',
-      );
+      // Keep only the current token per user — prune stale rows from old
+      // installs/rotations so FCM never targets an unregistered token.
+      await _supabase
+          .from('fcm_tokens')
+          .delete()
+          .eq('user_id', userId);
+      await _supabase.from('fcm_tokens').insert({
+        'user_id': userId,
+        'token': token,
+        'platform': platform,
+        'created_at': DateTime.now().toIso8601String(),
+      });
       dev.log('[PushNotificationService] Token saved for user $userId ($platform)', name: 'PushNotificationService');
     } catch (e) {
       dev.log('[PushNotificationService] Error persisting token to DB: $e', name: 'PushNotificationService');
