@@ -32,6 +32,12 @@ serve(async (req) => {
     const smtpEmail = Deno.env.get("SMTP_EMAIL") || "";
     const smtpPassword = Deno.env.get("SMTP_PASSWORD") || "";
 
+    // Outlook / Microsoft 365 sender used for student (@ms.mcehassan.ac.in) mail.
+    const outlookHost = Deno.env.get("OUTLOOK_SMTP_HOST") || "smtp-mail.outlook.com";
+    const outlookPort = parseInt(Deno.env.get("OUTLOOK_SMTP_PORT") || "587");
+    const outlookEmail = Deno.env.get("OUTLOOK_SMTP_EMAIL") || "";
+    const outlookPassword = Deno.env.get("OUTLOOK_SMTP_PASSWORD") || "";
+
     if (!smtpEmail || !smtpPassword) {
       throw new Error(
         "SMTP credentials missing. Please set SMTP_EMAIL and SMTP_PASSWORD in Supabase Secrets."
@@ -94,15 +100,21 @@ serve(async (req) => {
     let status = "sent";
     let errorMessage: string | null = null;
 
-    // Always send through the default Gmail SMTP sender for every recipient.
-    const senderHost = smtpHost;
-    const senderPort = smtpPort;
-    const senderEmail = smtpEmail;
-    const senderPassword = smtpPassword;
-    console.log(`[send-email] Using SMTP ${senderHost}:${senderPort} (default)`);
+    // Route student (@ms.mcehassan.ac.in) mail through the Outlook sender so it
+    // lands in the college Microsoft 365 inboxes reliably; all other recipients
+    // use the default Gmail SMTP. Falls back to Gmail if Outlook creds are unset.
+    const isStudentRecipient = recipient.trim().toLowerCase().endsWith("@ms.mcehassan.ac.in");
+    const useOutlook = isStudentRecipient && outlookEmail && outlookPassword;
 
+    const senderHost = useOutlook ? outlookHost : smtpHost;
+    const senderPort = useOutlook ? outlookPort : smtpPort;
+    const senderEmail = useOutlook ? outlookEmail : smtpEmail;
+    const senderPassword = useOutlook ? outlookPassword : smtpPassword;
+    console.log(`[send-email] Using SMTP ${senderHost}:${senderPort} (${useOutlook ? "Outlook" : "default"})`);
+
+    let smtpMeta: { messageId: string | null; responseCode: string; serverResponse: string } | null = null;
     try {
-      await sendSmtpEmail({
+      smtpMeta = await sendSmtpEmail({
         hostname: senderHost,
         port: senderPort,
         username: senderEmail,
@@ -112,6 +124,9 @@ serve(async (req) => {
         subject: subject,
         html: html,
       });
+      console.log(
+        `[send-email] SMTP accepted. code=${smtpMeta.responseCode} Message-ID=${smtpMeta.messageId} reply="${smtpMeta.serverResponse.trim()}"`
+      );
     } catch (err: any) {
       status = "failed";
       errorMessage = err?.message || String(err);
@@ -141,7 +156,13 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, message: `Email ${emailType} sent to ${recipient}` }),
+      JSON.stringify({
+        success: true,
+        message: `Email ${emailType} sent to ${recipient}`,
+        messageId: smtpMeta?.messageId || null,
+        smtpCode: smtpMeta?.responseCode || null,
+        smtpResponse: smtpMeta?.serverResponse?.trim() || null,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   } catch (error: any) {
