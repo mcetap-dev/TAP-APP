@@ -20,6 +20,24 @@ final pendingStudentsProvider = FutureProvider<List<UserProfile>>((ref) async {
   return repo.getPendingStudents(department: department);
 });
 
+final verifiedStudentsProvider = FutureProvider<List<UserProfile>>((ref) async {
+  final userProfile = ref.watch(authNotifierProvider).value;
+  final department = userProfile?.department ?? '';
+  if (department.isEmpty) return [];
+
+  final repo = ref.watch(facultyRepositoryProvider);
+  return repo.getVerifiedStudents(department: department);
+});
+
+final rejectedStudentsProvider = FutureProvider<List<UserProfile>>((ref) async {
+  final userProfile = ref.watch(authNotifierProvider).value;
+  final department = userProfile?.department ?? '';
+  if (department.isEmpty) return [];
+
+  final repo = ref.watch(facultyRepositoryProvider);
+  return repo.getRejectedStudents(department: department);
+});
+
 final deptPlacementStatsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final userProfile = ref.watch(authNotifierProvider).value;
   final department = userProfile?.department ?? '';

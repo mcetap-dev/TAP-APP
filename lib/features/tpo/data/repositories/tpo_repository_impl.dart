@@ -3,15 +3,19 @@ import '../../../../shared/domain/entities/company.dart';
 import '../../../student/domain/entities/drive.dart';
 import '../../../student/domain/entities/application.dart';
 import '../../domain/repositories/tpo_repository.dart';
+import '../../domain/entities/drive_round.dart';
 
 import '../../../audit/domain/entities/audit_log_entry.dart';
 import '../../../audit/domain/repositories/audit_log_repository.dart';
 
+import '../../../../core/services/email_notification_service.dart';
+
 class TpoRepositoryImpl implements TpoRepository {
   final SupabaseClient _supabase;
   final AuditLogRepository _auditLogRepo;
+  final EmailNotificationService? _emailService;
 
-  TpoRepositoryImpl(this._supabase, this._auditLogRepo);
+  TpoRepositoryImpl(this._supabase, this._auditLogRepo, [this._emailService]);
 
   @override
   Future<void> appointFacultyCoordinator({
@@ -43,6 +47,23 @@ class TpoRepositoryImpl implements TpoRepository {
     await _supabase
         .from('profiles')
         .update({'role': 'faculty_coordinator'}).eq('id', profileId);
+
+    // Dispatch email notification asynchronously
+    try {
+      final profile = await _supabase
+          .from('profiles')
+          .select('name, email')
+          .eq('id', profileId)
+          .maybeSingle();
+
+      if (profile != null && profile['email'] != null && _emailService != null) {
+        _emailService!.sendFacultyAppointmentEmail(
+          recipientEmail: profile['email'] as String,
+          facultyName: (profile['name'] as String?) ?? 'Faculty Member',
+          department: department,
+        );
+      }
+    } catch (_) {}
   }
 
   @override
@@ -62,13 +83,38 @@ class TpoRepositoryImpl implements TpoRepository {
     String? hrContactPhone,
     required String createdBy,
   }) async {
-    await _supabase.from('companies').insert({
-      'name': name,
-      if (industry != null) 'industry': industry,
-      if (hrContactName != null) 'hr_contact_name': hrContactName,
-      if (hrContactEmail != null) 'hr_contact_email': hrContactEmail,
-      if (hrContactPhone != null) 'hr_contact_phone': hrContactPhone,
-    });
+    final cleanName = name.trim();
+    if (cleanName.isEmpty) return;
+
+    // Check if company already exists to avoid duplicate inserts
+    final existing = await _supabase
+        .from('companies')
+        .select('id')
+        .ilike('name', cleanName)
+        .maybeSingle();
+
+    if (existing == null) {
+      await _supabase.from('companies').insert({
+        'name': cleanName,
+        if (industry != null) 'industry': industry,
+        if (hrContactName != null) 'hr_contact_name': hrContactName,
+        if (hrContactEmail != null) 'hr_contact_email': hrContactEmail,
+        if (hrContactPhone != null) 'hr_contact_phone': hrContactPhone,
+      });
+    }
+  }
+
+  @override
+  Future<void> updateCompany({
+    required String companyId,
+    required String name,
+  }) async {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty || companyId.isEmpty) return;
+    await _supabase
+        .from('companies')
+        .update({'name': cleanName})
+        .eq('id', companyId);
   }
 
   @override
@@ -80,7 +126,7 @@ class TpoRepositoryImpl implements TpoRepository {
   final List<Drive> _localDriveCache = [];
 
   @override
-  Future<void> createDrive({
+  Future<String> createDrive({
     required String companyId,
     required String roleTitle,
     String? ctcOrStipend,
@@ -122,9 +168,6 @@ class TpoRepositoryImpl implements TpoRepository {
           .select('*, company:companies(*)')
           .maybeSingle();
 
-      // ignore: avoid_print
-      print('✅ [TpoRepository] Supabase insert response: $response');
-
       if (response != null) {
         final drive = Drive.fromMap(response);
         _localDriveCache.removeWhere((d) => d.id == drive.id);
@@ -138,29 +181,15 @@ class TpoRepositoryImpl implements TpoRepository {
             targetTable: 'drives',
           );
         } catch (_) {}
+
+        return drive.id;
       }
     } catch (e, stack) {
       // ignore: avoid_print
-      print('❌ [TpoRepository] Supabase insert blocked by RLS: $e\n$stack');
+      print('❌ [TpoRepository] Supabase insert error: $e\n$stack');
+      rethrow;
     }
-
-    // Add to local cache guaranteed so drive displays immediately in UI
-    _localDriveCache.insert(
-      0,
-      Drive(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        companyId: companyId,
-        companyName: companyId.isNotEmpty ? 'Company' : 'New Enterprise',
-        roleTitle: roleTitle,
-        ctcOrStipend: ctcOrStipend ?? (packageLpa != null ? '₹$packageLpa LPA' : '₹12 LPA'),
-        jobDescription: jobDescription ?? '',
-        eligibilityBranches: eligibilityBranches ?? [],
-        cgpaCutoff: cgpaCutoff ?? 0.0,
-        backlogLimit: backlogLimit ?? 0,
-        applicationDeadline: applicationDeadline ?? DateTime.now().add(const Duration(days: 14)),
-        status: status,
-      ),
-    );
+    return '';
   }
 
   @override
@@ -203,6 +232,63 @@ class TpoRepositoryImpl implements TpoRepository {
           
       // ignore: avoid_print
       print('✅ [TpoRepository] Supabase update successful for status: $validStatus');
+
+      // Dispatch event-driven email notifications
+      if (_emailService != null) {
+        try {
+          final driveRes = await _supabase
+              .from('drives')
+              .select('role_title, ctc_or_stipend, application_deadline, start_date, company:companies!company_id(name)')
+              .eq('id', driveId)
+              .maybeSingle();
+
+          if (driveRes != null) {
+            final companyName = (driveRes['company'] is Map ? (driveRes['company'] as Map)['name'] : null) ?? 'Company';
+            final roleTitle = (driveRes['role_title'] as String?) ?? 'Job Role';
+
+            if (validStatus == 'active' || validStatus == 'open') {
+              // Notify all eligible approved students
+              final students = await _supabase
+                  .from('profiles')
+                  .select('email')
+                  .eq('role', 'student')
+                  .eq('approval_status', 'approved');
+
+              for (final s in (students as List)) {
+                final email = s['email'] as String?;
+                if (email != null && email.isNotEmpty) {
+                  _emailService!.sendDrivePublishedEmail(
+                    recipientEmail: email,
+                    companyName: companyName,
+                    roleTitle: roleTitle,
+                    package: (driveRes['ctc_or_stipend'] as String?) ?? 'As per policy',
+                    registrationDeadline: (driveRes['application_deadline'] as String?) ?? 'N/A',
+                    driveDate: (driveRes['start_date'] as String?) ?? 'To be announced',
+                  );
+                }
+              }
+            } else if (validStatus == 'cancelled') {
+              // Notify applicants
+              final apps = await _supabase
+                  .from('applications')
+                  .select('profile:profiles!applications_student_id_fkey(email)')
+                  .eq('drive_id', driveId);
+
+              for (final a in (apps as List)) {
+                final profile = a['profile'];
+                final email = profile is Map ? profile['email'] as String? : null;
+                if (email != null && email.isNotEmpty) {
+                  _emailService!.sendDriveCancelledEmail(
+                    recipientEmail: email,
+                    companyName: companyName,
+                    reason: 'Drive status updated to cancelled by TPO.',
+                  );
+                }
+              }
+            }
+          }
+        } catch (_) {}
+      }
     } catch (e) {
       // ignore: avoid_print
       print('⚠️ [TpoRepository] First update attempt failed: $e. Retrying with fallback status...');
@@ -214,11 +300,58 @@ class TpoRepositoryImpl implements TpoRepository {
             .update({'status': fallbackStatus})
             .eq('id', driveId);
             
-        // ignore: avoid_print
-        print('✅ [TpoRepository] Fallback status update succeeded with: $fallbackStatus');
       } catch (err) {
         // ignore: avoid_print
         print('❌ [TpoRepository] Supabase drive status update completely failed: $err');
+      }
+    }
+  }
+
+  @override
+  Future<void> updateDrive({
+    required String driveId,
+    String? companyId,
+    required String roleTitle,
+    String? ctcOrStipend,
+    String? jobDescription,
+    List<String>? eligibilityBranches,
+    double? cgpaCutoff,
+    int? backlogLimit,
+    DateTime? applicationDeadline,
+  }) async {
+    double? packageLpa;
+    if (ctcOrStipend != null && ctcOrStipend.isNotEmpty) {
+      final numericStr = ctcOrStipend.replaceAll(RegExp(r'[^0-9.]'), '');
+      packageLpa = double.tryParse(numericStr);
+    }
+
+    final payload = <String, dynamic>{
+      if (companyId != null && companyId.isNotEmpty) 'company_id': companyId,
+      'role': roleTitle,
+      'role_title': roleTitle,
+      if (jobDescription != null) 'description': jobDescription,
+      if (packageLpa != null) 'package_lpa': packageLpa,
+      if (cgpaCutoff != null) 'eligibility_cgpa': cgpaCutoff,
+      if (eligibilityBranches != null) 'eligibility_branches': eligibilityBranches,
+      if (backlogLimit != null) 'backlog_limit': backlogLimit,
+      if (applicationDeadline != null) 'end_date': applicationDeadline.toIso8601String(),
+    };
+
+    // ignore: avoid_print
+    print('🚀 [TpoRepository] Updating drive $driveId in Supabase: $payload');
+
+    final response = await _supabase
+        .from('drives')
+        .update(payload)
+        .eq('id', driveId)
+        .select('*, company:companies(*)')
+        .maybeSingle();
+
+    if (response != null) {
+      final updatedDrive = Drive.fromMap(response);
+      final idx = _localDriveCache.indexWhere((d) => d.id == driveId);
+      if (idx != -1) {
+        _localDriveCache[idx] = updatedDrive;
       }
     }
   }
@@ -228,14 +361,10 @@ class TpoRepositoryImpl implements TpoRepository {
     try {
       final response = await _supabase
           .from('drives')
-          .select('*, company:companies(*)');
-      final remoteDrives = (response as List).map((map) => Drive.fromMap(map)).toList();
-      
-      // Combine remote and local cache without duplicates
-      final remoteIds = remoteDrives.map((d) => d.id).toSet();
-      final uniqueLocal = _localDriveCache.where((d) => !remoteIds.contains(d.id)).toList();
-      return [...uniqueLocal, ...remoteDrives];
-    } catch (_) {
+          .select('*, company:companies(*), drive_rounds(id, round_number, round_name, instructions, scheduled_date, created_at)')
+          .order('created_at', ascending: false);
+      return (response as List).map((map) => Drive.fromMap(map)).toList();
+    } catch (e) {
       return _localDriveCache;
     }
   }
@@ -282,5 +411,462 @@ class TpoRepositoryImpl implements TpoRepository {
     await _supabase
         .from('applications')
         .update({'status': 'selected'}).eq('id', applicationId);
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchDriveAttendance(String driveId) async {
+    final response = await _supabase
+        .from('drive_attendance')
+        .select('*, profile:profiles!drive_attendance_student_id_fkey(name, email, usn, department)')
+        .eq('drive_id', driveId)
+        .order('scanned_at', ascending: false);
+
+    return List<Map<String, dynamic>>.from(response);
+  }
+
+  // ── Round Management ──────────────────────────────────────────────────
+
+  @override
+  Future<void> saveDriveRounds({
+    required String driveId,
+    required List<String> roundNames,
+    required String createdBy,
+  }) async {
+    // Delete existing rounds for this drive
+    await _supabase.from('drive_rounds').delete().eq('drive_id', driveId);
+
+    // Insert new rounds
+    if (roundNames.isEmpty) return;
+
+    final rounds = <Map<String, dynamic>>[];
+    for (var i = 0; i < roundNames.length; i++) {
+      rounds.add({
+        'drive_id': driveId,
+        'round_number': i + 1,
+        'round_name': roundNames[i],
+        'created_by': createdBy,
+      });
+    }
+
+    await _supabase.from('drive_rounds').insert(rounds);
+
+    // Update rounds_count on the drive
+    await _supabase
+        .from('drives')
+        .update({'rounds_count': roundNames.length})
+        .eq('id', driveId);
+  }
+
+  @override
+  Future<List<DriveRound>> getDriveRounds(String driveId) async {
+    final response = await _supabase
+        .from('drive_rounds')
+        .select()
+        .eq('drive_id', driveId)
+        .order('round_number', ascending: true);
+
+    return (response as List)
+        .map((map) => DriveRound.fromMap(map))
+        .toList();
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getRoundStudents({
+    required String driveId,
+    required int roundNumber,
+  }) async {
+    if (roundNumber == 1) {
+      // ── Round 1: attendance-based ───────────────────────────────────
+      // Primary data source is drive_attendance (students who scanned QR).
+      // Cross-reference with applications to ensure they also applied.
+      final attendanceResponse = await _supabase
+          .from('drive_attendance')
+          .select('student_id, scanned_at, status')
+          .eq('drive_id', driveId);
+
+      if ((attendanceResponse as List).isEmpty) return [];
+
+      final attendedStudentIds = <String>{};
+      final attendedAtMap = <String, dynamic>{};
+      final attendanceStatusMap = <String, dynamic>{};
+      for (final a in attendanceResponse as List) {
+        final sid = a['student_id'] as String;
+        attendedStudentIds.add(sid);
+        attendedAtMap[sid] = a['scanned_at'];
+        attendanceStatusMap[sid] = a['status'];
+      }
+
+      // Get all applications for this drive
+      final appsResponse = await _supabase
+          .from('applications')
+          .select(
+              'id, status, applied_at, student_id, current_round, updated_by, '
+              'student:profiles!applications_student_id_fkey(name, email, usn, department, cgpa, semester, photo_url)')
+          .eq('drive_id', driveId)
+          .order('applied_at', ascending: false);
+
+      // Keep only students who both attended AND applied (exclude rejected)
+      final results = <Map<String, dynamic>>[];
+      for (final app in appsResponse as List) {
+        final sid = app['student_id'] as String;
+        final appStatus = (app['status'] as String?) ?? '';
+        if (!attendedStudentIds.contains(sid)) continue;
+        if (appStatus == 'rejected') continue;
+        results.add({
+          ...app as Map<String, dynamic>,
+          'attended_at': attendedAtMap[sid],
+          'attendance_status': attendanceStatusMap[sid],
+        });
+      }
+      return results;
+    }
+
+    // ── Round N (N > 1): application current_round matches ──────────
+    final response = await _supabase
+        .from('applications')
+        .select(
+            'id, status, applied_at, student_id, current_round, updated_by, '
+            'student:profiles!applications_student_id_fkey(name, email, usn, department, cgpa, semester, photo_url)')
+        .eq('drive_id', driveId)
+        .eq('current_round', roundNumber)
+        .order('applied_at', ascending: false);
+
+    return (response as List).cast<Map<String, dynamic>>();
+  }
+
+  @override
+  Future<void> moveStudentsToNextRound({
+    required String driveId,
+    required int currentRoundNumber,
+    required List<String> applicationIds,
+    required String performedBy,
+  }) async {
+    final nextRound = currentRoundNumber + 1;
+
+    // Get current round_id
+    final currentRoundData = await _supabase
+        .from('drive_rounds')
+        .select('id')
+        .eq('drive_id', driveId)
+        .eq('round_number', currentRoundNumber)
+        .maybeSingle();
+
+    for (final appId in applicationIds) {
+      // Get student_id for notification
+      final appData = await _supabase
+          .from('applications')
+          .select('student_id')
+          .eq('id', appId)
+          .maybeSingle();
+      final studentId = appData?['student_id'] as String? ?? '';
+
+      // Mark current round as cleared
+      if (currentRoundData != null) {
+        await _supabase.from('application_round_status').upsert({
+          'application_id': appId,
+          'round_id': currentRoundData['id'],
+          'attended': true,
+          'result': 'cleared',
+          'updated_by': performedBy,
+        }, onConflict: 'application_id,round_id');
+      }
+
+      // Update current_round and status on the application
+      await _supabase
+          .from('applications')
+          .update({
+            'current_round': nextRound,
+            'status': 'shortlisted',
+            'updated_by': performedBy,
+          })
+          .eq('id', appId);
+
+      // Get the round_id for the next round
+      final nextRoundData = await _supabase
+          .from('drive_rounds')
+          .select('id')
+          .eq('drive_id', driveId)
+          .eq('round_number', nextRound)
+          .maybeSingle();
+
+      if (nextRoundData != null) {
+        // Create application_round_status for the next round
+        await _supabase.from('application_round_status').upsert({
+          'application_id': appId,
+          'round_id': nextRoundData['id'],
+          'result': 'pending',
+          'updated_by': performedBy,
+        }, onConflict: 'application_id,round_id');
+      }
+
+      // Log audit
+      try {
+        await _auditLogRepo.logAction(
+          action: AuditAction.other,
+          description: 'Student moved from round $currentRoundNumber to round $nextRound',
+          targetId: appId,
+          targetTable: 'applications',
+        );
+      } catch (_) {}
+
+      // Send notification to student
+      await sendNotification(
+        userId: studentId,
+        title: 'Round Progress Update',
+        body: 'Congratulations! You have been promoted to Round $nextRound. Please check the round details.',
+        type: 'success',
+        driveId: driveId,
+        applicationId: appId,
+      );
+
+      // Email dispatch for round promotion
+      if (_emailService != null) {
+        try {
+          final studentProfile = await _supabase
+              .from('profiles')
+              .select('name, email')
+              .eq('id', studentId)
+              .maybeSingle();
+
+          final driveInfo = await _supabase
+              .from('drives')
+              .select('role_title, company:companies!company_id(name)')
+              .eq('id', driveId)
+              .maybeSingle();
+
+          if (studentProfile != null && studentProfile['email'] != null && driveInfo != null) {
+            final compName = (driveInfo['company'] is Map ? (driveInfo['company'] as Map)['name'] : null) ?? 'Company';
+            _emailService!.sendRoundQualifiedEmail(
+              recipientEmail: studentProfile['email'] as String,
+              studentName: (studentProfile['name'] as String?) ?? 'Student',
+              companyName: compName,
+              qualifiedRound: 'Round $currentRoundNumber',
+              nextRoundName: 'Round $nextRound',
+            );
+          }
+        } catch (_) {}
+      }
+    }
+  }
+
+  @override
+  Future<void> rejectStudents({
+    required String driveId,
+    required int currentRoundNumber,
+    required List<String> applicationIds,
+    String? remarks,
+    required String performedBy,
+  }) async {
+    for (final appId in applicationIds) {
+      // Get student_id for notification
+      final appData = await _supabase
+          .from('applications')
+          .select('student_id')
+          .eq('id', appId)
+          .maybeSingle();
+      final studentId = appData?['student_id'] as String? ?? '';
+
+      // Update application status to rejected
+      await _supabase
+          .from('applications')
+          .update({'status': 'rejected', 'updated_by': performedBy})
+          .eq('id', appId);
+
+      // Get the current round_id
+      final roundData = await _supabase
+          .from('drive_rounds')
+          .select('id')
+          .eq('drive_id', driveId)
+          .eq('round_number', currentRoundNumber)
+          .maybeSingle();
+
+      if (roundData != null) {
+        // Update application_round_status with rejection (attended: true since they were present)
+        await _supabase.from('application_round_status').upsert({
+          'application_id': appId,
+          'round_id': roundData['id'],
+          'attended': true,
+          'result': 'rejected',
+          'remarks': remarks,
+          'updated_by': performedBy,
+        }, onConflict: 'application_id,round_id');
+      }
+
+      // Log audit
+      try {
+        await _auditLogRepo.logAction(
+          action: AuditAction.other,
+          description: 'Student rejected at round $currentRoundNumber${remarks != null ? ': $remarks' : ''}',
+          targetId: appId,
+          targetTable: 'applications',
+        );
+      } catch (_) {}
+
+      // Send notification
+      await sendNotification(
+        userId: studentId,
+        title: 'Application Update',
+        body: 'Your application has not progressed to the next round.${remarks != null ? ' Remarks: $remarks' : ''}',
+        type: 'warning',
+        driveId: driveId,
+        applicationId: appId,
+      );
+
+      // Email dispatch for round rejection
+      if (_emailService != null) {
+        try {
+          final studentProfile = await _supabase
+              .from('profiles')
+              .select('name, email')
+              .eq('id', studentId)
+              .maybeSingle();
+
+          final driveInfo = await _supabase
+              .from('drives')
+              .select('role_title, company:companies!company_id(name)')
+              .eq('id', driveId)
+              .maybeSingle();
+
+          if (studentProfile != null && studentProfile['email'] != null && driveInfo != null) {
+            final compName = (driveInfo['company'] is Map ? (driveInfo['company'] as Map)['name'] : null) ?? 'Company';
+            _emailService!.sendRoundRejectedEmail(
+              recipientEmail: studentProfile['email'] as String,
+              studentName: (studentProfile['name'] as String?) ?? 'Student',
+              companyName: compName,
+              rejectedRound: 'Round $currentRoundNumber',
+              remarks: remarks,
+            );
+          }
+        } catch (_) {}
+      }
+    }
+  }
+
+  @override
+  Future<void> markStudentsAbsent({
+    required String driveId,
+    required int currentRoundNumber,
+    required List<String> applicationIds,
+    required String performedBy,
+  }) async {
+    for (final appId in applicationIds) {
+      // Get student_id for notification and attendance update
+      final appData = await _supabase
+          .from('applications')
+          .select('student_id')
+          .eq('id', appId)
+          .maybeSingle();
+      final studentId = appData?['student_id'] as String? ?? '';
+
+      // Mark attendance as absent in drive_attendance
+      if (studentId.isNotEmpty) {
+        await _supabase
+            .from('drive_attendance')
+            .update({'status': 'absent'})
+            .eq('drive_id', driveId)
+            .eq('student_id', studentId);
+      }
+
+      // Get the current round_id
+      final roundData = await _supabase
+          .from('drive_rounds')
+          .select('id')
+          .eq('drive_id', driveId)
+          .eq('round_number', currentRoundNumber)
+          .maybeSingle();
+
+      if (roundData != null) {
+        // Update application_round_status with absent
+        await _supabase.from('application_round_status').upsert({
+          'application_id': appId,
+          'round_id': roundData['id'],
+          'attended': false,
+          'result': 'rejected',
+          'remarks': 'Marked absent',
+          'updated_by': performedBy,
+        }, onConflict: 'application_id,round_id');
+      }
+
+      // Update application status
+      await _supabase
+          .from('applications')
+          .update({'status': 'rejected', 'updated_by': performedBy})
+          .eq('id', appId);
+
+      // Log audit
+      try {
+        await _auditLogRepo.logAction(
+          action: AuditAction.other,
+          description: 'Student marked absent at round $currentRoundNumber',
+          targetId: appId,
+          targetTable: 'applications',
+        );
+      } catch (_) {}
+
+      // Send notification
+      await sendNotification(
+        userId: studentId,
+        title: 'Attendance Update',
+        body: 'You have been marked absent for Round $currentRoundNumber. Your application has been closed.',
+        type: 'warning',
+        driveId: driveId,
+        applicationId: appId,
+      );
+    }
+  }
+
+  @override
+  Future<void> addRoundRemarks({
+    required String applicationId,
+    required String roundId,
+    required String remarks,
+    required String performedBy,
+  }) async {
+    await _supabase.from('application_round_status').upsert({
+      'application_id': applicationId,
+      'round_id': roundId,
+      'remarks': remarks,
+      'updated_by': performedBy,
+    }, onConflict: 'application_id,round_id');
+
+    try {
+      await _auditLogRepo.logAction(
+        action: AuditAction.other,
+        description: 'Remarks added to application',
+        targetId: applicationId,
+        targetTable: 'applications',
+      );
+    } catch (_) {}
+  }
+
+  @override
+  Future<void> sendNotification({
+    required String userId,
+    required String title,
+    required String body,
+    required String type,
+    String? driveId,
+    String? applicationId,
+  }) async {
+    try {
+      await _supabase.from('notifications').insert({
+        'user_id': userId,
+        'title': title,
+        'body': body,
+        'type': type,
+        'drive_id': driveId,
+        'application_id': applicationId,
+      });
+    } catch (_) {}
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> getStudentRoundProgress(String applicationId) async {
+    final response = await _supabase
+        .from('application_round_status')
+        .select('*, round:drive_rounds(round_number, round_name, round_date, round_time, venue_or_link, instructions, scheduled_date)')
+        .eq('application_id', applicationId);
+
+    return (response as List).cast<Map<String, dynamic>>();
   }
 }

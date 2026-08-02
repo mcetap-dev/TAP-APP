@@ -28,6 +28,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
     with SingleTickerProviderStateMixin {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
+  final _usnCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
@@ -50,6 +51,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   void dispose() {
     _animCtrl.dispose();
     _nameCtrl.dispose();
+    _usnCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
@@ -86,6 +88,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
             password: _passwordCtrl.text,
             fullName: _nameCtrl.text.trim(),
             role: role,
+            rollNumber: role == 'student' ? _usnCtrl.text.trim().toUpperCase() : null,
           );
 
       if (mounted) {
@@ -197,6 +200,25 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                             style: GoogleFonts.inter(color: theme.colorScheme.onSurface, fontSize: 14),
                             validator: AppValidators.name,
                             decoration: const InputDecoration(hintText: 'Your full name'),
+                          ),
+                          const SizedBox(height: 16),
+
+                          _label('USN / ROLL NUMBER', brandTheme, theme),
+                          const SizedBox(height: 6),
+                          TextFormField(
+                            controller: _usnCtrl,
+                            textInputAction: TextInputAction.next,
+                            textCapitalization: TextCapitalization.characters,
+                            style: GoogleFonts.inter(color: theme.colorScheme.onSurface, fontSize: 14),
+                            validator: (v) {
+                              if (_emailCtrl.text.trim().toLowerCase().endsWith('@ms.mcehassan.ac.in')) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'Please enter your USN (e.g. 4MC22CS001)';
+                                }
+                              }
+                              return null;
+                            },
+                            decoration: const InputDecoration(hintText: 'e.g. 4MC22CS001'),
                           ),
                           const SizedBox(height: 16),
 

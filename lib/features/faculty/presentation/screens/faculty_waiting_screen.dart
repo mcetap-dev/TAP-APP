@@ -39,18 +39,18 @@ class _FacultyWaitingScreenState extends ConsumerState<FacultyWaitingScreen> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Spacer(),
+              const SizedBox(height: 24),
 
               // Waiting Icon Graphic
               Container(
-                width: 100,
-                height: 100,
+                width: 90,
+                height: 90,
                 decoration: BoxDecoration(
                   color: brandTheme.brassSoft,
                   shape: BoxShape.circle,
@@ -58,12 +58,12 @@ class _FacultyWaitingScreenState extends ConsumerState<FacultyWaitingScreen> {
                 ),
                 child: Icon(
                   Icons.hourglass_top_rounded,
-                  size: 48,
+                  size: 44,
                   color: brandTheme.brassPrimary,
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
 
               // Title
               Text(
@@ -76,13 +76,13 @@ class _FacultyWaitingScreenState extends ConsumerState<FacultyWaitingScreen> {
                 textAlign: TextAlign.center,
               ),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
               // Greeting & Role Message
               Text(
                 'Welcome, $userName ($userEmail)',
                 style: GoogleFonts.inter(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: brandTheme.brassPrimary,
                 ),
@@ -93,7 +93,7 @@ class _FacultyWaitingScreenState extends ConsumerState<FacultyWaitingScreen> {
 
               // Description Container
               Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(18),
                 decoration: BoxDecoration(
                   color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(16),
@@ -105,21 +105,21 @@ class _FacultyWaitingScreenState extends ConsumerState<FacultyWaitingScreen> {
                   'Your specialized dashboard will become accessible automatically upon appointment.',
                   style: GoogleFonts.inter(
                     fontSize: 13,
-                    height: 1.5,
+                    height: 1.45,
                     color: brandTheme.textMuted,
                   ),
                   textAlign: TextAlign.center,
                 ),
               ),
 
-              const Spacer(),
+              const SizedBox(height: 28),
 
               // Action Buttons: Check Status & Sign Out
               Column(
                 children: [
                   SizedBox(
                     width: double.infinity,
-                    height: 50,
+                    height: 48,
                     child: ElevatedButton.icon(
                       onPressed: _isChecking ? null : _checkAppointmentStatus,
                       style: ElevatedButton.styleFrom(
@@ -147,7 +147,7 @@ class _FacultyWaitingScreenState extends ConsumerState<FacultyWaitingScreen> {
 
                   SizedBox(
                     width: double.infinity,
-                    height: 48,
+                    height: 46,
                     child: OutlinedButton.icon(
                       onPressed: () => ref.read(authNotifierProvider.notifier).signOut(),
                       style: OutlinedButton.styleFrom(

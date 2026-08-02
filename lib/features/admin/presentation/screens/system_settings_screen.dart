@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/theme_extensions.dart';
+import '../../../../shared/presentation/widgets/subtle_divider.dart';
+import '../../domain/entities/department.dart';
+import '../providers/departments_provider.dart';
+import '../../../../core/services/email_notification_service.dart';
 
-class SystemSettingsScreen extends StatefulWidget {
+class SystemSettingsScreen extends ConsumerStatefulWidget {
   const SystemSettingsScreen({super.key});
 
   @override
-  State<SystemSettingsScreen> createState() => _SystemSettingsScreenState();
+  ConsumerState<SystemSettingsScreen> createState() => _SystemSettingsScreenState();
 }
 
-class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
+class _SystemSettingsScreenState extends ConsumerState<SystemSettingsScreen> {
   // Academic Configuration
   String _activeYear = '2025-26';
   String _activeBatch = '2026';
@@ -26,15 +32,6 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
   final _defaultCgpaController = TextEditingController(text: '7.0');
   final _maxBacklogsController = TextEditingController(text: '0');
 
-  // Department list
-  final List<String> _departments = [
-    'Computer Science & Engineering',
-    'Information Science & Engineering',
-    'Electronics & Communication',
-    'Mechanical Engineering',
-    'Civil Engineering',
-  ];
-
   bool _isSaving = false;
 
   @override
@@ -44,17 +41,99 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     super.dispose();
   }
 
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    try {
+      final res = await Supabase.instance.client
+          .from('system_settings')
+          .select()
+          .eq('id', 'global_config')
+          .maybeSingle();
+
+      if (res != null && mounted) {
+        setState(() {
+          _activeYear = (res['active_academic_year'] as String?) ?? '2025-26';
+          _activeBatch = (res['graduating_batch'] as String?) ?? '2026';
+          _allowMultipleOffers = (res['allow_multiple_offers'] as bool?) ?? false;
+          _requireFacultyApproval = (res['require_faculty_approval'] as bool?) ?? true;
+          _consentMandatory = (res['consent_form_mandatory'] as bool?) ?? true;
+          _autoNotifyStudents = (res['auto_notify_students'] as bool?) ?? true;
+          _defaultCgpaController.text = (res['default_cgpa']?.toString()) ?? '7.0';
+          _maxBacklogsController.text = (res['max_backlogs']?.toString()) ?? '0';
+        });
+      }
+    } catch (_) {}
+  }
+
   void _save() async {
     setState(() => _isSaving = true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted) {
-      setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Settings saved successfully!'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+    try {
+      final userId = Supabase.instance.client.auth.currentUser?.id;
+      await Supabase.instance.client.from('system_settings').upsert({
+        'id': 'global_config',
+        'active_academic_year': _activeYear,
+        'graduating_batch': _activeBatch,
+        'allow_multiple_offers': _allowMultipleOffers,
+        'require_faculty_approval': _requireFacultyApproval,
+        'consent_form_mandatory': _consentMandatory,
+        'auto_notify_students': _autoNotifyStudents,
+        'default_cgpa': double.tryParse(_defaultCgpaController.text.trim()) ?? 7.0,
+        'max_backlogs': int.tryParse(_maxBacklogsController.text.trim()) ?? 0,
+        'updated_at': DateTime.now().toIso8601String(),
+        if (userId != null) 'updated_by': userId,
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('✅ Placement policy & system settings saved!'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving settings: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _deleteDepartment(Department dept) async {
+    try {
+      final repo = ref.read(departmentsRepositoryProvider);
+      await repo.delete(dept.id);
+      ref.invalidate(departmentsProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Deleted department ${dept.name}'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting department: $e'),
+            backgroundColor: Theme.of(context).colorScheme.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -63,6 +142,8 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
     final theme = Theme.of(context);
     final brandTheme = theme.extension<AppBrandTheme>();
     final accent = brandTheme?.brassPrimary ?? theme.colorScheme.primary;
+
+    final deptsAsync = ref.watch(departmentsProvider);
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surfaceContainerLowest,
@@ -103,7 +184,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
                 onChanged: (v) => setState(() => _activeYear = v!),
               ),
             ),
-            const Divider(height: 1),
+            const SubtleDivider(height: 1),
             _settingRow(
               icon: Icons.school_rounded,
               color: const Color(0xFF8B5CF6),
@@ -134,7 +215,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
               onChanged: (v) => setState(() => _allowMultipleOffers = v),
               accent: accent,
             ),
-            const Divider(height: 1),
+            const SubtleDivider(height: 1),
             _toggleRow(
               icon: Icons.verified_user_rounded,
               color: const Color(0xFF3B82F6),
@@ -144,7 +225,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
               onChanged: (v) => setState(() => _requireFacultyApproval = v),
               accent: accent,
             ),
-            const Divider(height: 1),
+            const SubtleDivider(height: 1),
             _toggleRow(
               icon: Icons.how_to_vote_rounded,
               color: const Color(0xFFB45309),
@@ -154,7 +235,7 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
               onChanged: (v) => setState(() => _consentMandatory = v),
               accent: accent,
             ),
-            const Divider(height: 1),
+            const SubtleDivider(height: 1),
             _toggleRow(
               icon: Icons.notifications_active_rounded,
               color: const Color(0xFF8B5CF6),
@@ -168,122 +249,133 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
 
           const SizedBox(height: 20),
 
-          // ─── Section 3: Default Criteria ───
-          _sectionHeader('📐 Default Eligibility Criteria', theme, brandTheme),
+          // ─── Section: Email System Testing Suite ───
+          _sectionHeader('✉️ Email Notification System Tester', theme, brandTheme),
           const SizedBox(height: 10),
-          _card(theme, brandTheme, [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Minimum CGPA', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-                        Text('Applied when drives don\'t specify a cutoff.', style: GoogleFonts.inter(fontSize: 11, color: brandTheme?.textMuted)),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    width: 80,
-                    child: TextFormField(
-                      controller: _defaultCgpaController,
-                      textAlign: TextAlign.center,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-                      style: GoogleFonts.ibmPlexMono(fontWeight: FontWeight.w600, fontSize: 16),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: brandTheme?.surfaceAlt ?? theme.colorScheme.surfaceContainerLowest,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Max Active Backlogs', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-                        Text('Maximum allowed active backlogs for placement eligibility.', style: GoogleFonts.inter(fontSize: 11, color: brandTheme?.textMuted)),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    width: 80,
-                    child: TextFormField(
-                      controller: _maxBacklogsController,
-                      textAlign: TextAlign.center,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                      style: GoogleFonts.ibmPlexMono(fontWeight: FontWeight.w600, fontSize: 16),
-                      decoration: InputDecoration(
-                        filled: true,
-                        fillColor: brandTheme?.surfaceAlt ?? theme.colorScheme.surfaceContainerLowest,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
-                        contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ]),
-
-          const SizedBox(height: 20),
-
-          // ─── Section 4: Departments ───
-          _sectionHeader('🏛️ Departments', theme, brandTheme),
-          const SizedBox(height: 10),
-          _card(theme, brandTheme, [
-            ..._departments.asMap().entries.map((e) => Column(
+          if (brandTheme != null)
+            _card(theme, brandTheme, [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Row(
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: brandTheme.brassPrimary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(Icons.mark_email_read_rounded, color: brandTheme.brassPrimary),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 32, height: 32,
-                            decoration: BoxDecoration(color: accent.withValues(alpha: 0.10), shape: BoxShape.circle),
-                            alignment: Alignment.center,
-                            child: Text('${e.key + 1}', style: GoogleFonts.ibmPlexMono(fontWeight: FontWeight.w700, fontSize: 13, color: accent)),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(child: Text(e.value, style: GoogleFonts.inter(fontSize: 13))),
-                          IconButton(
-                            icon: Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red.shade300),
-                            onPressed: () => setState(() => _departments.removeAt(e.key)),
-                            padding: EdgeInsets.zero,
-                          ),
+                          Text('Dispatch Email Tests', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14)),
+                          const SizedBox(height: 2),
+                          Text('Send test emails for Welcome, Faculty Appt, Application, Attendance, Status & Offers.', style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
                         ],
                       ),
                     ),
-                    if (e.key < _departments.length - 1) const Divider(height: 1),
+                    const SizedBox(width: 8),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: brandTheme.brassPrimary,
+                        foregroundColor: brandTheme.onBrass,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      ),
+                      onPressed: () => _showEmailTesterDialog(context, brandTheme),
+                      child: Text('Test', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
+                    ),
                   ],
-                )),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: OutlinedButton.icon(
-                onPressed: () => _showAddDeptDialog(context, accent),
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: Text('Add Department', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: accent,
-                  side: BorderSide(color: accent),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                 ),
               ),
-            ),
-          ]),
+            ]),
+
+          const SizedBox(height: 20),
+
+          // ─── Section 3: Departments with Branch Codes ───
+          _sectionHeader('🏛️ Departments & USN Branch Mapping', theme, brandTheme),
+          const SizedBox(height: 10),
+          deptsAsync.when(
+            loading: () => _card(theme, brandTheme, [
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+            ]),
+            error: (err, _) => _card(theme, brandTheme, [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text('Error loading departments: $err', style: const TextStyle(color: Colors.red)),
+              ),
+            ]),
+            data: (departments) => _card(theme, brandTheme, [
+              if (departments.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('No departments registered.'),
+                )
+              else
+                ...departments.asMap().entries.map((e) {
+                  final dept = e.value;
+                  final isLast = e.key == departments.length - 1;
+                  return Column(
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                dept.branchCode,
+                                style: GoogleFonts.ibmPlexMono(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                  color: accent,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                dept.name,
+                                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.delete_outline_rounded, size: 18, color: Colors.red.shade300),
+                              onPressed: () => _deleteDepartment(dept),
+                              padding: EdgeInsets.zero,
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (!isLast) const SubtleDivider(height: 1),
+                    ],
+                  );
+                }),
+              const SubtleDivider(height: 1),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: OutlinedButton.icon(
+                  onPressed: () => _showAddDeptDialog(context, accent),
+                  icon: const Icon(Icons.add_rounded, size: 18),
+                  label: Text('Add Department', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: accent,
+                    side: BorderSide(color: accent),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ]),
+          ),
 
           const SizedBox(height: 20),
 
@@ -393,35 +485,273 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
             Switch(
               value: value,
               onChanged: onChanged,
-              activeColor: isDestructive ? Colors.red : accent,
+              activeThumbColor: isDestructive ? Colors.red : accent,
             ),
           ],
         ),
       );
 
   void _showAddDeptDialog(BuildContext context, Color accent) {
-    final ctrl = TextEditingController();
+    final nameCtrl = TextEditingController();
+    final codeCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
         title: Text('Add Department', style: GoogleFonts.fraunces(fontWeight: FontWeight.w600)),
-        content: TextField(
-          controller: ctrl,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'e.g. AI & Data Science'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextFormField(
+                controller: nameCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Department Name',
+                  hintText: 'e.g. Civil Engineering',
+                ),
+                validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: codeCtrl,
+                textCapitalization: TextCapitalization.characters,
+                inputFormatters: [
+                  UpperCaseTextFormatter(),
+                ],
+                decoration: const InputDecoration(
+                  labelText: 'Branch Code (USN Segment)',
+                  hintText: 'e.g. CV',
+                ),
+                validator: (v) {
+                  if (v == null || v.trim().isEmpty) return 'Required';
+                  if (v.trim().length < 2 || v.trim().length > 4) return '2-4 chars';
+                  return null;
+                },
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: accent),
-            onPressed: () {
-              if (ctrl.text.trim().isNotEmpty) {
-                setState(() => _departments.add(ctrl.text.trim()));
-                Navigator.pop(context);
+            onPressed: () async {
+              if (formKey.currentState!.validate()) {
+                final repo = ref.read(departmentsRepositoryProvider);
+                try {
+                  await repo.create(
+                    name: nameCtrl.text.trim(),
+                    branchCode: codeCtrl.text.trim(),
+                  );
+                  ref.invalidate(departmentsProvider);
+                  if (context.mounted) Navigator.pop(context);
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error creating department: $e')),
+                    );
+                  }
+                }
               }
             },
             child: const Text('Add'),
           ),
+        ],
+      ),
+    );
+  }
+
+  void _showEmailTesterDialog(BuildContext context, AppBrandTheme brandTheme) {
+    final emailCtrl = TextEditingController(text: 'test@example.com');
+    final emailService = ref.read(emailNotificationServiceProvider);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        title: Text('✉️ Email Notification Test Suite', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 16)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: emailCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Recipient Email',
+                  hintText: 'Enter destination email',
+                  prefixIcon: Icon(Icons.email_outlined),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton(
+                    onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
+                      emailService.sendWelcomeEmail(
+                        recipientEmail: email,
+                        studentName: 'Test Student',
+                        role: 'Student',
+                        department: 'CSE',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Welcome email test dispatched to $email!')));
+                    },
+                    child: const Text('Welcome'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
+                      emailService.sendFacultyAppointmentEmail(
+                        recipientEmail: email,
+                        facultyName: 'Dr. Smith',
+                        department: 'CSE',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Faculty Appt email test dispatched to $email!')));
+                    },
+                    child: const Text('Faculty Appt'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
+                      emailService.sendApplicationSubmittedEmail(
+                        recipientEmail: email,
+                        studentName: 'Test Student',
+                        companyName: 'Acme Corp',
+                        roleTitle: 'Software Engineer',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Application email test dispatched to $email!')));
+                    },
+                    child: const Text('Application'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
+                      emailService.sendAttendanceConfirmationEmail(
+                        recipientEmail: email,
+                        companyName: 'Acme Corp',
+                        date: '2026-08-01',
+                        time: '10:00 AM',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Attendance email test dispatched to $email!')));
+                    },
+                    child: const Text('Attendance'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
+                      emailService.sendRoundQualifiedEmail(
+                        recipientEmail: email,
+                        studentName: 'Test Student',
+                        companyName: 'Acme Corp',
+                        qualifiedRound: 'Online Test',
+                        nextRoundName: 'Technical Interview',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Qualified email test dispatched to $email!')));
+                    },
+                    child: const Text('Qualified'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
+                      emailService.sendRoundRejectedEmail(
+                        recipientEmail: email,
+                        studentName: 'Test Student',
+                        companyName: 'Acme Corp',
+                        rejectedRound: 'Technical Interview',
+                        remarks: 'Keep applying for future drives.',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Rejected email test dispatched to $email!')));
+                    },
+                    child: const Text('Rejected'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
+                      emailService.sendOfferReleasedEmail(
+                        recipientEmail: email,
+                        studentName: 'Test Student',
+                        companyName: 'Acme Corp',
+                        roleTitle: 'Software Engineer',
+                        package: '12 LPA',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Offer email test dispatched to $email!')));
+                    },
+                    child: const Text('Offer Released'),
+                  ),
+                  OutlinedButton(
+                    onPressed: () {
+                      final email = emailCtrl.text.trim();
+                      if (email.isEmpty || !email.contains('@')) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('⚠️ Please enter a valid recipient email address first!')),
+                        );
+                        return;
+                      }
+                      emailService.sendReminderEmail(
+                        recipientEmail: email,
+                        studentName: 'Test Student',
+                        reminderTitle: 'Resume Upload Pending',
+                        message: 'Please upload your latest resume to apply for upcoming drives.',
+                        deadline: 'Tomorrow 5:00 PM',
+                      );
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reminder email test dispatched to $email!')));
+                    },
+                    child: const Text('Reminder'),
+                  ),
+                ],
+              )
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
         ],
       ),
     );
@@ -445,6 +775,19 @@ class _SystemSettingsScreenState extends State<SystemSettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    return TextEditingValue(
+      text: newValue.text.toUpperCase(),
+      selection: newValue.selection,
     );
   }
 }

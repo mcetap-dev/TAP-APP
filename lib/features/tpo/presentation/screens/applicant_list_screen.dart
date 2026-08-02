@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:csv/csv.dart';
+import '../../../../shared/presentation/widgets/subtle_divider.dart';
 
 class ApplicantListScreen extends ConsumerStatefulWidget {
   const ApplicantListScreen({super.key});
@@ -133,7 +134,7 @@ class _ApplicantListScreenState extends ConsumerState<ApplicantListScreen> {
                 Expanded(
                   child: ListView.separated(
                     itemCount: _applicants.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, __) => const SubtleDivider(height: 1),
                     itemBuilder: (context, index) {
                       final app = _applicants[index];
                       Color statusColor;

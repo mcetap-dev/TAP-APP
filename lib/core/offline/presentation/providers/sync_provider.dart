@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../network/connectivity_service.dart';
+import '../../../network/connectivity_service.dart';
 
 final connectivityServiceProvider = Provider((ref) {
   final service = ConnectivityService();
@@ -9,5 +9,5 @@ final connectivityServiceProvider = Provider((ref) {
 
 final isOnlineStreamProvider = StreamProvider<bool>((ref) {
   final service = ref.watch(connectivityServiceProvider);
-  return service.onConnectivityChanged;
+  return service.onStatusChanged.map((status) => status == NetworkStatus.online);
 });

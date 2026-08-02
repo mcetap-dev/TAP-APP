@@ -37,13 +37,18 @@ class AuditLogRepositoryImpl implements AuditLogRepository {
         }
       }
 
-      final List<AuditLogEntry> logs = logsJson.map((json) {
-        final actorId = json['actor_id'] as String?;
-        if (actorId != null && profilesMap.containsKey(actorId)) {
-          json['profiles'] = profilesMap[actorId];
+      final List<AuditLogEntry> logs = [];
+      for (final json in logsJson) {
+        try {
+          final actorId = json['actor_id'] as String?;
+          if (actorId != null && profilesMap.containsKey(actorId)) {
+            json['profiles'] = profilesMap[actorId];
+          }
+          logs.add(AuditLogEntry.fromJson(json as Map<String, dynamic>));
+        } catch (e) {
+          debugPrint('Skipping malformed audit log entry: $e');
         }
-        return AuditLogEntry.fromJson(json as Map<String, dynamic>);
-      }).toList();
+      }
 
       return (data: logs, failure: null);
     } catch (e) {

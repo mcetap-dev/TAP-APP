@@ -64,16 +64,25 @@ class AuditLogEntry {
   factory AuditLogEntry.fromJson(Map<String, dynamic> json) {
     final profile = json['profiles'] as Map<String, dynamic>?;
     return AuditLogEntry(
-      id: json['id'] as String,
-      actorId: json['actor_id'] as String,
-      actorName: profile?['name'] as String? ?? 'Unknown User',
-      actorRole: profile?['role'] as String? ?? 'Unknown Role',
-      action: parseAuditAction(json['action'] as String),
+      id: (json['id'] as String?) ?? '',
+      actorId: (json['actor_id'] as String?) ?? '',
+      actorName: (profile?['name'] as String?) ?? 'Unknown User',
+      actorRole: (profile?['role'] as String?) ?? 'Unknown Role',
+      action: parseAuditAction((json['action'] as String?) ?? 'other'),
       targetTable: json['target_table'] as String?,
       targetId: json['target_id'] as String?,
       details: json['details'] as Map<String, dynamic>?,
-      timestamp: DateTime.parse(json['created_at'] as String),
+      timestamp: _parseTimestamp(json['created_at']),
       description: (json['details'] as Map<String, dynamic>?)?['description'] as String? ?? 'Performed an action',
     );
+  }
+
+  static DateTime _parseTimestamp(dynamic value) {
+    if (value == null) return DateTime.now();
+    try {
+      return DateTime.parse(value as String);
+    } catch (_) {
+      return DateTime.now();
+    }
   }
 }

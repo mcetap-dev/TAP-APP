@@ -38,6 +38,9 @@ class AppColors {
     BoxShadow(color: Color(0x2914171C), offset: Offset(0, 20), blurRadius: 50),
   ];
 
+  // Divider
+  static const lightDivider = Color(0x1F14171C); // ~12% opacity of dark ink on light surface
+
   // ── Dark Theme Tokens (True OLED #000000) ────────────────────────────────
   static const darkBg = Color(0xFF000000);
   static const darkSurface1 = Color(0xFF121316); // Elevation 1
@@ -69,6 +72,9 @@ class AppColors {
   static const darkShadow3 = [
     BoxShadow(color: Color(0xBF000000), offset: Offset(0, 24), blurRadius: 60),
   ];
+
+  // Divider
+  static const darkDivider = Color(0x1AF2F1EC); // ~10% opacity of light ink on dark surface
 
   // Gradients
   static const lightBrassGradient = LinearGradient(

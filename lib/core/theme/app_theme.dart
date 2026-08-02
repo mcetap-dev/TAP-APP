@@ -22,6 +22,7 @@ class AppTheme {
     cardBorder: AppColors.lightBorder,
     surfaceAlt: AppColors.lightSurface2,
     textMuted: AppColors.lightInkMuted,
+    dividerColor: AppColors.lightDivider,
     brassGradient: AppColors.lightBrassGradient,
     shadow1: AppColors.lightShadow1,
     shadow2: AppColors.lightShadow2,
@@ -70,6 +71,7 @@ class AppTheme {
         surfaceContainerHighest: AppColors.lightSurface2,
         outline: AppColors.lightBorder,
       ),
+      dividerColor: AppColors.lightDivider,
       scaffoldBackgroundColor: AppColors.lightBg,
       textTheme: textTheme,
       extensions: [lightBrandTheme],
@@ -132,6 +134,7 @@ class AppTheme {
     cardBorder: AppColors.darkBorder,
     surfaceAlt: AppColors.darkSurface2,
     textMuted: AppColors.darkInkMuted,
+    dividerColor: AppColors.darkDivider,
     brassGradient: AppColors.darkBrassGradient,
     shadow1: AppColors.darkShadow1,
     shadow2: AppColors.darkShadow2,
@@ -180,6 +183,7 @@ class AppTheme {
         surfaceContainerHighest: AppColors.darkSurface2, // Elevation 2 (#1E2024)
         outline: AppColors.darkBorder,
       ),
+      dividerColor: AppColors.darkDivider,
       scaffoldBackgroundColor: AppColors.darkBg, // Pure OLED Black #000000
       textTheme: textTheme,
       extensions: [darkBrandTheme],

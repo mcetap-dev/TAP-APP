@@ -25,33 +25,47 @@ class FacultyRepositoryImpl implements FacultyRepository {
 
   @override
   Future<List<UserProfile>> getPendingStudents({required String department}) async {
-    // Returning mock data so the UI can be tested without needing a populated Supabase database
-    return [
-      UserProfile(
-        id: 'mock-1',
-        role: UserRole.student,
-        name: 'John Doe',
-        email: 'johndoe@student.com',
-        usn: '4MC23IS001',
-        department: department,
-        cgpa: 8.5,
-        approvalStatus: ApprovalStatus.pending,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-      UserProfile(
-        id: 'mock-2',
-        role: UserRole.student,
-        name: 'Jane Smith',
-        email: 'janesmith@student.com',
-        usn: '4MC23IS002',
-        department: department,
-        cgpa: 9.2,
-        approvalStatus: ApprovalStatus.pending,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ),
-    ];
+    final response = await _supabase
+        .from('profiles')
+        .select()
+        .eq('role', 'student')
+        .eq('approval_status', 'pending')
+        .eq('department', department)
+        .order('created_at', ascending: true);
+
+    return (response as List)
+        .map((e) => UserProfile.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<List<UserProfile>> getVerifiedStudents({required String department}) async {
+    final response = await _supabase
+        .from('profiles')
+        .select()
+        .eq('role', 'student')
+        .eq('approval_status', 'approved')
+        .eq('department', department)
+        .order('updated_at', ascending: false);
+
+    return (response as List)
+        .map((e) => UserProfile.fromMap(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  @override
+  Future<List<UserProfile>> getRejectedStudents({required String department}) async {
+    final response = await _supabase
+        .from('profiles')
+        .select()
+        .eq('role', 'student')
+        .eq('approval_status', 'rejected')
+        .eq('department', department)
+        .order('updated_at', ascending: false);
+
+    return (response as List)
+        .map((e) => UserProfile.fromMap(e as Map<String, dynamic>))
+        .toList();
   }
 
   @override

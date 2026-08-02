@@ -10,6 +10,10 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/presentation/widgets/floating_pill_nav_bar.dart';
 import '../../../../shared/presentation/widgets/skeleton_loader.dart';
 import '../../../../shared/presentation/widgets/state_block_widget.dart';
+import '../../../../shared/presentation/widgets/status_thread_widget.dart';
+import '../../../../shared/presentation/widgets/subtle_divider.dart';
+import '../widgets/drive_qr_code_modal.dart';
+import 'drive_creation_wizard.dart';
 
 class TpoDashboardScreen extends ConsumerStatefulWidget {
   const TpoDashboardScreen({super.key});
@@ -153,6 +157,8 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
 
   Widget _overviewTab(BuildContext context, WidgetRef ref, String name, AppBrandTheme brandTheme, ThemeData theme) {
     final drivesAsync = ref.watch(tpoDrivesProvider);
+    final applicantsAsync = ref.watch(tpoApplicantCountProvider);
+    final offersAsync = ref.watch(tpoOffersCountProvider);
     final topPadding = MediaQuery.of(context).padding.top + AppSpacing.sp3;
 
     return SingleChildScrollView(
@@ -214,8 +220,8 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
           drivesAsync.when(
             data: (drives) {
               final activeDrivesCount = drives.length;
-              final applicantsCount = 0; // Dynamic from provider/data
-              final offersCount = 0; // Dynamic from provider/data
+              final applicantsCount = applicantsAsync.valueOrNull ?? 0;
+              final offersCount = offersAsync.valueOrNull ?? 0;
 
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -407,6 +413,8 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
 
   Widget _drivesManagementTab(WidgetRef ref, AppBrandTheme brandTheme, ThemeData theme) {
     final drivesAsync = ref.watch(tpoDrivesProvider);
+    final applicantCountsAsync = ref.watch(tpoDriveApplicantCountsProvider);
+    final applicantCounts = applicantCountsAsync.valueOrNull ?? {};
 
     return SingleChildScrollView(
       padding: EdgeInsets.only(
@@ -431,10 +439,269 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                 );
               }
               return Column(
-                children: drives.map((d) => Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sp3),
-                  child: _driveCard(d, brandTheme, theme),
-                )).toList(),
+                children: drives.map((drive) {
+                  final statusLower = drive.status.toLowerCase();
+                  Color statusBg = brandTheme.brassSoft;
+                  Color statusText = brandTheme.brassPrimary;
+                  if (statusLower == 'active' || statusLower == 'ongoing') {
+                    statusBg = Colors.greenAccent.withValues(alpha: 0.15);
+                    statusText = Colors.greenAccent;
+                  } else if (statusLower == 'completed' || statusLower == 'closed') {
+                    statusBg = Colors.blueAccent.withValues(alpha: 0.15);
+                    statusText = Colors.blueAccent;
+                  }
+
+                  final branches = drive.eligibilityBranches.isNotEmpty
+                      ? drive.eligibilityBranches
+                      : ['ALL'];
+
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: AppSpacing.sp4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: brandTheme.cardBorder),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.25),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Top Header Row with Company & Status Pill
+                        Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      drive.companyName.isNotEmpty ? drive.companyName : 'Company',
+                                      style: GoogleFonts.fraunces(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 20,
+                                        color: theme.colorScheme.onSurface,
+                                      ),
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: statusBg,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(color: statusText.withValues(alpha: 0.4)),
+                                    ),
+                                    child: Text(
+                                      drive.status.toUpperCase(),
+                                      style: GoogleFonts.inter(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 10,
+                                        color: statusText,
+                                        letterSpacing: 0.6,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                drive.roleTitle,
+                                style: GoogleFonts.inter(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: brandTheme.brassPrimary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Wrap(
+                                spacing: 12,
+                                runSpacing: 4,
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.payments_outlined, size: 14, color: brandTheme.textMuted),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Package: ${drive.ctcOrStipend}',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: theme.colorScheme.onSurface,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.event_outlined, size: 14, color: brandTheme.textMuted),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Deadline: ${drive.applicationDeadline.day}/${drive.applicationDeadline.month}/${drive.applicationDeadline.year}',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: brandTheme.textMuted,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+
+                        // Branch Tags Row
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: branches.map((b) => Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: brandTheme.surfaceAlt,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: brandTheme.cardBorder),
+                              ),
+                              child: Text(
+                                b,
+                                style: GoogleFonts.ibmPlexMono(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: brandTheme.brassPrimary,
+                                ),
+                              ),
+                            )).toList(),
+                          ),
+                        ),
+
+                        const SizedBox(height: 12),
+                        const SubtleDivider(height: 1),
+
+                        // Action Bar: View Details, Applied, Manage Rounds, & Edit Drive
+                        Row(
+                          children: [
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => _showDriveDetailsModal(drive, brandTheme, theme),
+                                borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(16)),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.info_outline_rounded, size: 18, color: brandTheme.brassPrimary),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Details',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: brandTheme.brassPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Container(width: 1, height: 32, color: brandTheme.cardBorder),
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => _showApplicantsSheet(drive, brandTheme, theme),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.people_outline_rounded, size: 18, color: brandTheme.statusShortlisted),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Applied (${applicantCounts[drive.id] ?? 0})',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: brandTheme.statusShortlisted,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Container(width: 1, height: 32, color: brandTheme.cardBorder),
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => context.push('/tpo/round-management', extra: drive),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.play_circle_outline_rounded, size: 18, color: brandTheme.statusPending),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Recruit',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: brandTheme.statusPending,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Container(width: 1, height: 32, color: brandTheme.cardBorder),
+                            Expanded(
+                              child: InkWell(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => DriveCreationWizard(driveToEdit: drive),
+                                  ),
+                                ),
+                                borderRadius: const BorderRadius.only(bottomRight: Radius.circular(16)),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.edit_outlined, size: 18, color: brandTheme.brassPrimary),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Edit',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w600,
+                                          color: brandTheme.brassPrimary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
               );
             },
             loading: () => const SkeletonCardRow(),
@@ -498,34 +765,70 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                         side: BorderSide(color: brandTheme.cardBorder),
                       ),
                     ),
-                    child: Row(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        CircleAvatar(
-                          backgroundColor: brandTheme.brassSoft,
-                          child: Icon(Icons.person, color: brandTheme.brassPrimary),
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 20,
+                              backgroundColor: brandTheme.brassSoft,
+                              child: Icon(Icons.person_rounded, color: brandTheme.brassPrimary, size: 22),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    email,
+                                    style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(name, style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 15)),
-                              Text(email, style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
-                              if (dateStr.isNotEmpty)
-                                Text('Appointed: $dateStr', style: GoogleFonts.inter(fontSize: 11, color: brandTheme.textMuted)),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: brandTheme.brassSoft,
-                            borderRadius: BorderRadius.circular(100),
-                          ),
-                          child: Text(
-                            dept.toUpperCase(),
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: brandTheme.brassPrimary),
-                          ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: brandTheme.brassSoft,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: brandTheme.brassPrimary.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.apartment_rounded, size: 14, color: brandTheme.brassPrimary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    dept,
+                                    style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: brandTheme.brassPrimary),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (dateStr.isNotEmpty)
+                              Text(
+                                'Appointed: $dateStr',
+                                style: GoogleFonts.inter(fontSize: 11, color: brandTheme.textMuted),
+                              ),
+                          ],
                         ),
                       ],
                     ),
@@ -675,7 +978,7 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
           ),
 
           const SizedBox(height: 14),
-          const Divider(height: 1),
+          const SubtleDivider(height: 1),
           const SizedBox(height: 14),
 
           // Details row
@@ -695,6 +998,31 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                 style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted),
               ),
             ],
+          ),
+
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (_) => DriveQrCodeModal(drive: drive),
+                );
+              },
+              icon: Icon(Icons.qr_code_2_rounded, size: 18, color: brandTheme.brassPrimary),
+              label: Text(
+                'QR Code & Attendance Tracker',
+                style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.bold, color: brandTheme.brassPrimary),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: brandTheme.brassPrimary.withValues(alpha: 0.5)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+              ),
+            ),
           ),
 
           const SizedBox(height: 16),
@@ -789,85 +1117,75 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
 
   Widget _driveCard(Drive drive, AppBrandTheme brandTheme, ThemeData theme) {
     final companyDisplayName = drive.companyName.isNotEmpty ? drive.companyName : 'Company';
-    final branches = drive.eligibilityBranches.isNotEmpty
-        ? drive.eligibilityBranches.join(', ')
-        : 'All Branches';
+    final statusLower = drive.status.toLowerCase();
 
-    return GestureDetector(
-      onTap: () => _showDriveDetailsModal(drive, brandTheme, theme),
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.sp4),
-        decoration: ShapeDecoration(
-          color: theme.colorScheme.surface,
-          shape: ContinuousRectangleBorder(
-            borderRadius: BorderRadius.circular(AppShapes.radiusStandard),
-            side: BorderSide(color: brandTheme.cardBorder),
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.sp4),
+      decoration: ShapeDecoration(
+        color: theme.colorScheme.surface,
+        shape: ContinuousRectangleBorder(
+          borderRadius: BorderRadius.circular(AppShapes.radiusStandard),
+          side: BorderSide(color: brandTheme.cardBorder),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  companyDisplayName,
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 17),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: brandTheme.brassSoft,
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                child: Text(
+                  drive.status.toUpperCase(),
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: brandTheme.brassPrimary),
+                ),
+              ),
+            ],
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    companyDisplayName,
-                    style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 17),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: brandTheme.brassSoft,
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: Text(
-                    drive.status.toUpperCase(),
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: brandTheme.brassPrimary),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              drive.roleTitle,
-              style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14, color: theme.colorScheme.onSurface),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Package: ${drive.ctcOrStipend}',
-              style: GoogleFonts.inter(fontSize: 13, color: brandTheme.brassPrimary, fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.school_outlined, size: 14, color: brandTheme.textMuted),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    'Eligibility: $branches (CGPA: ${drive.cgpaCutoff})',
-                    style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.calendar_today_outlined, size: 14, color: brandTheme.textMuted),
-                const SizedBox(width: 4),
-                Text(
-                  'Deadline: ${drive.applicationDeadline.day}/${drive.applicationDeadline.month}/${drive.applicationDeadline.year}',
-                  style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted),
-                ),
-              ],
-            ),
-          ],
-        ),
+          const SizedBox(height: 6),
+          Text(
+            drive.roleTitle,
+            style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14, color: theme.colorScheme.onSurface),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Package: ${drive.ctcOrStipend}',
+            style: GoogleFonts.inter(fontSize: 13, color: brandTheme.brassPrimary, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 12),
+          StatusThreadWidget(
+            nodes: [
+              StatusNodeData(
+                label: 'Upcoming',
+                isDone: statusLower == 'active' || statusLower == 'ongoing' || statusLower == 'completed' || statusLower == 'closed',
+                isCurrent: statusLower == 'upcoming',
+              ),
+              StatusNodeData(
+                label: 'Active',
+                isDone: statusLower == 'completed' || statusLower == 'closed',
+                isCurrent: statusLower == 'active' || statusLower == 'ongoing',
+              ),
+              StatusNodeData(
+                label: 'Completed',
+                isDone: statusLower == 'completed' || statusLower == 'closed',
+                isCurrent: statusLower == 'completed' || statusLower == 'closed',
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -957,7 +1275,7 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                 style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w600, color: brandTheme.brassPrimary),
               ),
               const SizedBox(height: 16),
-              const Divider(),
+              const SubtleDivider(),
               const SizedBox(height: 12),
               
               // Status Basis Section
@@ -1043,6 +1361,306 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showApplicantsSheet(Drive drive, AppBrandTheme brandTheme, ThemeData theme) {
+    final applicantsAsync = ref.read(tpoDriveApplicantsProvider(drive.id));
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        expand: false,
+        builder: (ctx, scrollController) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 12),
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: brandTheme.textMuted.withValues(alpha: 0.3),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Applicants',
+                          style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${drive.companyName} — ${drive.roleTitle}',
+                          style: GoogleFonts.inter(fontSize: 13, color: brandTheme.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    icon: Icon(Icons.close_rounded, color: brandTheme.textMuted),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: applicantsAsync.when(
+                  data: (applicants) {
+                    if (applicants.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.people_outline_rounded, size: 40, color: brandTheme.textMuted),
+                            const SizedBox(height: 12),
+                            Text('No applications yet', style: GoogleFonts.inter(fontSize: 14, color: brandTheme.textMuted)),
+                          ],
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      controller: scrollController,
+                      itemCount: applicants.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, i) {
+                        final app = applicants[i];
+                        final student = app['student'] as Map<String, dynamic>? ?? {};
+                        final name = student['name'] as String? ?? 'Student';
+                        final usn = student['usn'] as String? ?? '';
+                        final dept = student['department'] as String? ?? '';
+                        final cgpa = student['cgpa'];
+                        final status = app['status'] as String? ?? 'applied';
+                        final appliedAt = app['applied_at'] as String?;
+                        final dateStr = appliedAt != null
+                            ? DateTime.tryParse(appliedAt)?.toIso8601String().split('T').first ?? ''
+                            : '';
+
+                        Color statusBg;
+                        Color statusText;
+                        switch (status) {
+                          case 'shortlisted':
+                            statusBg = Colors.greenAccent.withValues(alpha: 0.15);
+                            statusText = Colors.greenAccent;
+                            break;
+                          case 'rejected':
+                            statusBg = Colors.redAccent.withValues(alpha: 0.15);
+                            statusText = Colors.redAccent;
+                            break;
+                          case 'selected':
+                            statusBg = Colors.amberAccent.withValues(alpha: 0.15);
+                            statusText = Colors.amberAccent;
+                            break;
+                          default:
+                            statusBg = brandTheme.brassSoft;
+                            statusText = brandTheme.brassPrimary;
+                        }
+
+                        return Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: brandTheme.cardBorder),
+                          ),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 18,
+                                backgroundColor: brandTheme.brassSoft,
+                                child: Text(
+                                  name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
+                                  style: GoogleFonts.fraunces(fontSize: 14, fontWeight: FontWeight.w600, color: brandTheme.brassPrimary),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(name, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      [if (usn.isNotEmpty) usn, if (dept.isNotEmpty) dept].join(' · '),
+                                      style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted),
+                                    ),
+                                    if (cgpa != null) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        'CGPA: ${cgpa is num ? cgpa.toStringAsFixed(2) : cgpa}',
+                                        style: GoogleFonts.ibmPlexMono(fontSize: 11, color: brandTheme.brassPrimary),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              Flexible(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: statusBg,
+                                        borderRadius: BorderRadius.circular(100),
+                                      ),
+                                      child: Text(
+                                        status.toUpperCase(),
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: statusText),
+                                      ),
+                                    ),
+                                    if (dateStr.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(dateStr, overflow: TextOverflow.ellipsis, style: GoogleFonts.ibmPlexMono(fontSize: 10, color: brandTheme.textMuted)),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              PopupMenuButton<String>(
+                                icon: Icon(Icons.more_vert_rounded, size: 18, color: brandTheme.textMuted),
+                                onSelected: (value) {
+                                  if (value == 'progress') {
+                                    Navigator.of(ctx).pop(); // Close sheet
+                                    context.push('/tpo/student-progress', extra: {
+                                      'drive': drive,
+                                      'applicationId': app['id'] as String,
+                                      'studentName': name,
+                                    });
+                                  }
+                                },
+                                itemBuilder: (_) => [
+                                  PopupMenuItem(
+                                    value: 'progress',
+                                    child: Text('View Progress', style: GoogleFonts.inter(fontSize: 13)),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    );
+                  },
+                  loading: () => const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(
+                    child: Text('Error loading applicants: $e', style: GoogleFonts.inter(fontSize: 13)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showEditDriveDialog(Drive drive) {
+    final roleController = TextEditingController(text: drive.roleTitle);
+    final ctcController = TextEditingController(text: drive.ctcOrStipend);
+    final cgpaController = TextEditingController(text: '${drive.cgpaCutoff}');
+    final backlogsController = TextEditingController(text: '${drive.backlogLimit}');
+    final descController = TextEditingController(text: drive.jobDescription);
+    DateTime selectedDeadline = drive.applicationDeadline;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Edit Drive — ${drive.companyName}', style: GoogleFonts.fraunces(fontWeight: FontWeight.bold, fontSize: 18)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Role Title', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                TextField(controller: roleController, decoration: const InputDecoration(hintText: 'e.g. SDE 1')),
+                const SizedBox(height: 12),
+                Text('CTC / Package', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                TextField(controller: ctcController, decoration: const InputDecoration(hintText: 'e.g. ₹12.0 LPA')),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('CGPA Cutoff', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          TextField(controller: cgpaController, keyboardType: const TextInputType.numberWithOptions(decimal: true)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Max Backlogs', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 4),
+                          TextField(controller: backlogsController, keyboardType: TextInputType.number),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text('Job Description', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                TextField(controller: descController, maxLines: 3),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogCtx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final repo = ref.read(tpoRepositoryProvider);
+                await repo.updateDrive(
+                  driveId: drive.id,
+                  roleTitle: roleController.text.trim(),
+                  ctcOrStipend: ctcController.text.trim(),
+                  jobDescription: descController.text.trim(),
+                  cgpaCutoff: double.tryParse(cgpaController.text.trim()) ?? drive.cgpaCutoff,
+                  backlogLimit: int.tryParse(backlogsController.text.trim()) ?? drive.backlogLimit,
+                  applicationDeadline: selectedDeadline,
+                );
+                ref.invalidate(tpoDrivesProvider);
+                if (mounted) {
+                  Navigator.pop(dialogCtx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('✅ Drive updated successfully!')),
+                  );
+                }
+              },
+              child: const Text('Save Changes'),
+            ),
+          ],
+        ),
       ),
     );
   }

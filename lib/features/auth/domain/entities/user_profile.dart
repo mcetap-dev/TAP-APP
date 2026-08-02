@@ -118,6 +118,13 @@ class UserProfile {
   final String? photoUrl;
   final String? idProofUrl;
   final List<String> skills;
+  final int? semester;
+  final String? section;
+  final int? admissionYear;
+  final int? graduationYear;
+  final bool profileCompleted;
+  final DateTime? dob;
+  final String? gender;
 
   final ConsentStatus consentStatus;
   final String? consentReason;
@@ -148,6 +155,13 @@ class UserProfile {
     this.photoUrl,
     this.idProofUrl,
     this.skills = const [],
+    this.semester,
+    this.section,
+    this.admissionYear,
+    this.graduationYear,
+    this.profileCompleted = false,
+    this.dob,
+    this.gender,
     this.consentStatus = ConsentStatus.notSet,
     this.consentReason,
     this.approvalStatus = ApprovalStatus.pending,
@@ -181,6 +195,13 @@ class UserProfile {
       photoUrl: map['photo_url'] as String?,
       idProofUrl: map['id_proof_url'] as String?,
       skills: (map['skills'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? const [],
+      semester: map['semester'] as int?,
+      section: map['section'] as String?,
+      admissionYear: map['admission_year'] as int?,
+      graduationYear: map['graduation_year'] as int?,
+      profileCompleted: map['profile_completed'] as bool? ?? false,
+      dob: map['dob'] != null ? DateTime.tryParse(map['dob'] as String) : null,
+      gender: map['gender'] as String?,
       consentStatus: ConsentStatus.fromString(map['consent_status'] as String?),
       consentReason: map['consent_reason'] as String?,
       approvalStatus: ApprovalStatus.fromString(map['approval_status'] as String?),

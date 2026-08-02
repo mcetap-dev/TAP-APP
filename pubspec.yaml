@@ -33,6 +33,8 @@ dependencies:
   # Network
   dio: ^5.4.0
   connectivity_plus: ^7.0.0
+  url_launcher: ^6.2.0
+  mailer: ^6.1.0
 
   # Security
   flutter_secure_storage: ^9.0.0
@@ -52,9 +54,16 @@ dependencies:
   csv: ^5.1.1
   pdf: ^3.10.7
   printing: ^5.11.1
+  qr_flutter: ^4.1.0
   excel: ^4.0.0
   file_picker: ^8.0.0
+  image_picker: ^1.1.2
+  image_cropper: ^8.0.0
   share_plus: ^10.0.0
+  mobile_scanner: ^7.4.0
+  fl_chart: ^0.69.2
+  flutter_local_notifications: ^22.2.0
+
 
 dev_dependencies:
   flutter_test:

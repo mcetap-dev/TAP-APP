@@ -11,12 +11,12 @@ final userManagementRepositoryProvider = Provider<UserManagementRepository>((ref
   );
 });
 
-/// Fetches all faculty/staff profiles so admin can pick when appointing a TPO.
+/// Fetches registered profiles with role='faculty' so admin can appoint them.
 final facultyListProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final response = await Supabase.instance.client
       .from('profiles')
       .select('id, name, email, department, role')
-      .inFilter('role', ['faculty', 'faculty_coordinator'])
+      .eq('role', 'faculty')
       .order('name', ascending: true);
   return List<Map<String, dynamic>>.from(response);
 });

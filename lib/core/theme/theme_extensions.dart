@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
 
 /// Extended brand theme properties for custom widgets.
 @immutable
@@ -17,6 +16,7 @@ class AppBrandTheme extends ThemeExtension<AppBrandTheme> {
   final Color cardBorder;
   final Color surfaceAlt;
   final Color textMuted;
+  final Color dividerColor;
   final LinearGradient brassGradient;
   final List<BoxShadow> shadow1;
   final List<BoxShadow> shadow2;
@@ -36,6 +36,7 @@ class AppBrandTheme extends ThemeExtension<AppBrandTheme> {
     required this.cardBorder,
     required this.surfaceAlt,
     required this.textMuted,
+    required this.dividerColor,
     required this.brassGradient,
     required this.shadow1,
     required this.shadow2,
@@ -57,6 +58,7 @@ class AppBrandTheme extends ThemeExtension<AppBrandTheme> {
     Color? cardBorder,
     Color? surfaceAlt,
     Color? textMuted,
+    Color? dividerColor,
     LinearGradient? brassGradient,
     List<BoxShadow>? shadow1,
     List<BoxShadow>? shadow2,
@@ -76,6 +78,7 @@ class AppBrandTheme extends ThemeExtension<AppBrandTheme> {
       cardBorder: cardBorder ?? this.cardBorder,
       surfaceAlt: surfaceAlt ?? this.surfaceAlt,
       textMuted: textMuted ?? this.textMuted,
+      dividerColor: dividerColor ?? this.dividerColor,
       brassGradient: brassGradient ?? this.brassGradient,
       shadow1: shadow1 ?? this.shadow1,
       shadow2: shadow2 ?? this.shadow2,
@@ -100,6 +103,7 @@ class AppBrandTheme extends ThemeExtension<AppBrandTheme> {
       cardBorder: Color.lerp(cardBorder, other.cardBorder, t)!,
       surfaceAlt: Color.lerp(surfaceAlt, other.surfaceAlt, t)!,
       textMuted: Color.lerp(textMuted, other.textMuted, t)!,
+      dividerColor: Color.lerp(dividerColor, other.dividerColor, t)!,
       brassGradient: LinearGradient.lerp(brassGradient, other.brassGradient, t)!,
       shadow1: t < 0.5 ? shadow1 : other.shadow1,
       shadow2: t < 0.5 ? shadow2 : other.shadow2,
