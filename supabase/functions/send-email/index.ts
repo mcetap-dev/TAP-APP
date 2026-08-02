@@ -102,9 +102,11 @@ serve(async (req) => {
 
     // Route student (@ms.mcehassan.ac.in) mail through the Outlook sender so it
     // lands in the college Microsoft 365 inboxes reliably; all other recipients
-    // use the default Gmail SMTP. Falls back to Gmail if Outlook creds are unset.
+    // use the default Gmail SMTP. Falls back to Gmail unless OUTLOOK_SMTP_EMAIL
+    // holds a real address (guards against a misconfigured secret triggering 535).
     const isStudentRecipient = recipient.trim().toLowerCase().endsWith("@ms.mcehassan.ac.in");
-    const useOutlook = isStudentRecipient && outlookEmail && outlookPassword;
+    const outlookLooksValid = outlookEmail.includes("@") && outlookEmail.length > 5;
+    const useOutlook = isStudentRecipient && outlookLooksValid && outlookPassword;
 
     const senderHost = useOutlook ? outlookHost : smtpHost;
     const senderPort = useOutlook ? outlookPort : smtpPort;
@@ -188,24 +190,107 @@ interface SmtpOptions {
   html: string;
 }
 
-async function sendSmtpEmail(opts: SmtpOptions): Promise<void> {
+interface SmtpResult {
+  messageId: string | null;
+  responseCode: string;
+  serverResponse: string;
+}
+
+function generateMessageId(senderDomain: string): string {
+  const rand = crypto.getRandomValues(new Uint8Array(12));
+  const hex = Array.from(rand, (b) => b.toString(16).padStart(2, "0")).join("");
+  return `<${Date.now().toString(36)}-${hex}@${senderDomain}>`;
+}
+
+function rfc2822Date(d = new Date()): string {
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${days[d.getUTCDay()]}, ${p(d.getUTCDate())} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())} +0000`;
+}
+
+function utf8Base64(s: string): string {
+  const bytes = new TextEncoder().encode(s);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+
+// RFC 2047 encoded-word so non-ASCII subjects survive every relay intact.
+function encodeSubject(s: string): string {
+  if (/^[\x20-\x7e]*$/.test(s)) return s;
+  return `=?UTF-8?B?${utf8Base64(s)}?=`;
+}
+
+function htmlToText(html: string): string {
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|h1|h2|h3|h4|li|tr)>/gi, "\n")
+    .replace(/<\/td>/gi, "\t")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&copy;/g, "©")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+async function sendSmtpEmail(opts: SmtpOptions): Promise<SmtpResult> {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
+  const transcript: string[] = [];
+
+  const username = opts.username.trim();
+  const password = opts.password.trim();
+  const recipient = opts.to.trim().replace(/[\r\n]+/g, "");
+  const subject = opts.subject.replace(/[\r\n]+/g, " ");
+
+  const domain = username.split("@")[1] || "localhost";
+  const messageId = generateMessageId(domain);
+
+  // Multipart/alternative: plain text + HTML, both UTF-8, CRLF-normalized.
+  const boundary = `----=_Part_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+  const plainText = htmlToText(opts.html);
+  const body =
+    `--${boundary}\r\n` +
+    `Content-Type: text/plain; charset=UTF-8\r\n` +
+    `Content-Transfer-Encoding: 8bit\r\n\r\n` +
+    `${plainText}\r\n` +
+    `--${boundary}\r\n` +
+    `Content-Type: text/html; charset=UTF-8\r\n` +
+    `Content-Transfer-Encoding: 8bit\r\n\r\n` +
+    `${opts.html}\r\n` +
+    `--${boundary}--\r\n`;
+
+  const headers = [
+    `From: ${opts.from.replace(/[\r\n]+/g, "")}`,
+    `To: <${recipient}>`,
+    `Reply-To: ${username}`,
+    `Subject: ${encodeSubject(subject)}`,
+    `Date: ${rfc2822Date()}`,
+    `Message-ID: ${messageId}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: multipart/alternative; boundary="${boundary}"`,
+    `X-Mailer: Placement Connect Portal`,
+  ].join("\r\n");
+
+  // Entire message CRLF-normalized; dot-stuff lines beginning with ".".
+  const dataBlock = (headers + "\r\n\r\n" + body)
+    .replace(/\r?\n/g, "\r\n")
+    .replace(/^\./gm, "..");
 
   let conn: Deno.Conn;
-
   console.log(`[SMTP] Connecting to ${opts.hostname}:${opts.port} (${opts.port === 465 ? "implicit TLS" : "STARTTLS"})`);
 
   if (opts.port === 465) {
-    conn = await Deno.connectTls({
-      hostname: opts.hostname,
-      port: opts.port,
-    });
+    conn = await Deno.connectTls({ hostname: opts.hostname, port: opts.port });
   } else {
-    conn = await Deno.connect({
-      hostname: opts.hostname,
-      port: opts.port,
-    });
+    conn = await Deno.connect({ hostname: opts.hostname, port: opts.port });
   }
 
   // NOTE: reader/writer must be re-acquired AFTER startTls() replaces the
@@ -219,10 +304,7 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<void> {
     while (true) {
       const { value, done } = await reader.read();
       if (done || !value) break;
-      const text = decoder.decode(value);
-      fullResponse += text;
-      // Multi-line SMTP responses have a dash on line 4 (e.g. 250-SIZE).
-      // The final line of a multi-line response has a space (e.g. 250 OK or 250 HELP).
+      fullResponse += decoder.decode(value);
       const lines = fullResponse.trim().split("\r\n");
       const lastLine = lines[lines.length - 1];
       if (lastLine && lastLine.length >= 4 && lastLine[3] === " ") {
@@ -241,54 +323,67 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<void> {
     return res;
   }
 
-  await readResponse(); // Initial server greeting
+  try {
+    const greeting = await readResponse();
+    transcript.push(`S: ${greeting.trim().split("\n")[0]}`);
 
-  await sendCmd(`EHLO localhost`, "250");
+    const ehlo1 = await sendCmd(`EHLO ${opts.hostname}`, "250");
+    transcript.push(`C: EHLO ${opts.hostname}`, `S: ${ehlo1.trim()}`);
 
-  if (opts.port === 587) {
-    await sendCmd("STARTTLS", "220");
-    conn = await Deno.startTls(conn, { hostname: opts.hostname });
-    // Re-bind streams to the TLS-wrapped connection (fix for Bad resource ID).
+    if (opts.port === 587) {
+      const starttls = await sendCmd("STARTTLS", "220");
+      transcript.push(`C: STARTTLS`, `S: ${starttls.trim()}`);
+      conn = await Deno.startTls(conn, { hostname: opts.hostname });
+      try { writer.releaseLock(); } catch (_) {}
+      try { reader.releaseLock(); } catch (_) {}
+      reader = conn.readable.getReader();
+      writer = conn.writable.getWriter();
+      const ehlo2 = await sendCmd(`EHLO ${opts.hostname}`, "250");
+      transcript.push(`C: EHLO ${opts.hostname} (TLS)`, `S: ${ehlo2.trim()}`);
+      console.log("[SMTP] STARTTLS complete, streams re-acquired");
+    }
+
+    const authCmd = await sendCmd("AUTH LOGIN", "334");
+    transcript.push(`C: AUTH LOGIN`, `S: ${authCmd.trim()}`);
+    const userReply = await sendCmd(btoa(username), "334");
+    const passReply = await sendCmd(btoa(password), "235");
+    transcript.push(`C: AUTH LOGIN (username)`, `S: ${userReply.trim()}`, `S: ${passReply.trim()} [password NOT logged]`);
+    console.log(`[SMTP] Authenticated as ${username}`);
+
+    const mailFrom = await sendCmd(`MAIL FROM:<${username}>`, "250");
+    const rcptTo = await sendCmd(`RCPT TO:<${recipient}>`, "250");
+    const dataGo = await sendCmd("DATA", "354");
+    transcript.push(
+      `C: MAIL FROM:<${username}>`, `S: ${mailFrom.trim()}`,
+      `C: RCPT TO:<${recipient}>`, `S: ${rcptTo.trim()}`,
+      `C: DATA`, `S: ${dataGo.trim()}`,
+    );
+    console.log(`[SMTP] Sending message to ${recipient} (${encoder.encode(dataBlock).length + 1} bytes)`);
+
+    // The DATA terminator is "." on its own line; dataBlock ends with CRLF,
+    // so passing dataBlock + "." yields "...\r\n.\r\n".
+    const finalReply = await sendCmd(dataBlock + ".", "250");
+    transcript.push(`S: ${finalReply.trim()}`);
+
+    const quitReply = await sendCmd("QUIT", "221");
+    transcript.push(`C: QUIT`, `S: ${quitReply.trim()}`);
+
+    console.log(`[SMTP] Transaction:\n${transcript.join("\n")}`);
+    console.log(`[SMTP] Message accepted by server. Message-ID: ${messageId}`);
+
+    return {
+      messageId,
+      responseCode: finalReply.trim().split(" ")[0] || "250",
+      serverResponse: finalReply,
+    };
+  } catch (err) {
+    console.error(`[SMTP] Transaction failed:\n${transcript.join("\n")}`);
+    throw err;
+  } finally {
     try { writer.releaseLock(); } catch (_) {}
     try { reader.releaseLock(); } catch (_) {}
-    reader = conn.readable.getReader();
-    writer = conn.writable.getWriter();
-    console.log("[SMTP] STARTTLS complete, streams re-acquired");
-    await sendCmd(`EHLO ${opts.hostname}`, "250");
+    try { conn.close(); } catch (_) {}
   }
-
-  // AUTH LOGIN (Base64)
-  await sendCmd("AUTH LOGIN", "334");
-  await sendCmd(btoa(opts.username), "334");
-  await sendCmd(btoa(opts.password), "235");
-  console.log(`[SMTP] Authenticated as ${opts.username}`);
-
-  // MAIL FROM / RCPT TO / DATA
-  const cleanFrom = opts.username.trim();
-  const cleanTo = opts.to.trim();
-  await sendCmd(`MAIL FROM:<${cleanFrom}>`, "250");
-  await sendCmd(`RCPT TO:<${cleanTo}>`, "250");
-  await sendCmd("DATA", "354");
-  console.log(`[SMTP] Sending message to ${cleanTo}`);
-
-  // MIME Email Content
-  const mailContent = 
-    `From: "${COLLEGE_NAME}" <${cleanFrom}>\r\n` +
-    `To: <${cleanTo}>\r\n` +
-    `Subject: ${opts.subject}\r\n` +
-    `MIME-Version: 1.0\r\n` +
-    `Content-Type: text/html; charset=UTF-8\r\n\r\n` +
-    `${opts.html}\r\n.`;
-
-  await sendCmd(mailContent, "250");
-  await sendCmd("QUIT", "221");
-  console.log("[SMTP] Message sent, connection closed");
-
-  try {
-    writer.releaseLock();
-    reader.releaseLock();
-    conn.close();
-  } catch (_) {}
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
