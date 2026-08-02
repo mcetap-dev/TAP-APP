@@ -46,6 +46,7 @@ serve(async (req) => {
 
     const payload: EmailPayload = await req.json();
     let { emailType, recipient, data, createdBy } = payload;
+    console.log(`[send-email] Request received: type=${emailType}, recipient=${recipient}`);
 
     if (!recipient) {
       return new Response(
@@ -108,6 +109,7 @@ serve(async (req) => {
     const senderPort = useOutlook ? outlookPort : smtpPort;
     const senderEmail = useOutlook ? outlookEmail : smtpEmail;
     const senderPassword = useOutlook ? outlookPassword : smtpPassword;
+    console.log(`[send-email] Using SMTP ${senderHost}:${senderPort} (${useOutlook ? "Outlook" : "default"})`);
 
     try {
       await sendSmtpEmail({
@@ -153,7 +155,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   } catch (error: any) {
-    console.error("[Edge Function] Unexpected error:", error);
+    console.error("[send-email] Unexpected error:", error, error?.stack || "");
     return new Response(
       JSON.stringify({ success: false, error: error.message }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
@@ -181,6 +183,8 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<void> {
 
   let conn: Deno.Conn;
 
+  console.log(`[SMTP] Connecting to ${opts.hostname}:${opts.port} (${opts.port === 465 ? "implicit TLS" : "STARTTLS"})`);
+
   if (opts.port === 465) {
     conn = await Deno.connectTls({
       hostname: opts.hostname,
@@ -193,8 +197,11 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<void> {
     });
   }
 
-  const reader = conn.readable.getReader();
-  const writer = conn.writable.getWriter();
+  // NOTE: reader/writer must be re-acquired AFTER startTls() replaces the
+  // connection. Using the pre-TLS streams post-upgrade throws Deno's
+  // "BadResource: Bad resource ID" (the 502 the OTP flow was hitting).
+  let reader = conn.readable.getReader();
+  let writer = conn.writable.getWriter();
 
   async function readResponse(): Promise<string> {
     let fullResponse = "";
@@ -230,6 +237,12 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<void> {
   if (opts.port === 587) {
     await sendCmd("STARTTLS", "220");
     conn = await Deno.startTls(conn, { hostname: opts.hostname });
+    // Re-bind streams to the TLS-wrapped connection (fix for Bad resource ID).
+    try { writer.releaseLock(); } catch (_) {}
+    try { reader.releaseLock(); } catch (_) {}
+    reader = conn.readable.getReader();
+    writer = conn.writable.getWriter();
+    console.log("[SMTP] STARTTLS complete, streams re-acquired");
     await sendCmd(`EHLO ${opts.hostname}`, "250");
   }
 
@@ -237,6 +250,7 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<void> {
   await sendCmd("AUTH LOGIN", "334");
   await sendCmd(btoa(opts.username), "334");
   await sendCmd(btoa(opts.password), "235");
+  console.log(`[SMTP] Authenticated as ${opts.username}`);
 
   // MAIL FROM / RCPT TO / DATA
   const cleanFrom = opts.username.trim();
@@ -244,6 +258,7 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<void> {
   await sendCmd(`MAIL FROM:<${cleanFrom}>`, "250");
   await sendCmd(`RCPT TO:<${cleanTo}>`, "250");
   await sendCmd("DATA", "354");
+  console.log(`[SMTP] Sending message to ${cleanTo}`);
 
   // MIME Email Content
   const mailContent = 
@@ -256,6 +271,7 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<void> {
 
   await sendCmd(mailContent, "250");
   await sendCmd("QUIT", "221");
+  console.log("[SMTP] Message sent, connection closed");
 
   try {
     writer.releaseLock();

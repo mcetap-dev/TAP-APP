@@ -47,6 +47,7 @@ serve(async (req) => {
     const email = String(body.email || "").toLowerCase().trim();
     const purpose = String(body.purpose || "signup").trim();
     const code = String(body.code || "").trim();
+    console.log(`[send-otp] Request received: action=${action}, email=${email}, purpose=${purpose}`);
 
     if (!["signup", "password_reset"].includes(purpose)) {
       return json({ success: false, error: "Invalid purpose." }, 400);
@@ -102,6 +103,7 @@ serve(async (req) => {
         .from("otp_verifications")
         .insert({ email, purpose, code_hash: codeHash, expires_at: expiresAt, max_attempts: MAX_ATTEMPTS });
       if (insertErr) throw insertErr;
+      console.log(`[send-otp] OTP stored for ${email} (hash only), expires ${expiresAt}`);
 
       // Deliver via the existing SMTP send-email function.
       const sendRes = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
@@ -118,6 +120,7 @@ serve(async (req) => {
         }),
       });
       const sendData = await sendRes.json().catch(() => ({}));
+      console.log(`[send-otp] send-email responded with status ${sendRes.status}`);
       if (!sendRes.ok || sendData.success !== true) {
         // Email failed — do not leave a dangling valid code.
         await supabase
@@ -185,6 +188,7 @@ serve(async (req) => {
       }
 
       await supabase.from("otp_verifications").update({ used: true }).eq("id", row.id);
+      console.log(`[send-otp] OTP verified for ${email} (purpose=${purpose})`);
       return json({ success: true, message: "Email verified successfully." });
     }
 
@@ -253,7 +257,7 @@ serve(async (req) => {
 
     return json({ success: false, error: "Unknown action." }, 400);
   } catch (error: any) {
-    console.error("[send-otp] Error:", error);
+    console.error(`[send-otp] Error (action=${action}):`, error, error?.stack || "");
     return json({ success: false, error: error.message }, 500);
   }
 });
