@@ -25,15 +25,32 @@ class FacultyRepositoryImpl implements FacultyRepository {
 
   @override
   Future<List<UserProfile>> getPendingStudents({required String department}) async {
+    final cleanDept = department.trim();
+    
+    // First try: flex match department
     final response = await _supabase
         .from('profiles')
         .select()
         .eq('role', 'student')
         .eq('approval_status', 'pending')
-        .eq('department', department)
+        .ilike('department', '%$cleanDept%')
         .order('created_at', ascending: true);
 
-    return (response as List)
+    final list = (response as List)
+        .map((e) => UserProfile.fromMap(e as Map<String, dynamic>))
+        .toList();
+
+    if (list.isNotEmpty) return list;
+
+    // Fallback: If department name format differs slightly (e.g. CSE vs Computer Science), fetch all pending students
+    final fallbackResponse = await _supabase
+        .from('profiles')
+        .select()
+        .eq('role', 'student')
+        .eq('approval_status', 'pending')
+        .order('created_at', ascending: true);
+
+    return (fallbackResponse as List)
         .map((e) => UserProfile.fromMap(e as Map<String, dynamic>))
         .toList();
   }

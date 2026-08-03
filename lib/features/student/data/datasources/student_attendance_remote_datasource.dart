@@ -42,7 +42,19 @@ class StudentAttendanceRemoteDataSource {
       throw AttendanceException('Drive Not Found', 'The drive associated with this QR code no longer exists.');
     }
 
-    // 3. Check duplicate attendance
+    // 3. Verify student has applied to this drive
+    final application = await _client
+        .from('applications')
+        .select('id')
+        .eq('drive_id', driveId)
+        .eq('student_id', studentId)
+        .maybeSingle();
+
+    if (application == null) {
+      throw AttendanceException('Not Applied to Drive', 'You have not applied for this placement drive. Attendance check-in is only permitted for registered applicants.');
+    }
+
+    // 4. Check duplicate attendance
     final existing = await _client
         .from('drive_attendance')
         .select('id')
@@ -65,23 +77,25 @@ class StudentAttendanceRemoteDataSource {
       throw AttendanceException('Profile Error', 'Could not find your student profile.');
     }
 
-    // 5. Insert attendance record
-    final now = DateTime.now().toIso8601String();
+    // 5. Insert attendance record (scanned_at automatically set by Postgres default now())
     final inserted = await _client
         .from('drive_attendance')
         .insert({
           'drive_id': driveId,
           'student_id': studentId,
-          'scanned_at': now,
           'status': 'present',
         })
-        .select('id')
+        .select('id, scanned_at')
         .single();
+
+    final scannedAtIso = inserted['scanned_at'] as String?;
 
     // 6. Build attendance result with drive + student info
     final companyName = driveResponse['company'] is Map
         ? (driveResponse['company'] as Map)['name'] as String? ?? ''
         : '';
+
+    final nowIso = scannedAtIso ?? DateTime.now().toUtc().toIso8601String();
 
     // Dispatch attendance confirmation email
     if (_emailService != null && profile['email'] != null) {
@@ -89,8 +103,8 @@ class StudentAttendanceRemoteDataSource {
         _emailService!.sendAttendanceConfirmationEmail(
           recipientEmail: profile['email'] as String,
           companyName: companyName.isNotEmpty ? companyName : 'Placement Drive',
-          date: now.split('T')[0],
-          time: now.contains('T') ? now.split('T')[1].substring(0, 5) : '',
+          date: nowIso.split('T')[0],
+          time: nowIso.contains('T') ? nowIso.split('T')[1].substring(0, 5) : '',
         );
       } catch (_) {}
     }
@@ -114,7 +128,7 @@ class StudentAttendanceRemoteDataSource {
       'department': profile['department'] as String? ?? '',
       'company_name': companyName,
       'drive_role': driveResponse['role'] as String? ?? '',
-      'scanned_at': now,
+      'scanned_at': nowIso,
       'status': 'present',
     };
   }

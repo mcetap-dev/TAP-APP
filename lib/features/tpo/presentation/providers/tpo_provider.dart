@@ -62,10 +62,14 @@ final tpoApplicantCountProvider = FutureProvider<int>((ref) async {
   });
   ref.onDispose(() => timer.cancel());
 
-  final response = await Supabase.instance.client
-      .from('applications')
-      .select('id');
-  return (response as List).length;
+  try {
+    final response = await Supabase.instance.client
+        .from('applications')
+        .select('id');
+    return (response as List).length;
+  } catch (_) {
+    return 0;
+  }
 });
 
 /// Total offers count (status = 'selected') across all drives.
@@ -75,11 +79,15 @@ final tpoOffersCountProvider = FutureProvider<int>((ref) async {
   });
   ref.onDispose(() => timer.cancel());
 
-  final response = await Supabase.instance.client
-      .from('applications')
-      .select('id')
-      .eq('status', 'selected');
-  return (response as List).length;
+  try {
+    final response = await Supabase.instance.client
+        .from('applications')
+        .select('id')
+        .eq('status', 'selected');
+    return (response as List).length;
+  } catch (_) {
+    return 0;
+  }
 });
 
 /// Applicant count per drive — returns Map<driveId, count>.
@@ -89,16 +97,22 @@ final tpoDriveApplicantCountsProvider = FutureProvider<Map<String, int>>((ref) a
   });
   ref.onDispose(() => timer.cancel());
 
-  final response = await Supabase.instance.client
-      .from('applications')
-      .select('drive_id');
+  try {
+    final response = await Supabase.instance.client
+        .from('applications')
+        .select('drive_id');
 
-  final map = <String, int>{};
-  for (final row in response as List) {
-    final driveId = row['drive_id'] as String;
-    map[driveId] = (map[driveId] ?? 0) + 1;
+    final map = <String, int>{};
+    for (final row in response as List) {
+      final driveId = row['drive_id'] as String?;
+      if (driveId != null) {
+        map[driveId] = (map[driveId] ?? 0) + 1;
+      }
+    }
+    return map;
+  } catch (_) {
+    return {};
   }
-  return map;
 });
 
 /// List of students who applied to a specific drive.

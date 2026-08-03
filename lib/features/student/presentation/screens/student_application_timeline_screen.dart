@@ -321,7 +321,9 @@ class _StructuredApplicationCard extends StatelessWidget {
                   ...List.generate(data.rounds.length, (i) {
                     final round = data.rounds[i];
                     final roundId = round['id'] as String? ?? '';
-                    final roundName = round['round_name'] as String? ?? 'Round ${i + 1}';
+                    final roundName = (round['round_name'] as String?)?.isNotEmpty == true
+                        ? round['round_name'] as String
+                        : 'Round ${i + 1}';
                     final progress = data.progressForRound(roundId);
                     final isLast = i == data.rounds.length - 1;
                     // currentRound is 1-indexed; rounds list is 0-indexed
@@ -361,7 +363,7 @@ class _StructuredApplicationCard extends StatelessWidget {
   }) {
     final result = progress?['result'] as String? ?? 'pending';
     final attended = progress?['attended'] as bool? ?? false;
-    final (badgeColor, badgeText, iconData) = _getStageStatus(result, attended, isCurrent, isPast, brandTheme);
+    final (badgeColor, badgeText, iconData) = _getStageStatus(result, attended, isCurrent, isPast, isLast, brandTheme);
 
     return IntrinsicHeight(
       child: Row(
@@ -458,16 +460,24 @@ class _StructuredApplicationCard extends StatelessWidget {
   }
 
   (Color, String, IconData) _getStageStatus(
-      String result, bool attended, bool isCurrent, bool isPast, AppBrandTheme brandTheme) {
+      String result, bool attended, bool isCurrent, bool isPast, bool isLast, AppBrandTheme brandTheme) {
     final res = result.toLowerCase();
+    final overallStatus = data.status.toLowerCase();
+
     // Explicit result from DB takes highest priority
-    if (res == 'cleared' || res == 'passed' || res == 'selected') {
+    if (res == 'cleared' || res == 'passed' || res == 'selected' || res == 'offered' || (isLast && overallStatus == 'selected')) {
+      if (isLast || res == 'selected' || res == 'offered' || overallStatus == 'selected') {
+        return (brandTheme.statusShortlisted, 'Offered', Icons.emoji_events_rounded);
+      }
       return (brandTheme.statusShortlisted, 'Cleared', Icons.check_rounded);
     }
-    if (res == 'rejected' || res == 'failed' || res == 'not_selected') {
+    if (res == 'rejected' || res == 'failed' || res == 'not_selected' || overallStatus == 'rejected') {
       return (brandTheme.statusRejected, 'Not Selected', Icons.close_rounded);
     }
     // No explicit result yet — use position relative to currentRound
+    if (isLast && (isCurrent || isPast) && overallStatus == 'selected') {
+      return (brandTheme.statusShortlisted, 'Offered', Icons.emoji_events_rounded);
+    }
     if (isCurrent) {
       return (brandTheme.brassPrimary, 'Active Stage', Icons.play_arrow_rounded);
     }

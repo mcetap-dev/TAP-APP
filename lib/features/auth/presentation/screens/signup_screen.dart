@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/theme/theme_extensions.dart';
+import '../../../../core/utils/usn_parser.dart';
 
 /// Returns the role for a given email based on domain.
 /// - @ms.mcehassan.ac.in  → student
@@ -228,6 +229,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                               textInputAction: TextInputAction.next,
                               textCapitalization: TextCapitalization.characters,
                               style: GoogleFonts.inter(color: theme.colorScheme.onSurface, fontSize: 14),
+                              onChanged: (_) => setState(() {}),
                               validator: (v) {
                                 if (_emailCtrl.text.trim().toLowerCase().endsWith('@ms.mcehassan.ac.in')) {
                                   if (v == null || v.trim().isEmpty) {
@@ -238,6 +240,62 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                               },
                               decoration: const InputDecoration(hintText: 'e.g. 4MC22CS001'),
                             ),
+                            if (_usnCtrl.text.trim().isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Builder(
+                                builder: (_) {
+                                  final code = UsnParser.extractBranchCode(_usnCtrl.text);
+                                  if (code == null) return const SizedBox.shrink();
+                                  String deptName = code;
+                                  switch (code.toUpperCase()) {
+                                    case 'IS':
+                                      deptName = 'Information Science Engineering';
+                                      break;
+                                    case 'CS':
+                                      deptName = 'Computer Science Engineering';
+                                      break;
+                                    case 'EC':
+                                      deptName = 'Electronics & Communication Engineering';
+                                      break;
+                                    case 'EE':
+                                      deptName = 'Electrical & Electronics Engineering';
+                                      break;
+                                    case 'ME':
+                                      deptName = 'Mechanical Engineering';
+                                      break;
+                                    case 'CV':
+                                      deptName = 'Civil Engineering';
+                                      break;
+                                  }
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: (brandTheme?.brassPrimary ?? theme.colorScheme.primary).withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(Icons.school_rounded, size: 14, color: brandTheme?.brassPrimary ?? theme.colorScheme.primary),
+                                        const SizedBox(width: 6),
+                                        Flexible(
+                                          child: Text(
+                                            'Branch: $deptName ($code)',
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: brandTheme?.brassPrimary ?? theme.colorScheme.primary,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
                             const SizedBox(height: 16),
                           ],
 

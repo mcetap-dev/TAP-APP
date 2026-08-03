@@ -275,11 +275,11 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                   // Bento Secondary Stat Tiles (B2 & B3 - 1.0fr Stack)
                   Expanded(
                     flex: 10,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minHeight: 160),
+                    child: SizedBox(
+                      height: 160,
                       child: Column(
                         children: [
-                          Flexible(
+                          Expanded(
                             child: Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(AppSpacing.sp3),
@@ -314,7 +314,7 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                             ),
                           ),
                           const SizedBox(height: AppSpacing.sp2),
-                          Flexible(
+                          Expanded(
                             child: Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(AppSpacing.sp3),
@@ -356,7 +356,11 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
               );
             },
             loading: () => const SkeletonCardRow(),
-            error: (_, __) => const SizedBox(),
+            error: (err, _) => StateBlockWidget(
+              icon: Icons.error_outline_rounded,
+              title: "Notice",
+              message: "Unable to refresh active statistics: ${err.toString()}",
+            ),
           ),
           const SizedBox(height: AppSpacing.sp6),
 

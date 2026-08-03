@@ -166,7 +166,28 @@ class StudentTimelineNotifier extends AsyncNotifier<List<ApplicationTimelineData
     return apps.map((app) {
       final drive = app['drive'] as Map<String, dynamic>? ?? {};
       final company = drive['company'] as Map<String, dynamic>? ?? {};
-      final rounds = (drive['drive_rounds'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+      final rounds = <Map<String, dynamic>>[];
+      final rawRounds = (drive['drive_rounds'] as List?) ?? [];
+      for (final r in rawRounds) {
+        if (r is Map<String, dynamic>) {
+          rounds.add(r);
+        } else if (r is Map) {
+          rounds.add(Map<String, dynamic>.from(r));
+        } else {
+          try {
+            rounds.add({
+              'id': (r as dynamic).id,
+              'round_number': (r as dynamic).roundNumber ?? 1,
+              'round_name': (r as dynamic).roundName ?? '',
+              'instructions': (r as dynamic).instructions ?? '',
+              'scheduled_date': (r as dynamic).scheduledDate,
+              'round_date': (r as dynamic).roundDate,
+              'round_time': (r as dynamic).roundTime,
+              'venue_or_link': (r as dynamic).venueOrLink,
+            });
+          } catch (_) {}
+        }
+      }
 
       // Sort rounds by round_number
       rounds.sort((a, b) => (a['round_number'] as int? ?? 0).compareTo(b['round_number'] as int? ?? 0));

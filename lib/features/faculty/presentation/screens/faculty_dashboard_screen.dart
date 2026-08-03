@@ -246,11 +246,11 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
                       // Bento Secondary Stat Tiles (B2 & B3 - 1.0fr Stack)
                       Expanded(
                         flex: 10,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 160),
+                        child: SizedBox(
+                          height: 160,
                           child: Column(
                             children: [
-                              Flexible(
+                              Expanded(
                                 child: Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(AppSpacing.sp3),
@@ -265,16 +265,28 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
+                                      ref.watch(verifiedStudentsProvider).when(
+                                            data: (verified) => Text(
+                                              '${verified.length}',
+                                              style: GoogleFonts.fraunces(
+                                                fontSize: 22,
+                                                fontWeight: FontWeight.w600,
+                                                color: brandTheme.statusShortlisted,
+                                              ),
+                                            ),
+                                            loading: () => const SizedBox(
+                                              height: 16,
+                                              width: 16,
+                                              child: CircularProgressIndicator(strokeWidth: 2),
+                                            ),
+                                            error: (_, __) => Text('0',
+                                                style: GoogleFonts.fraunces(
+                                                    fontSize: 22,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: brandTheme.statusShortlisted)),
+                                          ),
                                       Text(
-                                        '0',
-                                        style: GoogleFonts.fraunces(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w600,
-                                          color: brandTheme.statusShortlisted,
-                                        ),
-                                      ),
-                                      Text(
-                                        'Verified Today',
+                                        'Verified Students',
                                         style: GoogleFonts.inter(
                                           fontSize: 11,
                                           color: brandTheme.textMuted,
@@ -285,7 +297,7 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
                                 ),
                               ),
                               const SizedBox(height: AppSpacing.sp2),
-                              Flexible(
+                              Expanded(
                                 child: Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(AppSpacing.sp3),
@@ -300,14 +312,26 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Text(
-                                        '0',
-                                        style: GoogleFonts.fraunces(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w600,
-                                          color: theme.colorScheme.onSurface,
-                                        ),
-                                      ),
+                                      ref.watch(deptPlacementStatsProvider).when(
+                                            data: (stats) => Text(
+                                              '${stats['total_students'] ?? 0}',
+                                              style: GoogleFonts.fraunces(
+                                                fontSize: 22,
+                                                fontWeight: FontWeight.w600,
+                                                color: theme.colorScheme.onSurface,
+                                              ),
+                                            ),
+                                            loading: () => const SizedBox(
+                                              height: 16,
+                                              width: 16,
+                                              child: CircularProgressIndicator(strokeWidth: 2),
+                                            ),
+                                            error: (_, __) => Text('0',
+                                                style: GoogleFonts.fraunces(
+                                                    fontSize: 22,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: theme.colorScheme.onSurface)),
+                                          ),
                                       Text(
                                         'Total Batch',
                                         style: GoogleFonts.inter(

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:placement_connect/core/utils/usn_parser.dart';
 import '../../domain/entities/user_profile.dart';
 
 class AuthRemoteDatasource {
@@ -29,6 +30,36 @@ class AuthRemoteDatasource {
     String? department,
     String? rollNumber,
   }) async {
+    // If department is null but USN is provided, derive department from USN branch code
+    String? resolvedDept = department;
+    if ((resolvedDept == null || resolvedDept.isEmpty) && rollNumber != null && rollNumber.isNotEmpty) {
+      final code = UsnParser.extractBranchCode(rollNumber);
+      if (code != null) {
+        switch (code.toUpperCase()) {
+          case 'IS':
+            resolvedDept = 'Information Science Engineering';
+            break;
+          case 'CS':
+            resolvedDept = 'Computer Science Engineering';
+            break;
+          case 'EC':
+            resolvedDept = 'Electronics & Communication Engineering';
+            break;
+          case 'EE':
+            resolvedDept = 'Electrical & Electronics Engineering';
+            break;
+          case 'ME':
+            resolvedDept = 'Mechanical Engineering';
+            break;
+          case 'CV':
+            resolvedDept = 'Civil Engineering';
+            break;
+          default:
+            resolvedDept = code;
+        }
+      }
+    }
+
     final response = await _client.auth.signUp(
       email: email,
       password: password,
@@ -36,7 +67,7 @@ class AuthRemoteDatasource {
         'name': fullName,
         'full_name': fullName,
         'role': role,
-        if (department != null) 'department': department,
+        if (resolvedDept != null) 'department': resolvedDept,
         if (rollNumber != null) 'usn': rollNumber,
       },
     );
@@ -49,7 +80,7 @@ class AuthRemoteDatasource {
           'email': email,
           'name': fullName,
           'role': role,
-          if (department != null) 'department': department,
+          if (resolvedDept != null) 'department': resolvedDept,
           if (rollNumber != null) 'usn': rollNumber,
           'approval_status': role == 'student' ? 'pending' : 'approved',
         });

@@ -616,9 +616,14 @@ class _RoundExpandedSectionState
     Color chipColor;
     String chipLabel;
     switch (status) {
+      case 'selected':
+      case 'offered':
+        chipColor = brandTheme.statusShortlisted;
+        chipLabel = 'Offered';
+        break;
       case 'shortlisted':
         chipColor = brandTheme.statusShortlisted;
-        chipLabel = 'Shortlisted';
+        chipLabel = widget.isLastRound ? 'Offered' : 'Shortlisted';
         break;
       case 'rejected':
         chipColor = brandTheme.statusRejected;
@@ -870,24 +875,27 @@ class _RoundExpandedSectionState
       applicationIds: appIds,
       performedBy: user?.id ?? '',
     );
+    if (!mounted) return;
     ref.invalidate(roundStudentsProvider(
         (driveId: widget.drive.id, roundNumber: widget.roundNumber)));
     // Also invalidate next round so it picks up promoted students
     ref.invalidate(roundStudentsProvider(
         (driveId: widget.drive.id, roundNumber: widget.roundNumber + 1)));
-    // Dispatch Round Qualified Emails to promoted students
+    // Dispatch Round Qualified Emails & Push Notifications to promoted students
     try {
       final emailService = ref.read(emailNotificationServiceProvider);
       for (final appId in appIds) {
         final appData = await Supabase.instance.client
             .from('applications')
-            .select('student_id, student:profiles(email, name)')
+            .select('student_id, current_round, student:profiles(email, name)')
             .eq('id', appId)
             .maybeSingle();
-        if (appData != null && appData['student'] != null) {
-          final student = appData['student'] as Map<String, dynamic>;
-          final email = student['email'] as String?;
-          final name = (student['name'] as String?) ?? 'Student';
+        if (appData != null && (appData['current_round'] as int? ?? 0) == widget.roundNumber + 1) {
+          final studentId = appData['student_id'] as String?;
+          final student = appData['student'] as Map<String, dynamic>?;
+          final email = student?['email'] as String?;
+          final name = (student?['name'] as String?) ?? 'Student';
+
           if (email != null && email.contains('@')) {
             emailService.sendRoundQualifiedEmail(
               recipientEmail: email,
@@ -895,6 +903,17 @@ class _RoundExpandedSectionState
               companyName: widget.drive.companyName,
               qualifiedRound: widget.roundName,
               nextRoundName: 'Round ${widget.roundNumber + 1}',
+            );
+          }
+
+          if (studentId != null && studentId.isNotEmpty) {
+            repo.sendNotification(
+              userId: studentId,
+              title: 'Congratulations! You Cleared ${widget.roundName}',
+              body: 'You cleared ${widget.roundName} for ${widget.drive.companyName} and qualified for Round ${widget.roundNumber + 1}!',
+              type: 'round_clear',
+              driveId: widget.drive.id,
+              applicationId: appId,
             );
           }
         }

@@ -217,11 +217,11 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                       const SizedBox(width: AppSpacing.sp3),
                       Expanded(
                         flex: 10,
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 160),
+                        child: SizedBox(
+                          height: 160,
                           child: Column(
                             children: [
-                              Flexible(
+                              Expanded(
                                 child: Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(AppSpacing.sp3),
@@ -243,7 +243,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                                 ),
                               ),
                               const SizedBox(height: AppSpacing.sp2),
-                              Flexible(
+                              Expanded(
                                 child: Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(AppSpacing.sp3),

@@ -46,6 +46,19 @@ class _DriveQrCodeModalState extends ConsumerState<DriveQrCodeModal>
     });
   }
 
+  String _formatScannedTime(String? isoString) {
+    if (isoString == null || isoString.isEmpty) return '';
+    try {
+      final dt = DateTime.parse(isoString).toLocal();
+      final h = dt.hour > 12 ? dt.hour - 12 : (dt.hour == 0 ? 12 : dt.hour);
+      final m = dt.minute.toString().padLeft(2, '0');
+      final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+      return '$h:$m $ampm';
+    } catch (_) {
+      return isoString;
+    }
+  }
+
   Future<void> _printQrSheet() async {
     final pdf = pw.Document();
 
@@ -65,7 +78,7 @@ class _DriveQrCodeModalState extends ConsumerState<DriveQrCodeModal>
                 ),
                 pw.SizedBox(height: 6),
                 pw.Text(
-                  'Training & Placement Office — Attendance Check-In',
+                  'Training & Placement Office - Attendance Check-In',
                   style: const pw.TextStyle(fontSize: 12),
                 ),
                 pw.SizedBox(height: 24),
@@ -344,14 +357,7 @@ class _DriveQrCodeModalState extends ConsumerState<DriveQrCodeModal>
                                     final dept = profile['department']
                                             as String? ??
                                         '';
-                                    final timeStr = rec['scanned_at'] != null
-                                        ? DateTime.parse(
-                                                rec['scanned_at'] as String)
-                                            .toLocal()
-                                            .toString()
-                                            .split('.')
-                                            .first
-                                        : '';
+                                    final timeStr = _formatScannedTime(rec['scanned_at'] as String?);
 
                                     return Container(
                                       padding: const EdgeInsets.all(12),

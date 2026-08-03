@@ -407,11 +407,20 @@ class TpoRepositoryImpl implements TpoRepository {
     try {
       final response = await _supabase
           .from('drives')
-          .select('*, company:companies(*), drive_rounds(id, round_number, round_name, instructions, scheduled_date, created_at)')
+          .select('*, company:companies(*), drive_rounds(*)')
           .order('created_at', ascending: false);
       return (response as List).map((map) => Drive.fromMap(map)).toList();
     } catch (e) {
-      return _localDriveCache;
+      try {
+        // Fallback: fetch drives without nested drive_rounds if join schema fails
+        final fallback = await _supabase
+            .from('drives')
+            .select('*, company:companies(*)')
+            .order('created_at', ascending: false);
+        return (fallback as List).map((map) => Drive.fromMap(map)).toList();
+      } catch (err) {
+        return _localDriveCache;
+      }
     }
   }
 
@@ -598,13 +607,22 @@ class TpoRepositoryImpl implements TpoRepository {
         .maybeSingle();
 
     for (final appId in applicationIds) {
-      // Get student_id for notification
+      // Get application details to check current round
       final appData = await _supabase
           .from('applications')
-          .select('student_id')
+          .select('student_id, current_round')
           .eq('id', appId)
           .maybeSingle();
-      final studentId = appData?['student_id'] as String? ?? '';
+
+      if (appData == null) continue;
+      final studentId = appData['student_id'] as String? ?? '';
+      final appCurrentRound = appData['current_round'] as int? ?? 1;
+
+      // PREVENT DUPLICATE PROMOTION:
+      // If student is already past currentRoundNumber, do not promote again.
+      if (appCurrentRound != currentRoundNumber) {
+        continue;
+      }
 
       // Mark current round as cleared
       if (currentRoundData != null) {

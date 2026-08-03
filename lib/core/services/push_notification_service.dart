@@ -82,25 +82,25 @@ class PushNotificationService {
 
         // 4. Handle foreground notifications (Shows Heads-Up Banner when app is open)
         FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+          final title = message.notification?.title ?? message.data['title'] as String?;
+          final body = message.notification?.body ?? message.data['body'] as String?;
+
           dev.log(
-            '[PushNotificationService] Foreground notification received: ${message.notification?.title} - ${message.notification?.body}',
+            '[PushNotificationService] Foreground notification received: $title - $body',
             name: 'PushNotificationService',
           );
 
-          final notification = message.notification;
-          final android = message.notification?.android;
-
-          if (notification != null && !kIsWeb) {
+          if ((title != null || body != null) && !kIsWeb) {
             _localNotifications.show(
-              id: notification.hashCode,
-              title: notification.title,
-              body: notification.body,
+              id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+              title: title ?? 'MCE Placement Connect',
+              body: body ?? '',
               notificationDetails: NotificationDetails(
                 android: AndroidNotificationDetails(
                   channel.id,
                   channel.name,
                   channelDescription: channel.description,
-                  icon: android?.smallIcon ?? '@mipmap/ic_launcher',
+                  icon: '@mipmap/ic_launcher',
                   importance: Importance.max,
                   priority: Priority.high,
                   playSound: true,

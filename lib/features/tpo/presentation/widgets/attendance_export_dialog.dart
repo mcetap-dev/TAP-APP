@@ -212,8 +212,8 @@ class _AttendanceExportDialogState extends State<_AttendanceExportDialog> {
                     pw.Text('MALNAD COLLEGE OF ENGINEERING, HASSAN',
                         style: pw.TextStyle(
                             fontSize: 12, fontWeight: pw.FontWeight.bold)),
-                    pw.Text('Training & Placement Office — Attendance Report',
-                        style: const pw.TextStyle(fontSize: 9)),
+                    pw.Text('Training & Placement Office - Attendance Report',
+                        style: const pw.TextStyle(fontSize: 10)),
                   ],
                 ),
                 pw.Text(title ?? 'ATTENDANCE REPORT',
