@@ -37,7 +37,7 @@ interface EmailPayload {
   createdBy?: string;
 }
 
-const COLLEGE_NAME = "Placement Connect Portal";
+const COLLEGE_NAME = "MCE Placement Connect";
 const BRAND_GOLD = "#D4AF37";
 
 // Official institutional sender. All emails must be sent as this address.
@@ -380,7 +380,7 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<SmtpResult> {
     `Message-ID: ${messageId}`,
     `MIME-Version: 1.0`,
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
-    `X-Mailer: Placement Connect Portal`,
+    `X-Mailer: MCE Placement Connect`,
   ].join("\r\n");
 
   // Entire message CRLF-normalized; dot-stuff lines beginning with ".".
@@ -616,13 +616,13 @@ function generateEmailTemplate(
 ): { subject: string; html: string } {
   switch (emailType) {
     case "login_alert": {
-      const subject = customSubject || `New Login to Placement Connect`;
+      const subject = customSubject || `New Login to MCE Placement Connect`;
       const html = wrapTemplate(
         "Login Security Alert",
         `
         <h2>Account Login Security Notice</h2>
         <p>Hello <strong>${data.studentName || data.userName || "User"}</strong>,</p>
-        <p>A new login to your Placement Connect account was detected.</p>
+        <p>A new login to your MCE Placement Connect account was detected.</p>
         
         <table class="info-table">
           <tr><td class="label">Account Email</td><td class="value">${data.email || "N/A"}</td></tr>
@@ -636,12 +636,12 @@ function generateEmailTemplate(
       return { subject, html };
     }
     case "otp": {
-      const subject = customSubject || `Your Placement Connect Verification Code: ${data.otp || ''}`;
+      const subject = customSubject || `Your MCE Placement Connect Verification Code: ${data.otp || ''}`;
       const html = wrapTemplate(
         "Verification Code",
         `
         <h2>Account Verification Code</h2>
-        <p>Use the 6-digit verification code below to confirm your account on <strong>Placement Connect</strong>.</p>
+        <p>Use the 6-digit verification code below to confirm your account on <strong>MCE Placement Connect</strong>.</p>
         
         <div class="highlight-box" style="text-align: center; font-size: 28px; font-weight: bold; letter-spacing: 6px; color: ${BRAND_GOLD}; margin: 30px 0;">
           ${data.otp || "000000"}
@@ -654,12 +654,12 @@ function generateEmailTemplate(
     }
 
     case "welcome": {
-      const subject = customSubject || `Welcome to Placement Connect — ${data.studentName || 'Student'}`;
+      const subject = customSubject || `Welcome to MCE Placement Connect — ${data.studentName || 'Student'}`;
       const html = wrapTemplate(
         "Welcome to Placement Connect",
         `
         <h2>Welcome aboard, ${data.studentName || "Student"}!</h2>
-        <p>Your email registration and profile verification for <strong>Placement Connect</strong> at <strong>${COLLEGE_NAME}</strong> has been completed successfully.</p>
+        <p>Your email registration and profile verification for <strong>MCE Placement Connect</strong> has been completed successfully.</p>
         
         <table class="info-table">
           <tr><td class="label">Student Name</td><td class="value">${data.studentName || "N/A"}</td></tr>
@@ -712,7 +712,7 @@ function generateEmailTemplate(
         </table>
         
         <div class="highlight-box">
-          Please log into Placement Connect before the registration deadline to review full job requirements and submit your application.
+          Please log into MCE Placement Connect before the registration deadline to review full job requirements and submit your application.
         </div>
         `
       );
@@ -798,7 +798,7 @@ function generateEmailTemplate(
         </table>
         
         ${data.remarks ? `<p><strong>Feedback/Remarks:</strong> ${data.remarks}</p>` : ""}
-        <p>Keep pursuing opportunities — new recruitment drives are added regularly on Placement Connect.</p>
+        <p>Keep pursuing opportunities — new recruitment drives are added regularly on MCE Placement Connect.</p>
         `
       );
       return { subject, html };
@@ -821,7 +821,7 @@ function generateEmailTemplate(
         </table>
         
         <div class="highlight-box">
-          <strong>Next Steps:</strong> Please check Placement Connect under 'My Offers' to review offer letter details and submit your decision.
+          <strong>Next Steps:</strong> Please check MCE Placement Connect under 'My Offers' to review offer letter details and submit your decision.
         </div>
         `
       );
@@ -853,7 +853,7 @@ function generateEmailTemplate(
         `
         <h2>Action Required</h2>
         <p>Dear <strong>${data.studentName || "Student"}</strong>,</p>
-        <p>${data.message || "You have a pending requirement on Placement Connect."}</p>
+        <p>${data.message || "You have a pending requirement on MCE Placement Connect."}</p>
         
         <div class="highlight-box">
           <strong>Requirement:</strong> ${data.reminderTitle || "Pending Action"}<br>
@@ -870,7 +870,7 @@ function generateEmailTemplate(
         "Placement Notice",
         `
         <h2>${customSubject || "Placement Notice"}</h2>
-        <p>${data.message || "Please log in to Placement Connect to view recent updates."}</p>
+        <p>${data.message || "Please log in to MCE Placement Connect to view recent updates."}</p>
         `
       );
       return { subject, html };

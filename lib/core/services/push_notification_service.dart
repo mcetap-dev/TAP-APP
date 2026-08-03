@@ -46,7 +46,7 @@ class PushNotificationService {
       const AndroidNotificationChannel channel = AndroidNotificationChannel(
         'high_importance_channel',
         'High Importance Notifications',
-        description: 'This channel is used for important placement drive notifications.',
+        description: 'This channel is used for important MCE Placement Connect notifications.',
         importance: Importance.max,
         playSound: true,
       );

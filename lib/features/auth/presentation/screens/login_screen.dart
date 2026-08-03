@@ -265,7 +265,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
                     // App Title
                     Text(
-                      'Placement Connect',
+                      'MCE Placement Connect',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.fraunces(
                         fontSize: 28,

@@ -18,7 +18,7 @@ class AppConstants {
   );
 
   // ── App metadata ───────────────────────────────────────────────────────────
-  static const String appName = 'Placement Connect';
+  static const String appName = 'MCE Placement Connect';
   static const String appVersion = '1.0.0';
 
   // ── Pagination ─────────────────────────────────────────────────────────────

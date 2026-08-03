@@ -135,7 +135,7 @@ serve(async (req) => {
         body: JSON.stringify({
           emailType: "otp",
           recipient: email,
-          subject: `Your Placement Connect Verification Code: ${otp}`,
+          subject: `Your MCE Placement Connect Verification Code: ${otp}`,
           data: { otp },
         }),
       });

@@ -21,7 +21,7 @@ class EmailNotificationService {
   String get _smtpEmail => const String.fromEnvironment('SMTP_EMAIL', defaultValue: '');
   String get _smtpPassword => const String.fromEnvironment('SMTP_PASSWORD', defaultValue: '');
 
-  static const String _collegeName = "Placement Connect Portal";
+  static const String _collegeName = "MCE Placement Connect";
   static const String _brandGold = "#D4AF37";
 
   EmailNotificationService(this._supabase);
