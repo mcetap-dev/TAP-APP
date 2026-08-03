@@ -55,95 +55,163 @@ class ApplicationTimelineData {
   }
 }
 
-/// Fetches full timeline data for all of the current student's applications.
-final studentTimelineProvider = FutureProvider<List<ApplicationTimelineData>>((ref) async {
-  final user = Supabase.instance.client.auth.currentUser;
-  if (user == null) return [];
+// ──────────────────────────────────────────────────────────────────────────────
+// TIMELINE NOTIFIER — Real-time backed student timeline
+// ──────────────────────────────────────────────────────────────────────────────
 
-  // Execute independent parallel queries for instantaneous data fetching
-  final results = await Future.wait([
-    // [0] Fetch applications with nested drive + company + rounds
-    Supabase.instance.client
-        .from('applications')
-        .select('''
-          id, drive_id, status, current_round, resume_version_url, applied_at, updated_at,
-          drive:drives(
-            id, role, package_lpa,
-            end_date,
-            company:companies(name),
-            drive_rounds(id, round_number, round_name, instructions, scheduled_date, round_date, round_time, venue_or_link)
-          )
-        ''')
-        .eq('student_id', user.id)
-        .order('applied_at', ascending: false),
+class StudentTimelineNotifier extends AsyncNotifier<List<ApplicationTimelineData>> {
+  RealtimeChannel? _channel;
 
-    // [1] Fetch profile for resume
-    Supabase.instance.client
-        .from('profiles')
-        .select('resume_url')
-        .eq('id', user.id)
-        .maybeSingle(),
-  ]);
+  @override
+  Future<List<ApplicationTimelineData>> build() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return [];
 
-  final apps = (results[0] as List).cast<Map<String, dynamic>>();
-  final profileResponse = results[1] as Map<String, dynamic>?;
-  final resumeUrl = profileResponse?['resume_url'] as String? ?? '';
+    // Subscribe to real-time updates on the applications table for this student.
+    // When TPO changes current_round or status, this fires and refreshes the timeline.
+    _channel?.unsubscribe();
+    _channel = Supabase.instance.client
+        .channel('student_timeline_${user.id}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'applications',
+          filter: PostgresChangeFilter(
+            type: PostgresChangeFilterType.eq,
+            column: 'student_id',
+            value: user.id,
+          ),
+          callback: (_) {
+            // Re-fetch when any application row is updated (e.g. current_round changes)
+            ref.invalidateSelf();
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.insert,
+          schema: 'public',
+          table: 'application_round_status',
+          callback: (_) {
+            // Re-fetch when a new round_status is inserted (e.g. round cleared)
+            ref.invalidateSelf();
+          },
+        )
+        .onPostgresChanges(
+          event: PostgresChangeEvent.update,
+          schema: 'public',
+          table: 'application_round_status',
+          callback: (_) {
+            // Re-fetch when round_status is updated (e.g. result changes)
+            ref.invalidateSelf();
+          },
+        )
+        .subscribe();
 
-  if (apps.isEmpty) return [];
+    ref.onDispose(() {
+      _channel?.unsubscribe();
+      _channel = null;
+    });
 
-  // Fetch round progress for all applications in parallel
-  final appIds = apps.map((a) => a['id'] as String).toList();
-  List<Map<String, dynamic>> allProgress = [];
-  try {
-    final progressResponse = await Supabase.instance.client
-        .from('application_round_status')
-        .select('*, round:drive_rounds(round_number, round_name)')
-        .inFilter('application_id', appIds);
-    allProgress = (progressResponse as List).cast<Map<String, dynamic>>();
-  } catch (_) {}
+    return _fetchTimeline(user.id);
+  }
 
-  // Map into ApplicationTimelineData
-  return apps.map((app) {
-    final drive = app['drive'] as Map<String, dynamic>? ?? {};
-    final company = drive['company'] as Map<String, dynamic>? ?? {};
-    final rounds = (drive['drive_rounds'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+  /// Public method to force a manual refresh (e.g., pull-to-refresh).
+  Future<void> refresh() async {
+    ref.invalidateSelf();
+  }
 
-    // Sort rounds by round_number
-    rounds.sort((a, b) => (a['round_number'] as int? ?? 0).compareTo(b['round_number'] as int? ?? 0));
+  static Future<List<ApplicationTimelineData>> _fetchTimeline(String userId) async {
+    // Execute independent parallel queries for instantaneous data fetching
+    final results = await Future.wait([
+      // [0] Fetch applications with nested drive + company + rounds
+      Supabase.instance.client
+          .from('applications')
+          .select('''
+            id, drive_id, status, current_round, resume_version_url, applied_at, updated_at,
+            drive:drives(
+              id, role, package_lpa,
+              end_date,
+              company:companies(name),
+              drive_rounds(id, round_number, round_name, instructions, scheduled_date, round_date, round_time, venue_or_link)
+            )
+          ''')
+          .eq('student_id', userId)
+          .order('applied_at', ascending: false),
 
-    // Get progress for this application
-    final appProgress = allProgress.where((p) => p['application_id'] == app['id']).toList();
+      // [1] Fetch profile for resume
+      Supabase.instance.client
+          .from('profiles')
+          .select('resume_url')
+          .eq('id', userId)
+          .maybeSingle(),
+    ]);
 
-    String ctcDisplay = 'Disclosed on selection';
-    if (drive['ctc_or_stipend'] != null) {
-      ctcDisplay = drive['ctc_or_stipend'].toString();
-    } else if (drive['package_lpa'] != null) {
-      ctcDisplay = '₹${drive['package_lpa']} LPA';
-    }
+    final apps = (results[0] as List).cast<Map<String, dynamic>>();
+    final profileResponse = results[1] as Map<String, dynamic>?;
+    final resumeUrl = profileResponse?['resume_url'] as String? ?? '';
 
-    final deadlineStr = drive['end_date'] as String? ?? drive['application_deadline'] as String? ?? '';
-    final deadline = DateTime.tryParse(deadlineStr) ?? DateTime.now().add(const Duration(days: 14));
+    if (apps.isEmpty) return [];
 
-    final appResumeUrl = app['resume_version_url'] as String?;
-    final finalResumeUrl = (appResumeUrl != null && appResumeUrl.isNotEmpty) ? appResumeUrl : resumeUrl;
+    // Fetch round progress for all applications in a single batch query
+    final appIds = apps.map((a) => a['id'] as String).toList();
+    List<Map<String, dynamic>> allProgress = [];
+    try {
+      final progressResponse = await Supabase.instance.client
+          .from('application_round_status')
+          .select('*, round:drive_rounds(round_number, round_name)')
+          .inFilter('application_id', appIds);
+      allProgress = (progressResponse as List).cast<Map<String, dynamic>>();
+    } catch (_) {}
 
-    return ApplicationTimelineData(
-      applicationId: app['id'] as String,
-      driveId: app['drive_id'] as String,
-      status: app['status'] as String? ?? 'applied',
-      currentRound: app['current_round'] as int? ?? 0,
-      appliedAt: DateTime.tryParse(app['applied_at'] as String? ?? '') ?? DateTime.now(),
-      companyName: company['name'] as String? ?? 'Company',
-      roleTitle: drive['role_title'] as String? ?? drive['role'] as String? ?? 'Role',
-      ctcDisplay: ctcDisplay,
-      applicationDeadline: deadline,
-      driveStatus: drive['drive_status'] as String? ?? drive['status'] as String? ?? 'upcoming',
-      resumeUrl: finalResumeUrl,
-      rounds: rounds,
-      roundProgress: appProgress,
-    );
-  }).toList();
-});
+    // Map into ApplicationTimelineData
+    return apps.map((app) {
+      final drive = app['drive'] as Map<String, dynamic>? ?? {};
+      final company = drive['company'] as Map<String, dynamic>? ?? {};
+      final rounds = (drive['drive_rounds'] as List?)?.cast<Map<String, dynamic>>() ?? [];
+
+      // Sort rounds by round_number
+      rounds.sort((a, b) => (a['round_number'] as int? ?? 0).compareTo(b['round_number'] as int? ?? 0));
+
+      // Get progress for this application
+      final appProgress = allProgress.where((p) => p['application_id'] == app['id']).toList();
+
+      String ctcDisplay = 'Disclosed on selection';
+      if (drive['ctc_or_stipend'] != null) {
+        ctcDisplay = drive['ctc_or_stipend'].toString();
+      } else if (drive['package_lpa'] != null) {
+        ctcDisplay = '₹${drive['package_lpa']} LPA';
+      }
+
+      final deadlineStr = drive['end_date'] as String? ?? drive['application_deadline'] as String? ?? '';
+      final deadline = DateTime.tryParse(deadlineStr) ?? DateTime.now().add(const Duration(days: 14));
+
+      final appResumeUrl = app['resume_version_url'] as String?;
+      final finalResumeUrl = (appResumeUrl != null && appResumeUrl.isNotEmpty) ? appResumeUrl : resumeUrl;
+
+      return ApplicationTimelineData(
+        applicationId: app['id'] as String,
+        driveId: app['drive_id'] as String,
+        status: app['status'] as String? ?? 'applied',
+        currentRound: app['current_round'] as int? ?? 1,
+        appliedAt: DateTime.tryParse(app['applied_at'] as String? ?? '') ?? DateTime.now(),
+        companyName: company['name'] as String? ?? 'Company',
+        roleTitle: drive['role_title'] as String? ?? drive['role'] as String? ?? 'Role',
+        ctcDisplay: ctcDisplay,
+        applicationDeadline: deadline,
+        driveStatus: drive['drive_status'] as String? ?? drive['status'] as String? ?? 'upcoming',
+        resumeUrl: finalResumeUrl,
+        rounds: rounds,
+        roundProgress: appProgress,
+      );
+    }).toList();
+  }
+}
+
+/// Real-time backed provider for student application timeline.
+/// Instantly updates when TPO promotes student to next round.
+final studentTimelineProvider =
+    AsyncNotifierProvider<StudentTimelineNotifier, List<ApplicationTimelineData>>(
+  StudentTimelineNotifier.new,
+);
 
 /// Latest notifications for the student.
 final studentNotificationsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {

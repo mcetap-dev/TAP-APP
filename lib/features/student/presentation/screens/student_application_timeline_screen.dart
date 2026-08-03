@@ -305,7 +305,7 @@ class _StructuredApplicationCard extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Stage ${data.currentRound > 0 ? data.currentRound : 1} of ${data.totalRounds}',
+                      'Stage ${data.currentRound} of ${data.totalRounds}',
                       style: GoogleFonts.ibmPlexMono(
                           fontSize: 11, fontWeight: FontWeight.w700, color: brandTheme.brassPrimary),
                     ),
@@ -324,13 +324,18 @@ class _StructuredApplicationCard extends StatelessWidget {
                     final roundName = round['round_name'] as String? ?? 'Round ${i + 1}';
                     final progress = data.progressForRound(roundId);
                     final isLast = i == data.rounds.length - 1;
-                    final isCurrent = (i + 1) == data.currentRound;
+                    // currentRound is 1-indexed; rounds list is 0-indexed
+                    final roundNumber = i + 1;
+                    final isCurrent = roundNumber == data.currentRound;
+                    // A round is "past" if it's before the current round
+                    final isPast = roundNumber < data.currentRound;
 
                     return _stageNode(
                       roundName: roundName,
-                      roundNum: i + 1,
+                      roundNum: roundNumber,
                       progress: progress,
                       isCurrent: isCurrent,
+                      isPast: isPast,
                       isLast: isLast,
                       brandTheme: brandTheme,
                       theme: theme,
@@ -349,13 +354,14 @@ class _StructuredApplicationCard extends StatelessWidget {
     required int roundNum,
     Map<String, dynamic>? progress,
     required bool isCurrent,
+    required bool isPast,
     required bool isLast,
     required AppBrandTheme brandTheme,
     required ThemeData theme,
   }) {
     final result = progress?['result'] as String? ?? 'pending';
     final attended = progress?['attended'] as bool? ?? false;
-    final (badgeColor, badgeText, iconData) = _getStageStatus(result, attended, isCurrent, brandTheme);
+    final (badgeColor, badgeText, iconData) = _getStageStatus(result, attended, isCurrent, isPast, brandTheme);
 
     return IntrinsicHeight(
       child: Row(
@@ -447,22 +453,27 @@ class _StructuredApplicationCard extends StatelessWidget {
     if (status == 'selected') {
       return (brandTheme.statusShortlisted.withValues(alpha: 0.12), brandTheme.statusShortlisted, 'Offer Released');
     }
-    if (data.currentRound > 0) {
-      return (brandTheme.brassPrimary.withValues(alpha: 0.12), brandTheme.brassPrimary, 'Stage ${data.currentRound} Active');
-    }
-    return (brandTheme.statusPending.withValues(alpha: 0.12), brandTheme.statusPending, 'Applied');
+    // currentRound is always >= 1 (defaulted in provider); show "Stage N Active"
+    return (brandTheme.brassPrimary.withValues(alpha: 0.12), brandTheme.brassPrimary, 'Stage ${data.currentRound} Active');
   }
 
-  (Color, String, IconData) _getStageStatus(String result, bool attended, bool isCurrent, AppBrandTheme brandTheme) {
+  (Color, String, IconData) _getStageStatus(
+      String result, bool attended, bool isCurrent, bool isPast, AppBrandTheme brandTheme) {
     final res = result.toLowerCase();
+    // Explicit result from DB takes highest priority
     if (res == 'cleared' || res == 'passed' || res == 'selected') {
-      return (brandTheme.statusShortlisted, 'Passed', Icons.check_rounded);
+      return (brandTheme.statusShortlisted, 'Cleared', Icons.check_rounded);
     }
     if (res == 'rejected' || res == 'failed' || res == 'not_selected') {
       return (brandTheme.statusRejected, 'Not Selected', Icons.close_rounded);
     }
+    // No explicit result yet — use position relative to currentRound
     if (isCurrent) {
       return (brandTheme.brassPrimary, 'Active Stage', Icons.play_arrow_rounded);
+    }
+    if (isPast) {
+      // Past round with no explicit result (edge case: data lag) — show as cleared
+      return (brandTheme.statusShortlisted, 'Cleared', Icons.check_rounded);
     }
     return (brandTheme.cardBorder, 'Upcoming', Icons.schedule_rounded);
   }
