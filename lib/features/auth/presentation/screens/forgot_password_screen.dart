@@ -93,7 +93,22 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       _showError('Please enter the 6-digit code from your email.');
       return;
     }
-    setState(() => _step = _ResetStep.password);
+
+    // Immediately verify the OTP code against backend DB before proceeding
+    setState(() => _isLoading = true);
+    try {
+      await ref.read(authNotifierProvider.notifier).verifyOtp(
+        email: _email!,
+        code: code,
+        purpose: 'password_reset',
+      );
+      setState(() => _step = _ResetStep.password);
+    } catch (e) {
+      _showError(e.toString());
+      _otpCtrl.clear();
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   Future<void> _resendCode() async {

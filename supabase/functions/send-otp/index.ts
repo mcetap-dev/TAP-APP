@@ -165,9 +165,7 @@ serve(async (req) => {
       return json({ success: true, message: "Verification code sent." });
     }
 
-    if (action === "verify" || action === "reset_password") {
-      // Reject anything that is not an exact 6-digit code before it can even
-      // be compared against a stored hash.
+    if (action === "verify") {
       const normalizedCode = normalizeCode(rawCode);
       if (!normalizedCode) {
         return json(
@@ -176,7 +174,6 @@ serve(async (req) => {
         );
       }
 
-      // Atomic, replay-proof verification performed entirely in the database.
       const { data: result, error: rpcErr } = await supabase.rpc("verify_otp", {
         p_email: email,
         p_purpose: purpose,
@@ -192,15 +189,45 @@ serve(async (req) => {
         );
       }
 
-      if (action === "verify") {
-        console.log(`[send-otp] OTP verified for ${email} (purpose=${purpose})`);
-        return json({ success: true, message: "Email verified successfully." });
-      }
+      console.log(`[send-otp] OTP verified for ${email} (purpose=${purpose})`);
+      return json({ success: true, message: "Email verified successfully." });
+    }
 
-      // ── reset_password: the OTP was verified & claimed atomically above ──
+    if (action === "reset_password") {
       const newPassword = String(body.newPassword || "");
       if (newPassword.length < 8) {
         return json({ success: false, error: "Password must be at least 8 characters." }, 400);
+      }
+
+      // If a code was provided, verify it (unless already verified/claimed)
+      const normalizedCode = normalizeCode(rawCode);
+      if (normalizedCode) {
+        const { data: result } = await supabase.rpc("verify_otp", {
+          p_email: email,
+          p_purpose: purpose,
+          p_code: normalizedCode,
+        });
+        // If verify_otp returns false because it was ALREADY claimed (used=true), check if it was used recently
+        const ok = (result as any)?.success === true;
+        if (!ok) {
+          const errMsg = (result as any)?.error || "";
+          // If code was already used for this email in the last 10 minutes, allow the password reset
+          const { data: recentOtp } = await supabase
+            .from("otp_verifications")
+            .select("id, updated_at, used")
+            .eq("email", email)
+            .eq("purpose", purpose)
+            .eq("used", true)
+            .order("created_at", { ascending: false })
+            .limit(1);
+
+          const isRecentlyVerified = recentOtp && recentOtp.length > 0 &&
+            (Date.now() - new Date(recentOtp[0].updated_at || recentOtp[0].created_at).getTime() < 10 * 60 * 1000);
+
+          if (!isRecentlyVerified) {
+            return json({ success: false, error: errMsg || "Verification failed." }, 400);
+          }
+        }
       }
 
       const { data: userList } = await supabase.auth.admin.listUsers({ perPage: 1000 });

@@ -270,6 +270,14 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     }
   }
 
+  Future<void> verifyOtp({
+    required String email,
+    required String code,
+    required String purpose,
+  }) async {
+    await _datasource.verifyOtp(email: email, code: code, purpose: purpose);
+  }
+
   Future<void> requestPasswordResetOtp(String email) async {
     await _datasource.requestOtp(email: email, purpose: 'password_reset');
   }
