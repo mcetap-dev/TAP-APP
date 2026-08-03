@@ -45,34 +45,3 @@ final studentAppliedDriveIdsProvider = Provider<Set<String>>((ref) {
   final appsAsync = ref.watch(studentApplicationsProvider);
   return appsAsync.valueOrNull?.map((app) => app.driveId).toSet() ?? const {};
 });
-
-  // Realtime subscription — re-fetch on any insert/delete for this student
-  final controller = StreamController<Set<String>>.broadcast();
-  controller.add(ids);
-
-  try {
-    final channel = Supabase.instance.client
-        .from('applications')
-        .stream(primaryKey: ['id'])
-        .eq('student_id', user.id)
-        .listen((_) async {
-          final fresh = await Supabase.instance.client
-              .from('applications')
-              .select('drive_id')
-              .eq('student_id', user.id);
-          final freshIds = (fresh as List)
-              .map((row) => row['drive_id'] as String)
-              .toSet();
-          controller.add(freshIds);
-        }, onError: (err) {
-          // If Realtime is not enabled on table, fallback safely to initial fetch
-        });
-
-    ref.onDispose(() {
-      channel.cancel();
-      controller.close();
-    });
-  } catch (_) {}
-
-  yield* controller.stream;
-});
