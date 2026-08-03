@@ -405,14 +405,11 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<SmtpResult> {
     );
   }
 
-  // Enforce an overall socket I/O timeout so a silent peer can never hang
-  // the transaction. Re-applied after STARTTLS because the upgrade swaps
-  // the underlying connection.
-  conn.setTimeout(SOCKET_TIMEOUT_MS);
-
   // NOTE: reader/writer must be re-acquired AFTER startTls() replaces the
   // connection. Using the pre-TLS streams post-upgrade throws Deno's
   // "BadResource: Bad resource ID" (the 502 the OTP flow was hitting).
+  // conn.setTimeout() does not exist on Deno.Conn — socket I/O timeouts are
+  // enforced by wrapping readResponse() with withTimeout() below.
   let reader = conn.readable.getReader();
   let writer = conn.writable.getWriter();
 
@@ -433,7 +430,11 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<SmtpResult> {
 
   async function sendCmd(cmd: string, expectedCode?: string): Promise<string> {
     await writer.write(encoder.encode(cmd + "\r\n"));
-    const res = await readResponse();
+    const res = await withTimeout(
+      readResponse(),
+      SOCKET_TIMEOUT_MS,
+      `SMTP response [${cmd.split(" ")[0]}]`
+    );
     if (expectedCode && !res.startsWith(expectedCode)) {
       throw new Error(`SMTP Error [cmd: ${cmd.split(" ")[0]}]: ${res.trim()}`);
     }
@@ -441,7 +442,7 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<SmtpResult> {
   }
 
   try {
-    const greeting = await readResponse();
+    const greeting = await withTimeout(readResponse(), CONNECT_TIMEOUT_MS, "SMTP greeting");
     transcript.push(`S: ${greeting.trim().split("\n")[0]}`);
 
     const ehlo1 = await sendCmd(`EHLO ${opts.hostname}`, "250");
@@ -453,7 +454,7 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<SmtpResult> {
       conn = await Deno.startTls(conn, { hostname: opts.hostname });
       try { writer.releaseLock(); } catch (_) {}
       try { reader.releaseLock(); } catch (_) {}
-      conn.setTimeout(SOCKET_TIMEOUT_MS);
+      // Re-acquire streams after STARTTLS upgrade (no setTimeout — not a Deno API)
       reader = conn.readable.getReader();
       writer = conn.writable.getWriter();
       const ehlo2 = await sendCmd(`EHLO ${opts.hostname}`, "250");

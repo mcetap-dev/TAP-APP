@@ -100,8 +100,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
   Widget _dashboardTab(BuildContext context, UserProfile? profile, String name, AppBrandTheme brandTheme, ThemeData theme) {
     final appsAsync = ref.watch(studentApplicationsProvider);
     final drivesAsync = ref.watch(studentEligibleDrivesProvider);
-    final appliedIdsAsync = ref.watch(studentAppliedDriveIdsProvider);
-    final appliedIds = appliedIdsAsync.valueOrNull ?? const {};
+    final appliedIds = ref.watch(studentAppliedDriveIdsProvider);
     final topPadding = MediaQuery.of(context).padding.top + AppSpacing.sp3;
 
     return SingleChildScrollView(
@@ -607,8 +606,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
 
   Widget _drivesTab(ThemeData theme, AppBrandTheme brandTheme) {
     final drivesAsync = ref.watch(studentEligibleDrivesProvider);
-    final appliedIdsAsync = ref.watch(studentAppliedDriveIdsProvider);
-    final appliedIds = appliedIdsAsync.valueOrNull ?? const {};
+    final appliedIds = ref.watch(studentAppliedDriveIdsProvider);
 
     return SingleChildScrollView(
       padding: EdgeInsets.only(

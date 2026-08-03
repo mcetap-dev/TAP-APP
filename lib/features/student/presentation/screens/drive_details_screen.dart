@@ -388,9 +388,7 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
     final profile = profileAsync.valueOrNull;
     final eligibility = _checkEligibility(profile);
 
-    final dbApplied = ref.watch(studentAppliedDriveIdsProvider).whenOrNull(
-      data: (ids) => ids.contains(_drive.id),
-    ) ?? false;
+    final dbApplied = ref.watch(studentAppliedDriveIdsProvider).contains(_drive.id);
     final alreadyApplied = _isAppliedState || dbApplied;
 
     final daysLeft = _drive.applicationDeadline.difference(DateTime.now()).inDays;
