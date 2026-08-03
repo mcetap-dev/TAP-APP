@@ -485,8 +485,14 @@ class _RoundExpandedSectionState
                 ),
               )
             else
-              ...filtered.map((app) => _buildStudentCard(
-                  app, theme, brandTheme)),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                itemCount: filtered.length,
+                itemBuilder: (context, index) =>
+                    _buildStudentCard(filtered[index], theme, brandTheme),
+              ),
           ],
         );
       },
@@ -670,17 +676,13 @@ class _RoundExpandedSectionState
               children: [
                 Text(name,
                     style: GoogleFonts.inter(
-                        fontSize: 13, fontWeight: FontWeight.w600),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                        fontSize: 13, fontWeight: FontWeight.w600)),
                 const SizedBox(height: 2),
                 Text(
                   [if (usn.isNotEmpty) usn, if (dept.isNotEmpty) dept]
                       .join(' · '),
                   style: GoogleFonts.inter(
                       fontSize: 11, color: brandTheme.textMuted),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
                 if (attendedAt != null) ...[
                   const SizedBox(height: 3),
@@ -696,26 +698,29 @@ class _RoundExpandedSectionState
           ),
 
           // Status chip + Actions
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              // Status chip
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: chipColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(100),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                // Status chip
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: chipColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                  child: Text(
+                    chipLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: chipColor),
+                  ),
                 ),
-                child: Text(
-                  chipLabel,
-                  style: GoogleFonts.inter(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: chipColor),
-                ),
-              ),
-              const SizedBox(height: 6),
+                const SizedBox(height: 6),
 
               // Actions popup
               PopupMenuButton<String>(
@@ -770,6 +775,7 @@ class _RoundExpandedSectionState
               ),
             ],
           ),
+        ),
         ],
       ),
     );

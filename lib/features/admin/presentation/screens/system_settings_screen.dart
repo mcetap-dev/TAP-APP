@@ -443,7 +443,7 @@ class _SystemSettingsScreenState extends ConsumerState<SystemSettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-                  Text(subtitle, style: GoogleFonts.inter(fontSize: 11, color: Colors.grey), maxLines: 2),
+                  Text(subtitle, style: GoogleFonts.inter(fontSize: 11, color: Colors.grey)),
                 ],
               ),
             ),
@@ -478,7 +478,7 @@ class _SystemSettingsScreenState extends ConsumerState<SystemSettingsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13, color: isDestructive ? Colors.red : null)),
-                  Text(subtitle, style: GoogleFonts.inter(fontSize: 11, color: Colors.grey), maxLines: 2),
+                  Text(subtitle, style: GoogleFonts.inter(fontSize: 11, color: Colors.grey)),
                 ],
               ),
             ),

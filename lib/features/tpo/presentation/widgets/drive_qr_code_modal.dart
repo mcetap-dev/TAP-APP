@@ -125,7 +125,10 @@ class _DriveQrCodeModalState extends ConsumerState<DriveQrCodeModal>
     final attendanceAsync = ref.watch(driveAttendanceProvider(widget.drive.id));
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.9,
+        minHeight: 320,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -263,30 +266,37 @@ class _DriveQrCodeModalState extends ConsumerState<DriveQrCodeModal>
                           padding: const EdgeInsets.all(16),
                           child: Row(
                             children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: accent.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  children: [
-                                    Icon(Icons.check_circle_rounded,
-                                        size: 16, color: accent),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      '${records.length} Scanned',
-                                      style: GoogleFonts.inter(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 13,
-                                        color: accent,
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: accent.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.check_circle_rounded,
+                                          size: 16, color: accent),
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          '${records.length} Scanned',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.inter(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                            color: accent,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
-                              const Spacer(),
+                              const SizedBox(width: 12),
                               OutlinedButton.icon(
                                 onPressed: records.isEmpty
                                     ? null

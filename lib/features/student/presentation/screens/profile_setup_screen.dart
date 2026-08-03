@@ -414,6 +414,7 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'STEP ${_currentStep + 1} OF 5',
@@ -424,12 +425,16 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                           letterSpacing: 0.8,
                         ),
                       ),
-                      Text(
-                        stepSubtitles[_currentStep],
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: brandTheme.textMuted,
+                      const SizedBox(width: AppSpacing.sp3),
+                      Expanded(
+                        child: Text(
+                          stepSubtitles[_currentStep],
+                          textAlign: TextAlign.end,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: brandTheme.textMuted,
+                          ),
                         ),
                       ),
                     ],
@@ -941,8 +946,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
                               fontWeight: FontWeight.w600,
                               color: theme.colorScheme.onSurface,
                             ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           Text(
@@ -1368,19 +1371,22 @@ class _DatePickerTile extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              selected != null
-                  ? '${selected!.day}/${selected!.month}/${selected!.year}'
-                  : 'Select date of birth',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight:
-                    selected != null ? FontWeight.w600 : FontWeight.normal,
-                color: selected != null
-                    ? theme.colorScheme.onSurface
-                    : brandTheme.textMuted,
+            Expanded(
+              child: Text(
+                selected != null
+                    ? '${selected!.day}/${selected!.month}/${selected!.year}'
+                    : 'Select date of birth',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight:
+                      selected != null ? FontWeight.w600 : FontWeight.normal,
+                  color: selected != null
+                      ? theme.colorScheme.onSurface
+                      : brandTheme.textMuted,
+                ),
               ),
             ),
+            const SizedBox(width: AppSpacing.sp2),
             Icon(Icons.calendar_month_rounded,
                 color: brandTheme.brassPrimary, size: 18),
           ],
@@ -1557,7 +1563,9 @@ class _NavButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 48,
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sp3, vertical: AppSpacing.sp3),
         decoration: BoxDecoration(
           gradient: isSecondary ? null : brandTheme.brassGradient,
           color: isSecondary ? brandTheme.surfaceAlt : null,

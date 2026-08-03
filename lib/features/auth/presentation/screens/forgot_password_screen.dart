@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -27,6 +28,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   bool _obscurePass = true;
   bool _obscureConfirm = true;
   bool _isLoading = false;
+  bool _isResending = false;
 
   @override
   void dispose() {
@@ -49,16 +51,25 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   String _friendlyError(String raw) {
-    if (raw.contains('Please wait')) return raw.replaceFirst('Exception: ', '');
-    if (raw.contains('expired')) return 'Code expired. Please request a new one.';
-    if (raw.contains('Incorrect code')) return 'Incorrect code. Please check and try again.';
-    if (raw.contains('No active code')) return 'No active code found. Please request a new one.';
-    if (raw.contains('No account found')) return 'No account found for this email.';
-    if (raw.contains('Too many incorrect')) return 'Too many incorrect attempts. Please request a new code.';
+    final msg = raw.replaceFirst('Exception: ', '').trim();
+    final lower = msg.toLowerCase();
+    if (lower.contains('please wait')) return msg;
+    if (lower.contains('expired')) return 'Code expired. Please request a new one.';
+    if (lower.contains('too many incorrect')) return 'Too many incorrect attempts. Please request a new code.';
+    if (lower.contains('already been used')) return 'This code has already been used. Please request a new one.';
+    if (lower.contains('incorrect code')) {
+      final m = RegExp(r'(\d+)\s+attempt').firstMatch(msg);
+      if (m != null) return 'Incorrect code. ${m.group(1)} attempt(s) left.';
+      return 'Incorrect code. Please check and try again.';
+    }
+    if (lower.contains('no active code')) return 'No active code found. Please request a new one.';
+    if (lower.contains('invalid code')) return 'Invalid code. Please enter the 6-digit code.';
+    if (lower.contains('no account found')) return 'No account found for this email.';
     return 'Something went wrong. Please try again.';
   }
 
   Future<void> _sendCode() async {
+    if (_isLoading || _isResending) return;
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     try {
@@ -76,7 +87,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Future<void> _continueWithCode() async {
-    if (_otpCtrl.text.trim().length != 6) {
+    if (_isLoading || _isResending) return;
+    final code = _otpCtrl.text.trim();
+    if (code.length != 6 || !RegExp(r'^\d{6}$').hasMatch(code)) {
       _showError('Please enter the 6-digit code from your email.');
       return;
     }
@@ -84,9 +97,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   }
 
   Future<void> _resendCode() async {
+    if (_isLoading || _isResending) return;
+    setState(() => _isResending = true);
     final email = _email ?? _emailCtrl.text.trim().toLowerCase();
     if (email.isEmpty) {
-      setState(() => _step = _ResetStep.email);
+      setState(() {
+        _isResending = false;
+        _step = _ResetStep.email;
+      });
       return;
     }
     try {
@@ -101,10 +119,13 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       }
     } catch (e) {
       _showError(e.toString());
+    } finally {
+      if (mounted) setState(() => _isResending = false);
     }
   }
 
   Future<void> _resetPassword() async {
+    if (_isLoading || _isResending) return;
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     try {
@@ -244,6 +265,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                             textInputAction: TextInputAction.done,
                             onFieldSubmitted: (_) => _continueWithCode(),
                             maxLength: 6,
+                            inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                             textAlign: TextAlign.center,
                             style: GoogleFonts.ibmPlexMono(
                               fontSize: 20,

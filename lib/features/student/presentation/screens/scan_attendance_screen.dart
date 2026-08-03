@@ -340,16 +340,21 @@ class _ScanAttendanceScreenState extends ConsumerState<ScanAttendanceScreen>
                   child: const Icon(Icons.close_rounded, color: Colors.white, size: 22),
                 ),
               ),
-              const Spacer(),
-              Text(
-                'Scan Attendance',
-                style: GoogleFonts.inter(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.white,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Scan Attendance',
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
                 ),
               ),
-              const Spacer(),
+              const SizedBox(width: 12),
               GestureDetector(
                 onTap: _toggleTorch,
                 child: Container(

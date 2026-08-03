@@ -28,7 +28,7 @@ class StateBlockWidget extends StatelessWidget {
     final iconBg = isError ? brandTheme.statusRejected.withValues(alpha: 0.12) : brandTheme.surfaceAlt;
     final iconColor = isError ? brandTheme.statusRejected : brandTheme.textMuted;
 
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.sp5,
         vertical: AppSpacing.sp8,

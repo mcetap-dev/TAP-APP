@@ -596,10 +596,9 @@ class _DepartmentAnalyticsScreenState
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          SizedBox(
-            width: 90,
+          Flexible(
             child: Text(label,
-                maxLines: 1,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style:
                     GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w500),

@@ -1,6 +1,29 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/+esm";
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Sender migration (students.tap@mcehassan.ac.in)
+//
+// Every email is sent From the official institutional account
+// students.tap@mcehassan.ac.in. The sender is NOT hardcoded anywhere; it is
+// the SMTP_EMAIL secret value (falling back to the DEFAULT_SENDER_EMAIL
+// constant below if the secret is unset).
+//
+// Required Supabase Edge Function secrets (`supabase secrets set`):
+//   SMTP_HOST      = smtp.gmail.com        (Gmail SMTP, port 465 implicit TLS)
+//   SMTP_PORT      = 465
+//   SMTP_EMAIL     = students.tap@mcehassan.ac.in
+//   SMTP_PASSWORD  = <Gmail App Password for SMTP_EMAIL>
+//
+// Optional: RESEND_API_KEY + RESEND_FROM_EMAIL (transactional ESP with proper
+// SPF/DKIM/DMARC). If set, Resend is preferred and Gmail SMTP is the fallback.
+// RESEND_FROM_EMAIL defaults to SMTP_EMAIL if unset.
+//
+// Email logs are written to public.email_logs with sender, recipient, subject,
+// email_type, status (sent|retried|failed), error_message, smtp_response,
+// message_id, sent_at, created_at, created_by.
+// ─────────────────────────────────────────────────────────────────────────────
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -17,6 +40,37 @@ interface EmailPayload {
 const COLLEGE_NAME = "Placement Connect Portal";
 const BRAND_GOLD = "#D4AF37";
 
+// Official institutional sender. All emails must be sent as this address.
+// Override via the SMTP_EMAIL secret if the sender ever needs to change —
+// never hardcode a different From elsewhere.
+const DEFAULT_SENDER_EMAIL = "students.tap@mcehassan.ac.in";
+
+// Timeouts so a slow/hung SMTP server can never freeze the edge function.
+const CONNECT_TIMEOUT_MS = 10000;
+const SOCKET_TIMEOUT_MS = 15000;
+
+// SMTP retry policy: transient 4xx/network failures are retried a few times
+// with a short backoff before the email is marked "failed".
+const SMTP_MAX_ATTEMPTS = 3;
+const SMTP_RETRY_BACKOFF_MS = 1000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, what: string): Promise<T> {
+  let timer: number | undefined;
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`${what} timed out after ${ms}ms`)),
+        ms
+      );
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -29,12 +83,14 @@ serve(async (req) => {
 
     const smtpHost = Deno.env.get("SMTP_HOST") || "smtp.gmail.com";
     const smtpPort = parseInt(Deno.env.get("SMTP_PORT") || "465");
-    const smtpEmail = Deno.env.get("SMTP_EMAIL") || "";
+    // The sender is the official institutional account by default; override
+    // only via the SMTP_EMAIL secret (e.g. temporary fallback account).
+    const smtpEmail = Deno.env.get("SMTP_EMAIL") || DEFAULT_SENDER_EMAIL;
     const smtpPassword = Deno.env.get("SMTP_PASSWORD") || "";
 
-    if (!smtpEmail || !smtpPassword) {
+    if (!smtpPassword) {
       throw new Error(
-        "SMTP credentials missing. Please set SMTP_EMAIL and SMTP_PASSWORD in Supabase Secrets."
+        "SMTP password missing. Set SMTP_PASSWORD (a Gmail App Password for SMTP_EMAIL) in Supabase Secrets."
       );
     }
 
@@ -93,6 +149,7 @@ serve(async (req) => {
 
     let status = "sent";
     let errorMessage: string | null = null;
+    let attemptsUsed = 0;
 
     // All recipients send through the default Gmail SMTP sender.
     const senderHost = smtpHost;
@@ -107,12 +164,12 @@ serve(async (req) => {
     // Resend (transactional ESP) preferred when configured; it carries proper
     // domain-level SPF/DKIM/DMARC, which avoids M365 Junk classification.
     const resendApiKey = Deno.env.get("RESEND_API_KEY") || "";
-    const resendFromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "";
+    const resendFromEmail = Deno.env.get("RESEND_FROM_EMAIL") || DEFAULT_SENDER_EMAIL;
 
     try {
       if (resendApiKey && resendFromEmail) {
         try {
-          await sendViaResend({
+          const resendId = await sendViaResend({
             from: resendFromEmail,
             to: recipient,
             subject,
@@ -121,6 +178,11 @@ serve(async (req) => {
             replyTo: senderEmail,
           });
           transport = "resend";
+          smtpMeta = {
+            messageId: resendId ? `<${resendId}@resend>` : null,
+            responseCode: "200",
+            serverResponse: "Resend API accepted (2xx)",
+          };
           console.log(`[send-email] Delivered via Resend to ${recipient}`);
         } catch (err: any) {
           console.error(`[send-email] Resend failed (${err?.message}); falling back to Gmail SMTP`);
@@ -128,19 +190,40 @@ serve(async (req) => {
       }
 
       if (transport !== "resend") {
-        smtpMeta = await sendSmtpEmail({
-          hostname: senderHost,
-          port: senderPort,
-          username: senderEmail,
-          password: senderPassword,
-          from: `${COLLEGE_NAME} <${senderEmail}>`,
-          to: recipient,
-          subject: subject,
-          html: html,
-        });
-        console.log(
-          `[send-email] SMTP accepted. code=${smtpMeta.responseCode} Message-ID=${smtpMeta.messageId} reply="${smtpMeta.serverResponse.trim()}"`
-        );
+        // Transient SMTP/network failures are retried with a short backoff
+        // before the send is marked as "failed".
+        let lastError: any = null;
+        for (attemptsUsed = 1; attemptsUsed <= SMTP_MAX_ATTEMPTS; attemptsUsed++) {
+          try {
+            smtpMeta = await sendSmtpEmail({
+              hostname: senderHost,
+              port: senderPort,
+              username: senderEmail,
+              password: senderPassword,
+              from: `${COLLEGE_NAME} <${senderEmail}>`,
+              to: recipient,
+              subject: subject,
+              html: html,
+            });
+            if (attemptsUsed > 1) {
+              status = "retried";
+              console.log(`[send-email] SMTP succeeded on attempt ${attemptsUsed}/${SMTP_MAX_ATTEMPTS} for ${recipient}`);
+            }
+            console.log(
+              `[send-email] SMTP accepted. code=${smtpMeta.responseCode} Message-ID=${smtpMeta.messageId} reply="${smtpMeta.serverResponse.trim()}"`
+            );
+            break;
+          } catch (err: any) {
+            lastError = err;
+            console.error(
+              `[send-email] SMTP attempt ${attemptsUsed}/${SMTP_MAX_ATTEMPTS} failed for ${recipient}: ${err?.message}`
+            );
+            if (attemptsUsed < SMTP_MAX_ATTEMPTS) {
+              await sleep(attemptsUsed * SMTP_RETRY_BACKOFF_MS);
+            }
+          }
+        }
+        if (!smtpMeta) throw lastError ?? new Error("SMTP send failed after retries");
       }
     } catch (err: any) {
       status = "failed";
@@ -148,15 +231,19 @@ serve(async (req) => {
       console.error(`[Edge Function] Failed to send ${emailType} to ${recipient}:`, err);
     }
 
-    // Audit log in email_logs
+    // Audit log in email_logs — every attempt records Sender, Recipient,
+    // Subject, Status, SMTP Response, Message-ID, Timestamp and Error.
     try {
       await supabase.from("email_logs").insert({
+        sender: senderEmail,
         recipient,
         subject,
         email_type: emailType,
         status,
         error_message: errorMessage,
-        sent_at: status === "sent" ? new Date().toISOString() : null,
+        smtp_response: smtpMeta?.serverResponse?.trim() || null,
+        message_id: smtpMeta?.messageId || null,
+        sent_at: status === "sent" || status === "retried" ? new Date().toISOString() : null,
         created_by: createdBy || null,
       });
     } catch (logErr) {
@@ -301,10 +388,23 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<SmtpResult> {
   console.log(`[SMTP] Connecting to ${opts.hostname}:${opts.port} (${opts.port === 465 ? "implicit TLS" : "STARTTLS"})`);
 
   if (opts.port === 465) {
-    conn = await Deno.connectTls({ hostname: opts.hostname, port: opts.port });
+    conn = await withTimeout(
+      Deno.connectTls({ hostname: opts.hostname, port: opts.port }),
+      CONNECT_TIMEOUT_MS,
+      `SMTP connect (${opts.hostname}:${opts.port})`
+    );
   } else {
-    conn = await Deno.connect({ hostname: opts.hostname, port: opts.port });
+    conn = await withTimeout(
+      Deno.connect({ hostname: opts.hostname, port: opts.port }),
+      CONNECT_TIMEOUT_MS,
+      `SMTP connect (${opts.hostname}:${opts.port})`
+    );
   }
+
+  // Enforce an overall socket I/O timeout so a silent peer can never hang
+  // the transaction. Re-applied after STARTTLS because the upgrade swaps
+  // the underlying connection.
+  conn.setTimeout(SOCKET_TIMEOUT_MS);
 
   // NOTE: reader/writer must be re-acquired AFTER startTls() replaces the
   // connection. Using the pre-TLS streams post-upgrade throws Deno's
@@ -349,6 +449,7 @@ async function sendSmtpEmail(opts: SmtpOptions): Promise<SmtpResult> {
       conn = await Deno.startTls(conn, { hostname: opts.hostname });
       try { writer.releaseLock(); } catch (_) {}
       try { reader.releaseLock(); } catch (_) {}
+      conn.setTimeout(SOCKET_TIMEOUT_MS);
       reader = conn.readable.getReader();
       writer = conn.writable.getWriter();
       const ehlo2 = await sendCmd(`EHLO ${opts.hostname}`, "250");
@@ -411,7 +512,7 @@ async function sendViaResend(params: {
   html: string;
   text: string;
   replyTo: string;
-}): Promise<void> {
+}): Promise<string | null> {
   const apiKey = Deno.env.get("RESEND_API_KEY") || "";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -431,6 +532,12 @@ async function sendViaResend(params: {
   if (!res.ok) {
     const body = await res.text();
     throw new Error(`Resend API error (${res.status}): ${body}`);
+  }
+  try {
+    const body = await res.json();
+    return typeof body?.id === "string" ? body.id : null;
+  } catch {
+    return null;
   }
 }
 

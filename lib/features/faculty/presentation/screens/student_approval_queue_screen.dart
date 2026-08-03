@@ -813,22 +813,26 @@ class _StudentApprovalQueueScreenState
                       ),
                       child: Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: accent.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(100),
-                            ),
-                            child: Text(
-                              '${_selectedStudentIds.length} Selected',
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: accent,
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: accent.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(100),
+                              ),
+                              child: Text(
+                                '${_selectedStudentIds.length} Selected',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: accent,
+                                ),
                               ),
                             ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: 12),
                           InkWell(
                             onTap: () => _batchApprove(combinedList),
                             borderRadius: BorderRadius.circular(100),
@@ -990,8 +994,6 @@ class _StudentApprovalQueueScreenState
                         children: [
                           Text(
                             student.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
                           ),
                           const SizedBox(height: 2),

@@ -106,19 +106,25 @@ class AppBottomNavBar extends StatelessWidget {
                       ),
                     ),
                   )
-                : GestureDetector(
-                    onTap: () => onTap(index),
-                    child: Container(
-                      width: 52,
-                      height: 52,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isDark ? const Color(0xFF1E2024) : const Color(0xFFE9EAEC),
-                      ),
-                      child: Icon(
-                        item.icon,
-                        size: 20,
-                        color: brandTheme?.textMuted ?? theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                : Expanded(
+                    child: GestureDetector(
+                      onTap: () => onTap(index),
+                      child: Container(
+                        height: 52,
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isDark ? const Color(0xFF1E2024) : const Color(0xFFE9EAEC),
+                          ),
+                          child: Icon(
+                            item.icon,
+                            size: 20,
+                            color: brandTheme?.textMuted ?? theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                          ),
+                        ),
                       ),
                     ),
                   );

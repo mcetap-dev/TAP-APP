@@ -211,6 +211,7 @@ class _AppointFacultyCoordinatorScreenState
                 const SizedBox(height: 6),
                 DropdownButtonFormField<String>(
                   initialValue: _selectedDept,
+                  isExpanded: true,
                   hint: Text(
                     'Select Department',
                     style: GoogleFonts.inter(color: brandTheme.textMuted),
@@ -223,6 +224,8 @@ class _AppointFacultyCoordinatorScreenState
                           .map((d) => DropdownMenuItem<String>(
                                 value: d.branchCode,
                                 child: Text('${d.branchCode} — ${d.name}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
                               ))
                           .toList()

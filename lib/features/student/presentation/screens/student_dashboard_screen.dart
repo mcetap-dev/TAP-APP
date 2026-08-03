@@ -184,7 +184,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                       Expanded(
                         flex: 13,
                         child: Container(
-                          height: 160,
+                          constraints: const BoxConstraints(minHeight: 160),
                           padding: const EdgeInsets.all(AppSpacing.sp5),
                           decoration: ShapeDecoration(
                             color: theme.colorScheme.surface,
@@ -218,11 +218,11 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                       const SizedBox(width: AppSpacing.sp3),
                       Expanded(
                         flex: 10,
-                        child: SizedBox(
-                          height: 160,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 160),
                           child: Column(
                             children: [
-                              Expanded(
+                              Flexible(
                                 child: Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(AppSpacing.sp3),
@@ -244,7 +244,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                                 ),
                               ),
                               const SizedBox(height: AppSpacing.sp2),
-                              Expanded(
+                              Flexible(
                                 child: Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(AppSpacing.sp3),
@@ -342,7 +342,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                         );
                       }
                       return SizedBox(
-                        height: 140,
+                        height: _carouselHeight(drives),
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: drives.length,
@@ -493,6 +493,32 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
     if (diff.inHours > 0) return '${diff.inHours}h ago';
     if (diff.inMinutes > 0) return '${diff.inMinutes}m ago';
     return 'Just now';
+  }
+
+  /// Estimates how tall the horizontal drive carousel must be so that the
+  /// tallest card (longest company / role / package text, worst-case wrapping)
+  /// always fits without clipping or fixed-height overflow.
+  double _carouselHeight(List<Drive> drives) {
+    const cardWidth = 220.0;
+    final textWidth = cardWidth - AppSpacing.sp4 * 2;
+    var maxHeight = 140.0;
+    for (final d in drives) {
+      final companyLines = _estimateTextLines(d.companyName, 16, textWidth);
+      final roleLines = _estimateTextLines('${d.roleTitle} · ', 12, textWidth);
+      final estimated = 140.0 +
+          (companyLines - 1) * 19.0 +
+          (roleLines - 1) * 15.0;
+      if (estimated > maxHeight) maxHeight = estimated;
+    }
+    return maxHeight;
+  }
+
+  int _estimateTextLines(String text, double fontSize, double width) {
+    if (text.isEmpty) return 1;
+    // Average glyph width is ~0.55x the font size for inter/sans fonts.
+    final charsPerLine =
+        (width / (fontSize * 0.55)).floor().clamp(1, 5000).toInt();
+    return (text.length / charsPerLine).ceil().clamp(1, 200).toInt();
   }
 
   Widget _horizontalDriveCard(Drive drive, bool isApplied, AppBrandTheme brandTheme, ThemeData theme) {

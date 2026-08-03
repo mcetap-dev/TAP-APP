@@ -230,7 +230,7 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                   Expanded(
                     flex: 13,
                     child: Container(
-                      height: 160,
+                      constraints: const BoxConstraints(minHeight: 160),
                       padding: const EdgeInsets.all(AppSpacing.sp5),
                       decoration: ShapeDecoration(
                         color: theme.colorScheme.surface,
@@ -275,11 +275,11 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                   // Bento Secondary Stat Tiles (B2 & B3 - 1.0fr Stack)
                   Expanded(
                     flex: 10,
-                    child: SizedBox(
-                      height: 160,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 160),
                       child: Column(
                         children: [
-                          Expanded(
+                          Flexible(
                             child: Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(AppSpacing.sp3),
@@ -314,7 +314,7 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                             ),
                           ),
                           const SizedBox(height: AppSpacing.sp2),
-                          Expanded(
+                          Flexible(
                             child: Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(AppSpacing.sp3),
@@ -523,35 +523,24 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                               Wrap(
                                 spacing: 12,
                                 runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.payments_outlined, size: 14, color: brandTheme.textMuted),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Package: ${drive.ctcOrStipend}',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: theme.colorScheme.onSurface,
-                                        ),
-                                      ),
-                                    ],
+                                  Icon(Icons.payments_outlined, size: 14, color: brandTheme.textMuted),
+                                  Text(
+                                    'Package: ${drive.ctcOrStipend}',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.colorScheme.onSurface,
+                                    ),
                                   ),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(Icons.event_outlined, size: 14, color: brandTheme.textMuted),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        'Deadline: ${drive.applicationDeadline.day}/${drive.applicationDeadline.month}/${drive.applicationDeadline.year}',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 12,
-                                          color: brandTheme.textMuted,
-                                        ),
-                                      ),
-                                    ],
+                                  Icon(Icons.event_outlined, size: 14, color: brandTheme.textMuted),
+                                  Text(
+                                    'Deadline: ${drive.applicationDeadline.day}/${drive.applicationDeadline.month}/${drive.applicationDeadline.year}',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      color: brandTheme.textMuted,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -940,9 +929,10 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-                decoration: BoxDecoration(
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  decoration: BoxDecoration(
                   color: statusBg,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: statusText.withValues(alpha: 0.4)),
@@ -974,6 +964,7 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                   ),
                 ),
               ),
+              ),
             ],
           ),
 
@@ -982,17 +973,17 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
           const SizedBox(height: 14),
 
           // Details row
-          Row(
+          Wrap(
+            spacing: 16,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               Icon(Icons.payments_outlined, size: 16, color: brandTheme.textMuted),
-              const SizedBox(width: 6),
               Text(
                 'CTC: ${drive.ctcOrStipend}',
                 style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted),
               ),
-              const SizedBox(width: 16),
               Icon(Icons.calendar_today_outlined, size: 16, color: brandTheme.textMuted),
-              const SizedBox(width: 6),
               Text(
                 'Deadline: ${drive.applicationDeadline.day}/${drive.applicationDeadline.month}/${drive.applicationDeadline.year}',
                 style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted),
@@ -1037,8 +1028,8 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3)),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   const Icon(Icons.check_circle_rounded, size: 18, color: Colors.blueAccent),
                   const SizedBox(width: 8),
@@ -1524,13 +1515,14 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
                                       ),
                                       child: Text(
                                         status.toUpperCase(),
+                                        maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w700, color: statusText),
                                       ),
                                     ),
                                     if (dateStr.isNotEmpty) ...[
                                       const SizedBox(height: 4),
-                                      Text(dateStr, overflow: TextOverflow.ellipsis, style: GoogleFonts.ibmPlexMono(fontSize: 10, color: brandTheme.textMuted)),
+                                      Text(dateStr, maxLines: 1, overflow: TextOverflow.ellipsis, style: GoogleFonts.ibmPlexMono(fontSize: 10, color: brandTheme.textMuted)),
                                     ],
                                   ],
                                 ),

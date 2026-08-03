@@ -198,13 +198,9 @@ class _StructuredApplicationCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(data.companyName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700)),
                       const SizedBox(height: 2),
                       Text(data.roleTitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
                     ],
                   ),
@@ -277,8 +273,6 @@ class _StructuredApplicationCard extends StatelessWidget {
                               resumeName,
                               style: GoogleFonts.inter(
                                   fontSize: 12, fontWeight: FontWeight.w600, color: brandTheme.brassPrimary),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
@@ -300,12 +294,16 @@ class _StructuredApplicationCard extends StatelessWidget {
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Recruitment Stages',
-                      style: GoogleFonts.inter(
-                          fontSize: 13, fontWeight: FontWeight.w700, color: theme.colorScheme.onSurface),
+                    Expanded(
+                      child: Text(
+                        'Recruitment Stages',
+                        style: GoogleFonts.inter(
+                            fontSize: 13, fontWeight: FontWeight.w700, color: theme.colorScheme.onSurface),
+                      ),
                     ),
+                    const SizedBox(width: 8),
                     Text(
                       'Stage ${data.currentRound > 0 ? data.currentRound : 1} of ${data.totalRounds}',
                       style: GoogleFonts.ibmPlexMono(
@@ -413,8 +411,6 @@ class _StructuredApplicationCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       '$roundNum. $roundName',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: isCurrent ? FontWeight.w700 : FontWeight.w600,

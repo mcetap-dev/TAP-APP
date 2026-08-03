@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -55,8 +56,14 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
 
   String get _otp => _controllers.map((c) => c.text).join();
 
+  bool get _otpIsComplete =>
+      _otp.length == 6 && RegExp(r'^\d{6}$').hasMatch(_otp);
+
   Future<void> _verify() async {
-    if (_otp.length < 6) {
+    // Guard against duplicate/concurrent verification requests.
+    if (_isLoading || _isResending) return;
+
+    if (!_otpIsComplete) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter the 6-digit verification code')),
       );
@@ -79,7 +86,9 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
-        for (final c in _controllers) c.clear();
+        for (final c in _controllers) {
+          c.clear();
+        }
         _focusNodes[0].requestFocus();
       }
     } finally {
@@ -88,6 +97,7 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   }
 
   Future<void> _resend() async {
+    if (_isResending || _isLoading) return;
     setState(() => _isResending = true);
     try {
       await ref.read(authNotifierProvider.notifier).resendOtp(_email);
@@ -98,12 +108,16 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
             behavior: SnackBarBehavior.floating,
           ),
         );
+        for (final c in _controllers) {
+          c.clear();
+        }
+        _focusNodes[0].requestFocus();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not resend code: ${e.toString()}'),
+            content: Text(_friendlyError(e.toString())),
             backgroundColor: Theme.of(context).colorScheme.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -115,22 +129,39 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
   }
 
   String _friendlyError(String raw) {
-    if (raw.contains('expired')) return 'Code expired. Please request a new code.';
-    if (raw.contains('No active code')) return 'No active code found. Please request a new one.';
-    if (raw.contains('Too many incorrect attempts')) return 'Too many incorrect attempts. Please request a new code.';
-    if (raw.contains('Incorrect code')) return 'Incorrect code. Please check and try again.';
-    if (raw.contains('Please wait')) return raw.replaceFirst('Exception: ', '');
+    final msg = raw.replaceFirst('Exception: ', '').trim();
+    final lower = msg.toLowerCase();
+    if (lower.contains('expired')) return 'Code expired. Please request a new code.';
+    if (lower.contains('too many incorrect')) return 'Too many incorrect attempts. Please request a new code.';
+    if (lower.contains('already been used')) return 'This code has already been used. Please request a new one.';
+    if (lower.contains('incorrect code')) {
+      final m = RegExp(r'(\d+)\s+attempt').firstMatch(msg);
+      if (m != null) return 'Incorrect code. ${m.group(1)} attempt(s) left.';
+      return 'Incorrect code. Please check and try again.';
+    }
+    if (lower.contains('no active code')) return 'No active code found. Please request a new one.';
+    if (lower.contains('invalid code')) return 'Invalid code. Please enter the 6-digit code.';
+    if (lower.contains('please wait')) return msg;
     return 'Verification failed. Please try again.';
   }
 
   void _onOtpDigit(int index, String value) {
-    if (value.length == 1 && index < 5) {
-      _focusNodes[index + 1].requestFocus();
-    }
-    if (value.isEmpty && index > 0) {
+    // Multi-character input (e.g. paste) is split and distributed across the
+    // six boxes. Only digits are accepted (inputFormatters).
+    if (value.length > 1) {
+      final digits = value.replaceAll(RegExp(r'\D'), '');
+      final count = digits.length > 6 ? 6 : digits.length;
+      for (var i = 0; i < count; i++) {
+        _controllers[i].text = digits[i];
+      }
+      final next = count < 6 ? count : 5;
+      _focusNodes[next].requestFocus();
+    } else if (value.length == 1) {
+      if (index < 5) _focusNodes[index + 1].requestFocus();
+    } else if (value.isEmpty && index > 0) {
       _focusNodes[index - 1].requestFocus();
     }
-    if (_otp.length == 6) _verify();
+    if (_otpIsComplete) _verify();
   }
 
   @override
@@ -211,7 +242,10 @@ class _OtpVerificationScreenState extends ConsumerState<OtpVerificationScreen> {
                               focusNode: _focusNodes[i],
                               keyboardType: TextInputType.number,
                               textAlign: TextAlign.center,
-                              maxLength: 1,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(6),
+                              ],
                               onChanged: (v) => _onOtpDigit(i, v),
                               style: GoogleFonts.ibmPlexMono(
                                 fontSize: 20,

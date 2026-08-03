@@ -199,8 +199,10 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  Wrap(
+                    alignment: WrapAlignment.spaceAround,
+                    spacing: 24,
+                    runSpacing: 12,
                     children: [
                       _summaryChip('Students', '${summary['total_students']}', Colors.white70),
                       _summaryChip('Placed', '${summary['total_placed']}', Colors.greenAccent),
@@ -220,15 +222,16 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
           reportsAsync.when(
             data: (stats) => Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              child: Wrap(
+                alignment: WrapAlignment.end,
+                spacing: 12,
+                runSpacing: 8,
                 children: [
                   OutlinedButton.icon(
                     onPressed: stats.isEmpty ? null : () => _exportToExcel(stats),
                     icon: const Icon(Icons.table_chart, color: Colors.green),
                     label: const Text('Export XLSX'),
                   ),
-                  const SizedBox(width: 12),
                   FilledButton.icon(
                     onPressed: stats.isEmpty ? null : () => _exportToPdf(stats),
                     icon: const Icon(Icons.picture_as_pdf),
@@ -340,9 +343,10 @@ class _AdminReportsScreenState extends ConsumerState<AdminReportsScreen> {
                                 ),
                               ),
                               const SizedBox(height: 10),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceAround,
+                              Wrap(
+                                alignment: WrapAlignment.spaceAround,
+                                spacing: 24,
+                                runSpacing: 8,
                                 children: [
                                   _statPill('Total', '$students',
                                       Colors.blue.shade600),

@@ -154,12 +154,18 @@ class _ApplicantListScreenState extends ConsumerState<ApplicantListScreen> {
                         leading: CircleAvatar(child: Text(app['name'].substring(0, 1))),
                         title: Text(app['name']),
                         subtitle: Text(app['usn']),
-                        trailing: Chip(
-                          label: Text(
-                            app['status'],
-                            style: const TextStyle(fontSize: 12, color: Colors.white),
+                        trailing: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 150),
+                          child: Chip(
+                            padding: EdgeInsets.zero,
+                            label: Text(
+                              app['status'],
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 12, color: Colors.white),
+                            ),
+                            backgroundColor: statusColor,
                           ),
-                          backgroundColor: statusColor,
                         ),
                       );
                     },

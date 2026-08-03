@@ -327,6 +327,7 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'STEP ${_currentStep + 1} OF 3',
@@ -337,16 +338,20 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
                           letterSpacing: 0.8,
                         ),
                       ),
-                      Text(
-                        _currentStep == 0
-                            ? 'Basic Company Info'
-                            : _currentStep == 1
-                                ? 'Eligibility Criteria'
-                                : 'Recruitment Rounds',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: brandTheme.textMuted,
+                      const SizedBox(width: AppSpacing.sp3),
+                      Expanded(
+                        child: Text(
+                          _currentStep == 0
+                              ? 'Basic Company Info'
+                              : _currentStep == 1
+                                  ? 'Eligibility Criteria'
+                                  : 'Recruitment Rounds',
+                          textAlign: TextAlign.end,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: brandTheme.textMuted,
+                          ),
                         ),
                       ),
                     ],
@@ -404,8 +409,9 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
                     flex: 2,
                     child: GestureDetector(
                       onTap: _onStepContinue,
-                      child: Container(
-                        height: 48,
+child: Container(
+                        constraints: const BoxConstraints(minHeight: 48),
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sp3, vertical: AppSpacing.sp3),
                         decoration: BoxDecoration(
                           gradient: brandTheme.brassGradient,
                           borderRadius: BorderRadius.circular(AppShapes.radiusSmall),
@@ -732,8 +738,10 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
               return d.branchCode.toLowerCase().contains(q) || d.name.toLowerCase().contains(q);
             }).toList();
 
-            return Container(
-              height: MediaQuery.of(ctx).size.height * 0.7,
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              child: Container(
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.85),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -814,12 +822,13 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
                   const SizedBox(height: AppSpacing.sp3),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sp5),
-                    child: Row(
+                    child: Wrap(
+                      spacing: AppSpacing.sp2,
+                      runSpacing: AppSpacing.sp2,
                       children: [
                         _pickerActionChip('Select All', Icons.check_circle_outline_rounded, brandTheme, () {
                           setSheetState(() => selected.addAll(departments.map((d) => d.branchCode)));
                         }),
-                        const SizedBox(width: AppSpacing.sp2),
                         _pickerActionChip('Clear All', Icons.remove_circle_outline_rounded, brandTheme, () {
                           setSheetState(() => selected.clear());
                         }),
@@ -888,8 +897,8 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
                                       ),
                                       const SizedBox(width: 12),
                                       Container(
-                                        width: 36,
-                                        height: 28,
+                                        constraints: const BoxConstraints(minWidth: 28),
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                                         decoration: BoxDecoration(
                                           color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
                                           borderRadius: BorderRadius.circular(6),
@@ -897,6 +906,7 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
                                         child: Center(
                                           child: Text(
                                             dept.branchCode,
+                                            maxLines: 1,
                                             style: GoogleFonts.ibmPlexMono(
                                               fontSize: 11,
                                               fontWeight: FontWeight.w800,
@@ -926,11 +936,12 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
                   const SizedBox(height: AppSpacing.sp4),
                 ],
               ),
-            );
-          },
-        );
-      },
-    );
+            ),
+          );
+        },
+      );
+    },
+  );
   }
 
   Widget _pickerActionChip(String label, IconData icon, AppBrandTheme brandTheme, VoidCallback onTap) {

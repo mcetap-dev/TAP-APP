@@ -25,6 +25,12 @@ function generateOtp(): string {
   return String(value % 1000000).padStart(6, "0");
 }
 
+/** Accepts only an exactly 6-digit numeric code (exact-match enforcement). */
+function normalizeCode(raw: string): string | null {
+  const trimmed = String(raw || "").trim();
+  return /^[0-9]{6}$/.test(trimmed) ? trimmed : null;
+}
+
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -41,12 +47,16 @@ serve(async (req) => {
   const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+  let action = "";
+  let email = "";
+  let purpose = "";
+
   try {
     const body = await req.json();
-    const action = String(body.action || "");
-    const email = String(body.email || "").toLowerCase().trim();
-    const purpose = String(body.purpose || "signup").trim();
-    const code = String(body.code || "").trim();
+    action = String(body.action || "");
+    email = String(body.email || "").toLowerCase().trim();
+    purpose = String(body.purpose || "signup").trim();
+    const rawCode = String(body.code || "");
     console.log(`[send-otp] Request received: action=${action}, email=${email}, purpose=${purpose}`);
 
     if (!["signup", "password_reset"].includes(purpose)) {
@@ -87,22 +97,32 @@ serve(async (req) => {
         }
       }
 
-      // Invalidate all prior unused codes for this email+purpose.
-      await supabase
-        .from("otp_verifications")
-        .update({ used: true })
-        .eq("email", email)
-        .eq("purpose", purpose)
-        .eq("used", false);
-
       const otp = generateOtp();
       const codeHash = await sha256Hex(otp);
       const expiresAt = new Date(Date.now() + OTP_TTL_MS).toISOString();
 
-      const { error: insertErr } = await supabase
-        .from("otp_verifications")
-        .insert({ email, purpose, code_hash: codeHash, expires_at: expiresAt, max_attempts: MAX_ATTEMPTS });
-      if (insertErr) throw insertErr;
+      // store_otp atomically invalidates all prior codes and inserts the new
+      // one in a single transaction, so two concurrent "send" calls can never
+      // leave two valid codes. A unique partial index backs this up; if two
+      // sends race, the second insert fails with 23505 and we ask the user to
+      // wait.
+      const { data: stored, error: storeErr } = await supabase.rpc("store_otp", {
+        p_email: email,
+        p_purpose: purpose,
+        p_code_hash: codeHash,
+        p_expires_at: expiresAt,
+        p_max_attempts: MAX_ATTEMPTS,
+      });
+      if (storeErr) {
+        // unique_violation (23505): someone else just stored a newer code.
+        if ((storeErr as any)?.code === "23505") {
+          return json(
+            { success: false, error: "Please wait a moment before requesting a new code." },
+            429
+          );
+        }
+        throw storeErr;
+      }
       console.log(`[send-otp] OTP stored for ${email} (hash only), expires ${expiresAt}`);
 
       // Deliver via the existing SMTP send-email function.
@@ -122,7 +142,8 @@ serve(async (req) => {
       const sendData = await sendRes.json().catch(() => ({}));
       console.log(`[send-otp] send-email responded with status ${sendRes.status}`);
       if (!sendRes.ok || sendData.success !== true) {
-        // Email failed — do not leave a dangling valid code.
+        // Email failed — invalidate every pending code so no dangling unusable
+        // code blocks the email+purpose.
         await supabase
           .from("otp_verifications")
           .update({ used: true })
@@ -144,98 +165,39 @@ serve(async (req) => {
       return json({ success: true, message: "Verification code sent." });
     }
 
-    if (action === "verify") {
-      const { data: rows } = await supabase
-        .from("otp_verifications")
-        .select("*")
-        .eq("email", email)
-        .eq("purpose", purpose)
-        .eq("used", false)
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      if (!rows || rows.length === 0) {
+    if (action === "verify" || action === "reset_password") {
+      // Reject anything that is not an exact 6-digit code before it can even
+      // be compared against a stored hash.
+      const normalizedCode = normalizeCode(rawCode);
+      if (!normalizedCode) {
         return json(
-          { success: false, error: "No active code found for this email. Request a new one." },
-          400
-        );
-      }
-      const row = rows[0];
-
-      if (Date.now() > new Date(row.expires_at).getTime()) {
-        await supabase.from("otp_verifications").update({ used: true }).eq("id", row.id);
-        return json({ success: false, error: "This code has expired. Request a new one." }, 400);
-      }
-      if (row.attempts >= row.max_attempts) {
-        await supabase.from("otp_verifications").update({ used: true }).eq("id", row.id);
-        return json({ success: false, error: "Too many incorrect attempts. Request a new code." }, 400);
-      }
-      if (row.code_hash !== (await sha256Hex(code))) {
-        await supabase
-          .from("otp_verifications")
-          .update({ attempts: row.attempts + 1 })
-          .eq("id", row.id);
-        const remaining = row.max_attempts - row.attempts - 1;
-        return json(
-          {
-            success: false,
-            error: remaining <= 0
-              ? "Incorrect code. Request a new code."
-              : `Incorrect code. ${remaining} attempt(s) left.`,
-          },
+          { success: false, error: "Invalid code format. Enter the 6-digit code." },
           400
         );
       }
 
-      await supabase.from("otp_verifications").update({ used: true }).eq("id", row.id);
-      console.log(`[send-otp] OTP verified for ${email} (purpose=${purpose})`);
-      return json({ success: true, message: "Email verified successfully." });
-    }
+      // Atomic, replay-proof verification performed entirely in the database.
+      const { data: result, error: rpcErr } = await supabase.rpc("verify_otp", {
+        p_email: email,
+        p_purpose: purpose,
+        p_code: normalizedCode,
+      });
+      if (rpcErr) throw rpcErr;
 
-    if (action === "reset_password") {
-      const { data: rows } = await supabase
-        .from("otp_verifications")
-        .select("*")
-        .eq("email", email)
-        .eq("purpose", "password_reset")
-        .eq("used", false)
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      if (!rows || rows.length === 0) {
+      const ok = (result as any)?.success === true;
+      if (!ok) {
         return json(
-          { success: false, error: "No active code found for this email. Request a new one." },
+          { success: false, error: (result as any)?.error || "Verification failed." },
           400
         );
       }
-      const row = rows[0];
 
-      if (Date.now() > new Date(row.expires_at).getTime()) {
-        await supabase.from("otp_verifications").update({ used: true }).eq("id", row.id);
-        return json({ success: false, error: "This code has expired. Request a new one." }, 400);
+      if (action === "verify") {
+        console.log(`[send-otp] OTP verified for ${email} (purpose=${purpose})`);
+        return json({ success: true, message: "Email verified successfully." });
       }
-      if (row.attempts >= row.max_attempts) {
-        await supabase.from("otp_verifications").update({ used: true }).eq("id", row.id);
-        return json({ success: false, error: "Too many incorrect attempts. Request a new code." }, 400);
-      }
-      if (row.code_hash !== (await sha256Hex(code))) {
-        await supabase
-          .from("otp_verifications")
-          .update({ attempts: row.attempts + 1 })
-          .eq("id", row.id);
-        const remaining = row.max_attempts - row.attempts - 1;
-        return json(
-          {
-            success: false,
-            error: remaining <= 0
-              ? "Incorrect code. Request a new code."
-              : `Incorrect code. ${remaining} attempt(s) left.`,
-          },
-          400
-        );
-      }
-      await supabase.from("otp_verifications").update({ used: true }).eq("id", row.id);
 
+      // ── reset_password: the OTP was verified & claimed atomically above ──
       const newPassword = String(body.newPassword || "");
       if (newPassword.length < 8) {
         return json({ success: false, error: "Password must be at least 8 characters." }, 400);

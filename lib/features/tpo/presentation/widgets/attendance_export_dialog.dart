@@ -578,7 +578,10 @@ class _AttendanceExportDialogState extends State<_AttendanceExportDialog> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Select All / Deselect All
-          Row(
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
             children: [
               GestureDetector(
                 onTap: () {
@@ -600,7 +603,6 @@ class _AttendanceExportDialogState extends State<_AttendanceExportDialog> {
                           color: brandTheme.brassPrimary)),
                 ),
               ),
-              const SizedBox(width: 8),
               GestureDetector(
                 onTap: () {
                   setState(() {
@@ -621,7 +623,6 @@ class _AttendanceExportDialogState extends State<_AttendanceExportDialog> {
                           color: brandTheme.textMuted)),
                 ),
               ),
-              const Spacer(),
               Text(
                 '${_selectedDepartments.length}/${_availableDepartments.length}',
                 style: GoogleFonts.ibmPlexMono(

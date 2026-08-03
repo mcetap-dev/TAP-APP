@@ -199,7 +199,7 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
                             );
                           },
                           child: Container(
-                            height: 160,
+                            constraints: const BoxConstraints(minHeight: 160),
                             padding: const EdgeInsets.all(AppSpacing.sp5),
                             decoration: ShapeDecoration(
                               color: theme.colorScheme.surface,
@@ -246,11 +246,11 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
                       // Bento Secondary Stat Tiles (B2 & B3 - 1.0fr Stack)
                       Expanded(
                         flex: 10,
-                        child: SizedBox(
-                          height: 160,
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 160),
                           child: Column(
                             children: [
-                              Expanded(
+                              Flexible(
                                 child: Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(AppSpacing.sp3),
@@ -285,7 +285,7 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
                                 ),
                               ),
                               const SizedBox(height: AppSpacing.sp2),
-                              Expanded(
+                              Flexible(
                                 child: Container(
                                   width: double.infinity,
                                   padding: const EdgeInsets.all(AppSpacing.sp3),

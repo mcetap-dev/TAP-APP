@@ -721,26 +721,29 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
                     children: [
                       Icon(Icons.timeline_rounded, size: 18, color: brandTheme.onBrass),
                       const SizedBox(width: 10),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            'View Recruitment Progress',
-                            style: GoogleFonts.inter(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: brandTheme.onBrass,
+                      Flexible(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Text(
+                              'View Recruitment Progress',
+                              style: GoogleFonts.inter(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: brandTheme.onBrass,
+                              ),
                             ),
-                          ),
-                          Text(
-                            'See your recruitment journey',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w400,
-                              color: brandTheme.onBrass.withValues(alpha: 0.75),
+                            Text(
+                              'See your recruitment journey',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w400,
+                                color: brandTheme.onBrass.withValues(alpha: 0.75),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Icon(Icons.arrow_forward_rounded, size: 16, color: brandTheme.onBrass.withValues(alpha: 0.7)),
@@ -824,12 +827,15 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
       theme: theme,
       brandTheme: brandTheme,
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, size: 18, color: brandTheme.brassPrimary),
           const SizedBox(width: AppSpacing.sp2),
           Text(label, style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
-          const Spacer(),
-          Text(value, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600)),
+          const SizedBox(width: AppSpacing.sp2),
+          Expanded(
+            child: Text(value, style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600), textAlign: TextAlign.right),
+          ),
         ],
       ),
     );
@@ -839,12 +845,17 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(Icons.check_circle_outline_rounded, size: 16, color: brandTheme.textMuted),
           const SizedBox(width: AppSpacing.sp2),
-          Text(label, style: GoogleFonts.inter(fontSize: 13, color: brandTheme.textMuted)),
-          const Spacer(),
-          Text(value, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+          Expanded(
+            child: Text(label, style: GoogleFonts.inter(fontSize: 13, color: brandTheme.textMuted)),
+          ),
+          const SizedBox(width: AppSpacing.sp2),
+          Flexible(
+            child: Text(value, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600), textAlign: TextAlign.right),
+          ),
         ],
       ),
     );
@@ -854,12 +865,17 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(icon, size: 16, color: brandTheme.brassPrimary),
           const SizedBox(width: AppSpacing.sp2),
-          Text(label, style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
-          const Spacer(),
-          Text(value, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500)),
+          Expanded(
+            child: Text(label, style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
+          ),
+          const SizedBox(width: AppSpacing.sp2),
+          Flexible(
+            child: Text(value, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500), textAlign: TextAlign.right),
+          ),
         ],
       ),
     );
@@ -888,10 +904,16 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
-          Text(value, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500)),
+          SizedBox(
+            width: 120,
+            child: Text(label, style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
+          ),
+          const SizedBox(width: AppSpacing.sp2),
+          Expanded(
+            child: Text(value, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500), textAlign: TextAlign.right),
+          ),
         ],
       ),
     );
@@ -938,7 +960,7 @@ class _SuccessSheet extends StatelessWidget {
     final brandTheme = theme.extension<AppBrandTheme>()!;
 
     return SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.sp5),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1036,10 +1058,16 @@ class _SuccessSheet extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
-          Text(value, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500)),
+          SizedBox(
+            width: 120,
+            child: Text(label, style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
+          ),
+          const SizedBox(width: AppSpacing.sp2),
+          Expanded(
+            child: Text(value, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500), textAlign: TextAlign.right),
+          ),
         ],
       ),
     );

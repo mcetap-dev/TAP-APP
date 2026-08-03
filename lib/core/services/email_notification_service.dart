@@ -44,13 +44,17 @@ class EmailNotificationService {
       int attempt = 0;
       bool sent = false;
       String? lastError;
+      String? lastSmtpResponse;
+      bool usedEdgeFunction = false;
       final stopwatch = Stopwatch()..start();
 
       while (attempt < maxRetries && !sent) {
         attempt++;
         try {
           if (_smtpEmail.isNotEmpty && _smtpPassword.isNotEmpty) {
-            // Send using direct Gmail SMTP
+            // Send using direct Gmail SMTP (sender = SMTP_EMAIL dart-define).
+            // In production this path is disabled — email is sent server-side
+            // by the send-email Edge Function using Supabase Secrets.
             final smtpServer = _smtpPort == 465
                 ? gmail(_smtpEmail, _smtpPassword)
                 : SmtpServer(
@@ -65,12 +69,15 @@ class EmailNotificationService {
               ..from = Address(_smtpEmail, _collegeName)
               ..recipients.add(recipientEmail)
               ..subject = subject
+              ..text = _htmlToText(htmlBody)
               ..html = htmlBody;
 
-            await send(message, smtpServer);
+            final report = await send(message, smtpServer);
+            lastSmtpResponse = 'SMTP $_smtpHost:$_smtpPort ok — ${report.toString().trim()}';
             sent = true;
           } else {
             // Fallback: Invoke the deployed send-email Edge Function using Supabase Secrets
+            usedEdgeFunction = true;
             dev.log(
               '[EmailNotificationService] Client SMTP variables empty. Invoking Edge Function fallback...',
               name: 'EmailNotificationService',
@@ -94,6 +101,7 @@ class EmailNotificationService {
             if (resData['success'] != true) {
               throw Exception('Edge function send-email failed: ${resData['error']}');
             }
+            lastSmtpResponse = '${resData['smtpResponse'] ?? ''}'.trim();
             sent = true;
           }
         } catch (e) {
@@ -112,19 +120,25 @@ class EmailNotificationService {
 
       stopwatch.stop();
 
-      // Audit Logging into email_logs table
-      try {
-        await _supabase.from('email_logs').insert({
-          'recipient': recipientEmail,
-          'subject': subject,
-          'email_type': emailType,
-          'status': sent ? 'sent' : 'failed',
-          'error_message': sent ? null : lastError,
-          'sent_at': sent ? DateTime.now().toIso8601String() : null,
-          'created_by': currentUserId,
-        });
-      } catch (logErr) {
-        dev.log('[EmailNotificationService] Error writing to email_logs: $logErr', name: 'EmailNotificationService');
+      // Audit Logging into email_logs table. When the Edge Function path was
+      // used the server already wrote the enriched log (sender, smtp_response,
+      // message_id), so skip the duplicate client-side insert.
+      if (!usedEdgeFunction) {
+        try {
+          await _supabase.from('email_logs').insert({
+            'sender': _smtpEmail.isNotEmpty ? _smtpEmail : 'students.tap@mcehassan.ac.in',
+            'recipient': recipientEmail,
+            'subject': subject,
+            'email_type': emailType,
+            'status': sent ? 'sent' : 'failed',
+            'error_message': sent ? null : lastError,
+            'smtp_response': sent ? lastSmtpResponse : null,
+            'sent_at': sent ? DateTime.now().toIso8601String() : null,
+            'created_by': currentUserId,
+          });
+        } catch (logErr) {
+          dev.log('[EmailNotificationService] Error writing to email_logs: $logErr', name: 'EmailNotificationService');
+        }
       }
     }));
   }
@@ -132,6 +146,24 @@ class EmailNotificationService {
   // ───────────────────────────────────────────────────────────────────────────
   // HTML Template Wrapper
   // ───────────────────────────────────────────────────────────────────────────
+  String _htmlToText(String html) {
+    return html
+        .replaceAll(RegExp(r'<style[\s\S]*?</style>', caseSensitive: false), '')
+        .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'</(p|div|h1|h2|h3|h4|li|tr)>', caseSensitive: false), '\n')
+        .replaceAll(RegExp(r'</td>', caseSensitive: false), '\t')
+        .replaceAll(RegExp(r'<[^>]+>'), '')
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&')
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#39;', "'")
+        .replaceAll('&copy;', '©')
+        .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+        .trim();
+  }
+
   String _wrapTemplate(String title, String bodyContent) {
     return '''
 <!DOCTYPE html>
