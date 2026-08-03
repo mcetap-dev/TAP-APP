@@ -111,19 +111,20 @@ serve(async (req) => {
     try {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("id, name, role, department, roll_number, email")
+        .select("id, name, role, department, roll_number, usn, email")
         .eq("email", recipient)
         .maybeSingle();
 
       if (profile) {
-        if (!data.studentName && !data.facultyName) {
-          data.studentName = profile.name;
-          data.facultyName = profile.name;
+        const resolvedName = profile.name || profile.student_name || "";
+        if (resolvedName) {
+          if (!data.studentName || data.studentName === "Student") data.studentName = resolvedName;
+          if (!data.userName || data.userName === "User") data.userName = resolvedName;
+          if (!data.facultyName || data.facultyName === "Faculty Member") data.facultyName = resolvedName;
         }
-        if (!data.department || data.department === "N/A") {
-          data.department = profile.department || "Computer Science and Engineering";
-        }
-        if (!data.role) {
+        if (profile.usn && (!data.usn || data.usn === "N/A")) data.usn = profile.usn;
+        if (profile.department && (!data.department || data.department === "N/A")) data.department = profile.department;
+        if (profile.role && !data.role) {
           data.role = profile.role === "faculty_coordinator" ? "Faculty Coordinator" : profile.role;
         }
       }
@@ -144,6 +145,9 @@ serve(async (req) => {
     } catch (dbErr) {
       console.warn("[Edge Function] Database fallback lookup warning:", dbErr);
     }
+
+    // Log complete data payload before rendering
+    console.log(`[send-email] Full data payload for ${emailType} (${recipient}):`, JSON.stringify(data, null, 2));
 
     const { subject, html } = generateEmailTemplate(emailType, payload.subject, data);
 
@@ -754,20 +758,21 @@ function generateEmailTemplate(
     }
 
     case "round_qualified": {
-      const subject = customSubject || `Congratulations! Qualified for ${data.nextRoundName || "Next Round"} — ${data.companyName}`;
+      const upcomingRoundText = data.nextRoundName || data.upcomingRound || "Next Round";
+      const subject = customSubject || `Congratulations! Qualified for ${upcomingRoundText} — ${data.companyName || 'Placement Drive'}`;
       const html = wrapTemplate(
         "Round Advancement Notice",
         `
-        <h2>Congratulations! You Have Shortlisted</h2>
+        <h2>Congratulations! You Have Been Shortlisted</h2>
         <p>Dear <strong>${data.studentName || "Student"}</strong>,</p>
-        <p>We are pleased to inform you that you have cleared the selection criteria for <strong>${data.companyName}</strong>.</p>
+        <p>We are pleased to inform you that you have cleared the selection criteria for <strong>${data.companyName || "the campus recruitment drive"}</strong>.</p>
         
         <table class="info-table">
           <tr><td class="label">Company</td><td class="value"><strong>${data.companyName || "N/A"}</strong></td></tr>
-          <tr><td class="label">Cleared Round</td><td class="value">${data.qualifiedRound || "Previous Round"}</td></tr>
-          <tr><td class="label">Upcoming Round</td><td class="value"><strong>${data.nextRoundName || "Next Round"}</strong></td></tr>
-          <tr><td class="label">Schedule Date</td><td class="value">${data.interviewDate || "TBA"}</td></tr>
-          <tr><td class="label">Venue / Mode</td><td class="value">${data.venue || "TBA"}</td></tr>
+          ${data.qualifiedRound ? `<tr><td class="label">Cleared Round</td><td class="value">${data.qualifiedRound}</td></tr>` : ""}
+          <tr><td class="label">Upcoming Round</td><td class="value"><strong>${upcomingRoundText}</strong></td></tr>
+          ${data.interviewDate ? `<tr><td class="label">Schedule Date</td><td class="value">${data.interviewDate}</td></tr>` : ""}
+          ${data.venue ? `<tr><td class="label">Venue / Mode</td><td class="value">${data.venue}</td></tr>` : ""}
         </table>
         
         ${data.remarks ? `<div class="highlight-box"><strong>Coordinator Remarks:</strong> ${data.remarks}</div>` : ""}

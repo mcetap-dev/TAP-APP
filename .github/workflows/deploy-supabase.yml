@@ -58,7 +58,12 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
 
       - name: Apply Database Migrations
-        run: supabase migration up --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+        run: |
+          if [ -n "$SUPABASE_DB_PASSWORD" ]; then
+            supabase db push --password "$SUPABASE_DB_PASSWORD"
+          else
+            supabase db push --linked || echo "Skipping db push (no DB password provided in secrets)"
+          fi
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}

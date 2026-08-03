@@ -592,9 +592,18 @@ class AttendanceSuccessCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final dateStr = '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
-    final timeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    final scannedAtRaw = record?['scanned_at'] as String?;
+    final scanTime = scannedAtRaw != null ? (DateTime.tryParse(scannedAtRaw)?.toLocal() ?? DateTime.now()) : DateTime.now();
+
+    final day = scanTime.day.toString().padLeft(2, '0');
+    final month = scanTime.month.toString().padLeft(2, '0');
+    final dateStr = '$day/$month/${scanTime.year}';
+
+    final hour12 = scanTime.hour == 0 ? 12 : (scanTime.hour > 12 ? scanTime.hour - 12 : scanTime.hour);
+    final minuteStr = scanTime.minute.toString().padLeft(2, '0');
+    final amPm = scanTime.hour >= 12 ? 'PM' : 'AM';
+    final timeStr = '${hour12.toString().padLeft(2, '0')}:$minuteStr $amPm';
+
     final attendanceId = record?['id'] as String? ?? '';
     final shortId = attendanceId.length > 8 ? attendanceId.substring(0, 8) : attendanceId;
 
@@ -684,20 +693,26 @@ class AttendanceSuccessCard extends StatelessWidget {
                       // Student section
                       _sectionHeader('Student', brandTheme),
                       const SizedBox(height: 8),
-                      _twoColumnRow(
-                        left: AttendanceInfoTile(
-                          label: 'Name',
-                          value: record?['student_name'] ?? '—',
-                        ),
-                        right: AttendanceInfoTile(
-                          label: 'USN',
-                          value: record?['usn'] ?? '—',
-                        ),
+                      AttendanceInfoTile(
+                        label: 'Name',
+                        value: (record?['student_name'] as String?)?.isNotEmpty == true
+                            ? record!['student_name'] as String
+                            : '—',
                       ),
                       const SizedBox(height: 8),
-                      AttendanceInfoTile(
-                        label: 'Department',
-                        value: record?['department'] ?? '—',
+                      _twoColumnRow(
+                        left: AttendanceInfoTile(
+                          label: 'USN',
+                          value: (record?['usn'] as String?)?.isNotEmpty == true
+                              ? record!['usn'] as String
+                              : '—',
+                        ),
+                        right: AttendanceInfoTile(
+                          label: 'Department',
+                          value: (record?['department'] as String?)?.isNotEmpty == true
+                              ? record!['department'] as String
+                              : '—',
+                        ),
                       ),
 
                       const SizedBox(height: 16),
