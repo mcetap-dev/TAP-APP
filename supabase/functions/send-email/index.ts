@@ -142,6 +142,33 @@ serve(async (req) => {
           }
         }
       }
+
+      // Extract & sanitize company name from payload data or subject line fallback
+      let resolvedCompany = data.companyName || data.company_name || data.company;
+      if (!resolvedCompany || resolvedCompany === "undefined" || resolvedCompany === "null" || resolvedCompany === "N/A" || resolvedCompany.trim() === "") {
+        if (payload.subject && payload.subject.includes("—")) {
+          const parts = payload.subject.split("—");
+          const extracted = parts[parts.length - 1].trim();
+          if (extracted && extracted !== "undefined" && extracted !== "null" && extracted.trim() !== "") {
+            resolvedCompany = extracted;
+          }
+        } else if (payload.subject && payload.subject.includes(":")) {
+          const afterColon = payload.subject.split(":").slice(1).join(":").trim();
+          const match = afterColon.match(/^(.+?)\s*\((.+?)\)$/);
+          if (match) {
+            resolvedCompany = match[1].trim();
+            if (!data.roleTitle || data.roleTitle === "N/A") {
+              data.roleTitle = match[2].trim();
+            }
+          } else if (afterColon) {
+            resolvedCompany = afterColon;
+          }
+        }
+      }
+      if (resolvedCompany && resolvedCompany !== "undefined" && resolvedCompany !== "null" && resolvedCompany.trim() !== "") {
+        data.companyName = resolvedCompany;
+        data.company_name = resolvedCompany;
+      }
     } catch (dbErr) {
       console.warn("[Edge Function] Database fallback lookup warning:", dbErr);
     }
@@ -701,6 +728,7 @@ function generateEmailTemplate(
         "New Placement Drive",
         `
         <h2>New Placement Drive Announced</h2>
+        <p>Dear <strong>${data.studentName || "Student"}</strong>,</p>
         <p>A new placement recruitment drive matching your department/branch eligibility has been published.</p>
         
         <table class="info-table">
@@ -708,7 +736,6 @@ function generateEmailTemplate(
           <tr><td class="label">Role Title</td><td class="value">${data.roleTitle || "N/A"}</td></tr>
           <tr><td class="label">Package (CTC)</td><td class="value">${data.package || "As per policy"}</td></tr>
           <tr><td class="label">Registration Deadline</td><td class="value">${data.registrationDeadline || "N/A"}</td></tr>
-          <tr><td class="label">Drive Start Date</td><td class="value">${data.driveDate || "To be announced"}</td></tr>
         </table>
         
         <div class="highlight-box">
@@ -760,20 +787,23 @@ function generateEmailTemplate(
 
     case "round_qualified": {
       const upcomingRoundText = data.nextRoundName || data.upcomingRound || "Next Round";
-      const subject = customSubject || `Congratulations! Qualified for ${upcomingRoundText} — ${data.companyName || 'Placement Drive'}`;
+      const displayCompany = (data.companyName && data.companyName !== "undefined" && data.companyName !== "null" && data.companyName !== "N/A")
+        ? data.companyName
+        : "the campus recruitment drive";
+      const subject = customSubject || `Congratulations! Qualified for ${upcomingRoundText} — ${displayCompany}`;
       const html = wrapTemplate(
         "Round Advancement Notice",
         `
-        <h2>Congratulations! You Have Been Shortlisted</h2>
+        <h2>Congratulations! You Have Shortlisted</h2>
         <p>Dear <strong>${data.studentName || "Student"}</strong>,</p>
-        <p>We are pleased to inform you that you have cleared the selection criteria for <strong>${data.companyName || "the campus recruitment drive"}</strong>.</p>
+        <p>We are pleased to inform you that you have cleared the selection criteria for <strong>${displayCompany}</strong>.</p>
         
         <table class="info-table">
-          <tr><td class="label">Company</td><td class="value"><strong>${data.companyName || "N/A"}</strong></td></tr>
+          <tr><td class="label">Company</td><td class="value"><strong>${displayCompany}</strong></td></tr>
           ${data.qualifiedRound ? `<tr><td class="label">Cleared Round</td><td class="value">${data.qualifiedRound}</td></tr>` : ""}
           <tr><td class="label">Upcoming Round</td><td class="value"><strong>${upcomingRoundText}</strong></td></tr>
-          ${data.interviewDate ? `<tr><td class="label">Schedule Date</td><td class="value">${data.interviewDate}</td></tr>` : ""}
-          ${data.venue ? `<tr><td class="label">Venue / Mode</td><td class="value">${data.venue}</td></tr>` : ""}
+          ${(data.interviewDate && data.interviewDate !== "TBA" && data.interviewDate !== "N/A" && data.interviewDate !== "undefined") ? `<tr><td class="label">Schedule Date</td><td class="value">${data.interviewDate}</td></tr>` : ""}
+          ${(data.venue && data.venue !== "TBA" && data.venue !== "N/A" && data.venue !== "undefined") ? `<tr><td class="label">Venue / Mode</td><td class="value">${data.venue}</td></tr>` : ""}
         </table>
         
         ${data.remarks ? `<div class="highlight-box"><strong>Coordinator Remarks:</strong> ${data.remarks}</div>` : ""}
@@ -783,16 +813,19 @@ function generateEmailTemplate(
     }
 
     case "round_rejected": {
-      const subject = customSubject || `Drive Status Update: ${data.companyName}`;
+      const displayCompany = (data.companyName && data.companyName !== "undefined" && data.companyName !== "null" && data.companyName !== "N/A")
+        ? data.companyName
+        : "the campus recruitment drive";
+      const subject = customSubject || `Drive Status Update: ${displayCompany}`;
       const html = wrapTemplate(
         "Drive Update",
         `
         <h2>Selection Process Update</h2>
         <p>Dear <strong>${data.studentName || "Student"}</strong>,</p>
-        <p>Thank you for participating in the campus recruitment drive for <strong>${data.companyName}</strong>.</p>
+        <p>Thank you for participating in the campus recruitment drive for <strong>${displayCompany}</strong>.</p>
         
         <table class="info-table">
-          <tr><td class="label">Company</td><td class="value">${data.companyName || "N/A"}</td></tr>
+          <tr><td class="label">Company</td><td class="value"><strong>${displayCompany}</strong></td></tr>
           <tr><td class="label">Round Evaluated</td><td class="value">${data.rejectedRound || "N/A"}</td></tr>
           <tr><td class="label">Status</td><td class="value"><span class="badge badge-danger">Not Shortlisted</span></td></tr>
         </table>

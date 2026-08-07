@@ -154,12 +154,18 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   // ── Step navigation ──────────────────────────────────────────────────────
 
   void _onNext() {
-    if (_currentStep == 0 && !_personalFormKey.currentState!.validate()) return;
+    if (_currentStep == 0) {
+      if (!_personalFormKey.currentState!.validate()) return;
+      if (_photoBytes == null && (_existingPhotoUrl == null || _existingPhotoUrl!.isEmpty)) {
+        _showSnack('Please upload a profile photo before continuing.', isError: true);
+        return;
+      }
+    }
     if (_currentStep == 1 && !_academicFormKey.currentState!.validate()) return;
     if (_currentStep == 2 && !_educationFormKey.currentState!.validate()) return;
     if (_currentStep == 3) {
-      if (_resumeBytes == null && _existingResumeUrl == null) {
-        _showSnack('Please upload your resume before continuing.');
+      if (_resumeBytes == null && (_existingResumeUrl == null || _existingResumeUrl!.isEmpty)) {
+        _showSnack('Please upload your resume before continuing.', isError: true);
         return;
       }
     }
@@ -183,9 +189,21 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   /// Edit mode: validates only the current section, then saves and returns to
   /// the profile page. Other sections are preserved (pre-filled from profile).
   void _saveFromCurrentStep() {
-    if (_currentStep == 0 && !_personalFormKey.currentState!.validate()) return;
+    if (_currentStep == 0) {
+      if (!_personalFormKey.currentState!.validate()) return;
+      if (_photoBytes == null && (_existingPhotoUrl == null || _existingPhotoUrl!.isEmpty)) {
+        _showSnack('Please upload a profile photo before saving.', isError: true);
+        return;
+      }
+    }
     if (_currentStep == 1 && !_academicFormKey.currentState!.validate()) return;
     if (_currentStep == 2 && !_educationFormKey.currentState!.validate()) return;
+    if (_currentStep == 3) {
+      if (_resumeBytes == null && (_existingResumeUrl == null || _existingResumeUrl!.isEmpty)) {
+        _showSnack('Please upload your resume before saving.', isError: true);
+        return;
+      }
+    }
     _submit();
   }
 
@@ -302,6 +320,11 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
   Future<void> _submit() async {
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
+
+    if (_photoBytes == null && (_existingPhotoUrl == null || _existingPhotoUrl!.isEmpty)) {
+      _showSnack('Profile photo is mandatory. Please upload a profile photo.', isError: true);
+      return;
+    }
 
     final data = StudentOnboardingData(
       fullName: _nameController.text.trim(),
@@ -537,40 +560,69 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
           ),
           const SizedBox(height: AppSpacing.sp5),
 
-          // Photo picker
+          // Photo picker (Mandatory)
           Center(
-            child: GestureDetector(
-              onTap: _pickPhoto,
-              child: Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 52,
-                    backgroundColor: brandTheme.surfaceAlt,
-                    backgroundImage: _photoBytes != null
-                        ? MemoryImage(_photoBytes!)
-                        : (_existingPhotoUrl != null
-                            ? NetworkImage(_existingPhotoUrl!) as ImageProvider
-                            : null),
-                    child: (_photoBytes == null && _existingPhotoUrl == null)
-                        ? Icon(Icons.person_rounded,
-                            size: 48, color: brandTheme.textMuted)
-                        : null,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        gradient: brandTheme.brassGradient,
-                        shape: BoxShape.circle,
+            child: Column(
+              children: [
+                GestureDetector(
+                  onTap: _pickPhoto,
+                  child: Stack(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(3),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: (_photoBytes == null && (_existingPhotoUrl == null || _existingPhotoUrl!.isEmpty))
+                                ? Colors.redAccent
+                                : brandTheme.brassPrimary.withValues(alpha: 0.5),
+                            width: 2,
+                          ),
+                        ),
+                        child: CircleAvatar(
+                          radius: 52,
+                          backgroundColor: brandTheme.surfaceAlt,
+                          backgroundImage: _photoBytes != null
+                              ? MemoryImage(_photoBytes!)
+                              : (_existingPhotoUrl != null && _existingPhotoUrl!.isNotEmpty
+                                  ? NetworkImage(_existingPhotoUrl!) as ImageProvider
+                                  : null),
+                          child: (_photoBytes == null && (_existingPhotoUrl == null || _existingPhotoUrl!.isEmpty))
+                              ? Icon(Icons.person_add_alt_1_rounded,
+                                  size: 48, color: brandTheme.textMuted)
+                              : null,
+                        ),
                       ),
-                      child: Icon(Icons.camera_alt_rounded,
-                          size: 14, color: brandTheme.onBrass),
-                    ),
+                      Positioned(
+                        bottom: 0,
+                        right: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            gradient: brandTheme.brassGradient,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.camera_alt_rounded,
+                              size: 16, color: brandTheme.onBrass),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: AppSpacing.sp2),
+                Text(
+                  (_photoBytes != null || (_existingPhotoUrl != null && _existingPhotoUrl!.isNotEmpty))
+                      ? 'Change Profile Photo'
+                      : 'Upload Profile Photo * (Required)',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: (_photoBytes == null && (_existingPhotoUrl == null || _existingPhotoUrl!.isEmpty))
+                        ? Colors.redAccent
+                        : brandTheme.brassPrimary,
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: AppSpacing.sp5),

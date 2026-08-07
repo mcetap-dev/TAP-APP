@@ -226,14 +226,15 @@ class _DriveCreationWizardState extends ConsumerState<DriveCreationWizard> {
               if (!isDeptEligible) continue;
             }
 
+            final studentName = (student['name'] as String?) ?? 'Student';
             if (email != null && email.contains('@')) {
               emailService.sendDrivePublishedEmail(
                 recipientEmail: email,
+                studentName: studentName,
                 companyName: companyName,
                 roleTitle: roleTitle,
                 package: package,
                 registrationDeadline: deadlineStr,
-                driveDate: deadlineStr,
               );
             }
 

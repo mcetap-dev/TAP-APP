@@ -322,6 +322,11 @@ class EmailNotificationService {
       recipientEmail: recipientEmail,
       subject: 'Attendance Confirmed: $companyName Drive',
       emailType: 'attendance_marked',
+      metadata: {
+        'companyName': companyName,
+        'date': date,
+        'time': time,
+      },
       htmlBody: _wrapTemplate(
         'Attendance Confirmation',
         '''
@@ -343,6 +348,12 @@ class EmailNotificationService {
       recipientEmail: recipientEmail,
       subject: 'Congratulations! Qualified for $nextRoundName — $companyName',
       emailType: 'round_qualified',
+      metadata: {
+        'studentName': studentName,
+        'companyName': companyName,
+        'qualifiedRound': qualifiedRound,
+        'nextRoundName': nextRoundName,
+      },
       htmlBody: _wrapTemplate(
         'Round Advancement Notice',
         '''
@@ -364,6 +375,12 @@ class EmailNotificationService {
       recipientEmail: recipientEmail,
       subject: 'Drive Status Update: $companyName',
       emailType: 'round_rejected',
+      metadata: {
+        'studentName': studentName,
+        'companyName': companyName,
+        'rejectedRound': rejectedRound,
+        if (remarks != null) 'remarks': remarks,
+      },
       htmlBody: _wrapTemplate(
         'Drive Update',
         '''
@@ -386,6 +403,12 @@ class EmailNotificationService {
       recipientEmail: recipientEmail,
       subject: 'JOB OFFER: Selection Confirmed at $companyName!',
       emailType: 'offer_released',
+      metadata: {
+        'studentName': studentName,
+        'companyName': companyName,
+        'roleTitle': roleTitle,
+        'package': package,
+      },
       htmlBody: _wrapTemplate(
         'Job Offer Released',
         '''
@@ -407,6 +430,11 @@ class EmailNotificationService {
       recipientEmail: recipientEmail,
       subject: 'Appointment as Faculty Coordinator — $department',
       emailType: 'faculty_appointment',
+      metadata: {
+        'facultyName': facultyName,
+        'department': department,
+        if (appointmentDate != null) 'appointmentDate': appointmentDate,
+      },
       htmlBody: _wrapTemplate(
         'Faculty Coordinator Appointment',
         '''
@@ -423,22 +451,42 @@ class EmailNotificationService {
     );
   }
 
-  void sendDrivePublishedEmail({required String recipientEmail, required String companyName, required String roleTitle, required String package, required String registrationDeadline, required String driveDate}) {
+  void sendDrivePublishedEmail({
+    required String recipientEmail,
+    required String studentName,
+    required String companyName,
+    required String roleTitle,
+    required String package,
+    required String registrationDeadline,
+    String? driveDate,
+  }) {
     sendEmail(
       recipientEmail: recipientEmail,
       subject: 'New Placement Drive Announced: $companyName ($roleTitle)',
       emailType: 'drive_published',
+      metadata: {
+        'studentName': studentName,
+        'companyName': companyName,
+        'roleTitle': roleTitle,
+        'package': package,
+        'registrationDeadline': registrationDeadline,
+        if (driveDate != null) 'driveDate': driveDate,
+      },
       htmlBody: _wrapTemplate(
         'New Placement Drive',
         '''
         <h2>New Placement Drive Announced</h2>
-        <p>A new recruitment drive matching your branch eligibility has been published.</p>
+        <p>Dear <strong>$studentName</strong>,</p>
+        <p>A new placement recruitment drive matching your department/branch eligibility has been published.</p>
         <table class="info-table">
           <tr><td class="label">Company Name</td><td class="value"><strong>$companyName</strong></td></tr>
           <tr><td class="label">Role Title</td><td class="value">$roleTitle</td></tr>
-          <tr><td class="label">Package</td><td class="value">$package</td></tr>
-          <tr><td class="label">Deadline</td><td class="value">$registrationDeadline</td></tr>
+          <tr><td class="label">Package (CTC)</td><td class="value">$package</td></tr>
+          <tr><td class="label">Registration Deadline</td><td class="value">$registrationDeadline</td></tr>
         </table>
+        <div class="highlight-box">
+          Please log into MCE Placement Connect before the registration deadline to review full job requirements and submit your application.
+        </div>
         ''',
       ),
     );
@@ -449,6 +497,10 @@ class EmailNotificationService {
       recipientEmail: recipientEmail,
       subject: 'URGENT: Placement Drive Update — $companyName',
       emailType: 'drive_cancelled',
+      metadata: {
+        'companyName': companyName,
+        'reason': reason,
+      },
       htmlBody: _wrapTemplate(
         'Placement Drive Update',
         '''
@@ -465,6 +517,12 @@ class EmailNotificationService {
       recipientEmail: recipientEmail,
       subject: 'Placement Action Required: $reminderTitle',
       emailType: 'reminder',
+      metadata: {
+        'studentName': studentName,
+        'reminderTitle': reminderTitle,
+        'message': message,
+        if (deadline != null) 'deadline': deadline,
+      },
       htmlBody: _wrapTemplate(
         'Action Required',
         '''
@@ -482,6 +540,9 @@ class EmailNotificationService {
       recipientEmail: recipientEmail,
       subject: subject,
       emailType: 'general',
+      metadata: {
+        'message': message,
+      },
       htmlBody: _wrapTemplate('Notice', '<p>$message</p>'),
     );
   }

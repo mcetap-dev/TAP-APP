@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../auth/domain/entities/user_profile.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/faculty_provider.dart';
@@ -339,7 +340,7 @@ class _StudentApprovalQueueScreenState
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) => DefaultTabController(
-        length: 4,
+        length: 3,
         child: Container(
           height: MediaQuery.of(ctx).size.height * 0.85,
           padding: EdgeInsets.only(
@@ -367,14 +368,19 @@ class _StudentApprovalQueueScreenState
                   CircleAvatar(
                     radius: 24,
                     backgroundColor: (brandTheme?.brassPrimary ?? Colors.amber).withValues(alpha: 0.15),
-                    child: Text(
-                      student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
-                      style: GoogleFonts.ibmPlexMono(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: brandTheme?.brassPrimary ?? theme.colorScheme.primary,
-                      ),
-                    ),
+                    backgroundImage: (student.photoUrl != null && student.photoUrl!.isNotEmpty)
+                        ? NetworkImage(student.photoUrl!)
+                        : null,
+                    child: (student.photoUrl == null || student.photoUrl!.isEmpty)
+                        ? Text(
+                            student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
+                            style: GoogleFonts.ibmPlexMono(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                              color: brandTheme?.brassPrimary ?? theme.colorScheme.primary,
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -418,7 +424,6 @@ class _StudentApprovalQueueScreenState
                 tabs: const [
                   Tab(text: 'Personal Info'),
                   Tab(text: 'Academic Info'),
-                  Tab(text: 'Documents'),
                   Tab(text: 'Account Info'),
                 ],
               ),
@@ -439,9 +444,10 @@ class _StudentApprovalQueueScreenState
                       ),
                     ),
 
-                    // Academic Info Tab
+                    // Academic Info Tab (Integrated Resume)
                     SingleChildScrollView(
                       child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _detailItem(Icons.grade_outlined, '10th Percentage', student.tenthPercent != null ? '${student.tenthPercent}%' : 'N/A', brandTheme),
                           _detailItem(Icons.school_outlined, '12th / Diploma %', student.twelfthOrDiplomaPercent != null ? '${student.twelfthOrDiplomaPercent}%' : 'N/A', brandTheme),
@@ -449,25 +455,82 @@ class _StudentApprovalQueueScreenState
                           _detailItem(Icons.history_edu_outlined, 'Active Backlogs', '${student.activeBacklogs}', brandTheme),
                           if (student.rejectionReason != null && student.rejectionReason!.isNotEmpty)
                             _detailItem(Icons.error_outline_rounded, 'Rejection Reason', student.rejectionReason!, brandTheme, isError: true),
-                        ],
-                      ),
-                    ),
-
-                    // Documents Tab
-                    SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Uploaded Documents', style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13)),
                           const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 10,
-                            runSpacing: 10,
-                            children: [
-                              _documentChip('Resume', student.resumeUrl != null, brandTheme),
-                              _documentChip('Photo ID', student.photoUrl != null, brandTheme),
-                              _documentChip('ID Proof', student.idProofUrl != null, brandTheme),
-                            ],
+                          Divider(color: (brandTheme?.cardBorder ?? Colors.grey).withValues(alpha: 0.3)),
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Row(
+                              children: [
+                                Icon(Icons.description_outlined, size: 18, color: brandTheme?.textMuted ?? Colors.grey),
+                                const SizedBox(width: 10),
+                                Text('Resume: ', style: GoogleFonts.inter(fontSize: 13, color: brandTheme?.textMuted)),
+                                const SizedBox(width: 4),
+                                if (student.resumeUrl != null && student.resumeUrl!.isNotEmpty)
+                                  InkWell(
+                                    onTap: () async {
+                                      final urlStr = student.resumeUrl!;
+                                      final uri = Uri.parse(urlStr);
+                                      try {
+                                        final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                        if (!ok) {
+                                          await launchUrl(uri, mode: LaunchMode.platformDefault);
+                                        }
+                                      } catch (_) {
+                                        try {
+                                          final gdocUri = Uri.parse('https://docs.google.com/gview?embedded=true&url=${Uri.encodeComponent(urlStr)}');
+                                          await launchUrl(gdocUri, mode: LaunchMode.externalApplication);
+                                        } catch (e) {
+                                          if (ctx.mounted) {
+                                            ScaffoldMessenger.of(ctx).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Could not open resume. Please check internet connection or PDF viewer.'),
+                                                behavior: SnackBarBehavior.floating,
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      }
+                                    },
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                      decoration: BoxDecoration(
+                                        color: (brandTheme?.brassPrimary ?? Colors.amber).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: (brandTheme?.brassPrimary ?? Colors.amber).withValues(alpha: 0.4)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.picture_as_pdf_rounded, size: 15, color: brandTheme?.brassPrimary ?? Colors.amber),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            'View Resume 📄',
+                                            style: GoogleFonts.inter(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              color: brandTheme?.brassPrimary ?? Colors.amber,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Icon(Icons.open_in_new_rounded, size: 13, color: brandTheme?.brassPrimary ?? Colors.amber),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  Text(
+                                    'Resume not uploaded.',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey.shade500,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -479,7 +542,6 @@ class _StudentApprovalQueueScreenState
                         children: [
                           _detailItem(Icons.calendar_today_outlined, 'Registered Date', '${student.createdAt.day}/${student.createdAt.month}/${student.createdAt.year}', brandTheme),
                           _detailItem(Icons.verified_user_outlined, 'Approval Status', student.approvalStatus.name.toUpperCase(), brandTheme),
-                          _detailItem(Icons.privacy_tip_outlined, 'Consent Status', student.consentStatus.name, brandTheme),
                         ],
                       ),
                     ),
@@ -489,7 +551,8 @@ class _StudentApprovalQueueScreenState
               const SizedBox(height: 12),
               Row(
                 children: [
-                  if (student.approvalStatus == ApprovalStatus.pending) ...[
+                  // Show Reject button for Pending or Approved students
+                  if (student.approvalStatus == ApprovalStatus.pending || student.approvalStatus == ApprovalStatus.approved) ...[
                     Expanded(
                       child: OutlinedButton.icon(
                         onPressed: () {
@@ -497,79 +560,45 @@ class _StudentApprovalQueueScreenState
                           _rejectStudent(student);
                         },
                         icon: const Icon(Icons.close_rounded, color: Colors.red, size: 16),
-                        label: const Text(
-                          'Reject',
-                          style: TextStyle(color: Colors.red),
+                        label: Text(
+                          student.approvalStatus == ApprovalStatus.approved ? 'Reject Student' : 'Reject',
+                          style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                         ),
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Colors.red.shade300),
+                          side: BorderSide(color: Colors.red.shade300, width: 1.5),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    if (student.approvalStatus == ApprovalStatus.pending) const SizedBox(width: 12),
                   ],
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        _approveStudent(student);
-                      },
-                      icon: const Icon(Icons.check_rounded, size: 16),
-                      label: Text(
-                        student.approvalStatus == ApprovalStatus.approved
-                            ? 'Approve'
-                            : student.approvalStatus == ApprovalStatus.rejected
-                                ? 'Re-Approve'
-                                : 'Approve',
-                      ),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: Colors.green.shade600,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                  // Show Approve button for Pending or Rejected students
+                  if (student.approvalStatus == ApprovalStatus.pending || student.approvalStatus == ApprovalStatus.rejected) ...[
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _approveStudent(student);
+                        },
+                        icon: const Icon(Icons.check_rounded, size: 16),
+                        label: Text(
+                          student.approvalStatus == ApprovalStatus.rejected
+                              ? 'Re-Approve Student'
+                              : 'Approve',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.green.shade600,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _documentChip(String label, bool isAvailable, AppBrandTheme? brandTheme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: isAvailable
-            ? (brandTheme?.brassPrimary ?? Colors.amber).withValues(alpha: 0.1)
-            : Colors.grey.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: isAvailable
-              ? (brandTheme?.brassPrimary ?? Colors.amber).withValues(alpha: 0.3)
-              : Colors.grey.withValues(alpha: 0.3),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            isAvailable ? Icons.description_outlined : Icons.remove_circle_outline,
-            size: 16,
-            color: isAvailable ? (brandTheme?.brassPrimary ?? Colors.amber) : Colors.grey,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: isAvailable ? null : Colors.grey,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -833,34 +862,36 @@ class _StudentApprovalQueueScreenState
                             ),
                           ),
                           const SizedBox(width: 12),
-                          InkWell(
-                            onTap: () => _batchApprove(combinedList),
-                            borderRadius: BorderRadius.circular(100),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: Colors.green.shade600,
-                                borderRadius: BorderRadius.circular(100),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.check_rounded, size: 16, color: Colors.white),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Approve',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700,
-                                      color: Colors.white,
+                          if (activeTab == 0 || activeTab == 2) ...[
+                            InkWell(
+                              onTap: () => _batchApprove(combinedList),
+                              borderRadius: BorderRadius.circular(100),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade600,
+                                  borderRadius: BorderRadius.circular(100),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.check_rounded, size: 16, color: Colors.white),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      activeTab == 2 ? 'Re-Approve' : 'Approve',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-                          ),
-                          if (activeTab == 0) ...[
-                            const SizedBox(width: 8),
+                          ],
+                          if (activeTab == 0 || activeTab == 1) ...[
+                            if (activeTab == 0) const SizedBox(width: 8),
                             InkWell(
                               onTap: () => _batchReject(combinedList),
                               borderRadius: BorderRadius.circular(100),

@@ -310,24 +310,44 @@ class _DriveQrCodeModalState extends ConsumerState<DriveQrCodeModal>
                                 ),
                               ),
                               const SizedBox(width: 12),
-                              OutlinedButton.icon(
-                                onPressed: records.isEmpty
-                                    ? null
-                                    : () => showAttendanceExportDialog(
-                                          context: context,
-                                          records: records,
-                                          companyName:
-                                              widget.drive.companyName,
-                                          roleTitle:
-                                              widget.drive.roleTitle,
-                                        ),
-                                icon: Icon(Icons.file_download_rounded,
-                                    size: 16, color: accent),
-                                label: Text('Export',
-                                    style: TextStyle(
-                                        color: accent,
-                                        fontWeight: FontWeight.w600)),
-                              ),
+                               OutlinedButton.icon(
+                                 onPressed: () {
+                                   if (records.isEmpty) {
+                                     ScaffoldMessenger.of(context).showSnackBar(
+                                       SnackBar(
+                                         content: Row(
+                                           children: const [
+                                             Icon(Icons.warning_amber_rounded, color: Colors.amberAccent, size: 20),
+                                             SizedBox(width: 10),
+                                             Expanded(
+                                               child: Text(
+                                                 'No students scanned yet to export.',
+                                                 style: TextStyle(fontWeight: FontWeight.w600),
+                                               ),
+                                             ),
+                                           ],
+                                         ),
+                                         backgroundColor: const Color(0xFF23242A),
+                                         behavior: SnackBarBehavior.floating,
+                                         duration: const Duration(seconds: 3),
+                                       ),
+                                     );
+                                     return;
+                                   }
+                                   showAttendanceExportDialog(
+                                     context: context,
+                                     records: records,
+                                     companyName: widget.drive.companyName,
+                                     roleTitle: widget.drive.roleTitle,
+                                   );
+                                 },
+                                 icon: Icon(Icons.file_download_rounded,
+                                     size: 16, color: accent),
+                                 label: Text('Export',
+                                     style: TextStyle(
+                                         color: accent,
+                                         fontWeight: FontWeight.w600)),
+                               ),
                             ],
                           ),
                         ),

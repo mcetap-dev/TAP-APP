@@ -1223,16 +1223,23 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
   Future<void> _openResume(String url) async {
     final uri = Uri.parse(url);
     try {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok) {
+        await launchUrl(uri, mode: LaunchMode.platformDefault);
+      }
     } catch (e) {
-      debugPrint('[Resume] Failed to open URL: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Could not open resume. Please try again later.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+      try {
+        final gdocUri = Uri.parse('https://docs.google.com/gview?embedded=true&url=${Uri.encodeComponent(url)}');
+        await launchUrl(gdocUri, mode: LaunchMode.externalApplication);
+      } catch (_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open resume. Please check internet connection or PDF viewer.'),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
       }
     }
   }

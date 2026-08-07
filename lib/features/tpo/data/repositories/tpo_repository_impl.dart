@@ -268,23 +268,24 @@ class TpoRepositoryImpl implements TpoRepository {
               // Notify all eligible approved students
               final students = await _supabase
                   .from('profiles')
-                  .select('id, email')
+                  .select('id, email, name')
                   .eq('role', 'student')
                   .eq('approval_status', 'approved');
 
               final studentIds = <String>[];
               for (final s in (students as List)) {
                 final email = s['email'] as String?;
+                final name = (s['name'] as String?) ?? 'Student';
                 final sid = s['id'] as String?;
                 if (sid != null && sid.isNotEmpty) studentIds.add(sid);
                 if (email != null && email.isNotEmpty) {
                   _emailService!.sendDrivePublishedEmail(
                     recipientEmail: email,
+                    studentName: name,
                     companyName: companyName,
                     roleTitle: roleTitle,
                     package: (driveRes['ctc_or_stipend'] as String?) ?? 'As per policy',
                     registrationDeadline: (driveRes['application_deadline'] as String?) ?? 'N/A',
-                    driveDate: (driveRes['start_date'] as String?) ?? 'To be announced',
                   );
                 }
               }
