@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/theme_extensions.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../shared/presentation/widgets/app_logo.dart';
 
 class FacultyWaitingScreen extends ConsumerStatefulWidget {
   const FacultyWaitingScreen({super.key});
@@ -47,21 +47,7 @@ class _FacultyWaitingScreenState extends ConsumerState<FacultyWaitingScreen> {
             children: [
               const SizedBox(height: 24),
 
-              // Waiting Icon Graphic
-              Container(
-                width: 90,
-                height: 90,
-                decoration: BoxDecoration(
-                  color: brandTheme.brassSoft,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: brandTheme.brassPrimary.withValues(alpha: 0.4), width: 2),
-                ),
-                child: Icon(
-                  Icons.hourglass_top_rounded,
-                  size: 44,
-                  color: brandTheme.brassPrimary,
-                ),
-              ),
+              const AppLogo(size: 90, showGlow: true),
 
               const SizedBox(height: 24),
 

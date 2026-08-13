@@ -5,7 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../providers/auth_provider.dart';
 import '../../domain/entities/user_profile.dart';
-import '../../../../core/utils/validators.dart';
+import '../../../../shared/presentation/widgets/app_logo.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_spacing.dart';
 
@@ -230,31 +230,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         final dy = -8 * (1 - (val - 0.5).abs() * 2);
                         return Transform.translate(
                           offset: Offset(0, dy),
-                          child: Container(
-                            width: 110,
-                            height: 110,
-                            decoration: BoxDecoration(
-                              gradient: brandTheme.brassGradient,
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(42),
-                                topRight: Radius.circular(68),
-                                bottomLeft: Radius.circular(68),
-                                bottomRight: Radius.circular(46),
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: brandTheme.brassSoft,
-                                  blurRadius: 40,
-                                  offset: const Offset(0, 20),
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Icon(
-                                Icons.workspace_premium_rounded,
-                                size: 52,
-                                color: brandTheme.onBrass,
-                              ),
+                          child: const AppLogo(
+                            size: 110,
+                            showGlow: true,
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(42),
+                              topRight: Radius.circular(68),
+                              bottomLeft: Radius.circular(68),
+                              bottomRight: Radius.circular(46),
                             ),
                           ),
                         );

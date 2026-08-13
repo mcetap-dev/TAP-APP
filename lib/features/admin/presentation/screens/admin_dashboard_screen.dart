@@ -7,6 +7,7 @@ import '../providers/admin_provider.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/presentation/widgets/skeleton_loader.dart';
+import '../../../../shared/presentation/widgets/app_logo.dart';
 
 class AdminDashboardScreen extends ConsumerWidget {
   const AdminDashboardScreen({super.key});
@@ -20,6 +21,10 @@ class AdminDashboardScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
+        leading: const Padding(
+          padding: EdgeInsets.all(8.0),
+          child: AppLogo(size: 32),
+        ),
         title: Text('System Administration', style: GoogleFonts.fraunces(fontWeight: FontWeight.w600)),
         backgroundColor: theme.colorScheme.surface,
         foregroundColor: theme.colorScheme.onSurface,

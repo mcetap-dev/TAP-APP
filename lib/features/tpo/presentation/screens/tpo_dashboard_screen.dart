@@ -12,6 +12,7 @@ import '../../../../shared/presentation/widgets/skeleton_loader.dart';
 import '../../../../shared/presentation/widgets/state_block_widget.dart';
 import '../../../../shared/presentation/widgets/status_thread_widget.dart';
 import '../../../../shared/presentation/widgets/subtle_divider.dart';
+import '../../../../shared/presentation/widgets/app_logo.dart';
 import '../widgets/drive_qr_code_modal.dart';
 import 'drive_creation_wizard.dart';
 
@@ -174,6 +175,8 @@ class _TpoDashboardScreenState extends ConsumerState<TpoDashboardScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              const AppLogo(size: 42, showGlow: true),
+              const SizedBox(width: AppSpacing.sp3),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

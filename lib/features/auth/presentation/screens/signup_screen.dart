@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
+import '../../../../shared/presentation/widgets/app_logo.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/usn_parser.dart';
@@ -137,6 +138,8 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  const SizedBox(height: 16),
+                  const AppLogo(size: 72, showGlow: true),
                   const SizedBox(height: 16),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,

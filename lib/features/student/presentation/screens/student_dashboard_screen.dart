@@ -12,6 +12,7 @@ import '../../../../shared/presentation/widgets/floating_pill_nav_bar.dart';
 import '../../../../shared/presentation/widgets/status_thread_widget.dart';
 import '../../../../shared/presentation/widgets/skeleton_loader.dart';
 import '../../../../shared/presentation/widgets/state_block_widget.dart';
+import '../../../../shared/presentation/widgets/app_logo.dart';
 import '../providers/student_drive_provider.dart';
 import '../../domain/entities/application.dart';
 import '../../domain/entities/drive.dart';
@@ -117,6 +118,8 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              const AppLogo(size: 42, showGlow: true),
+              const SizedBox(width: AppSpacing.sp3),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

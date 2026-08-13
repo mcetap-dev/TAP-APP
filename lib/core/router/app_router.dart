@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/domain/entities/user_profile.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/signup_screen.dart';
 import '../../features/auth/presentation/screens/otp_verification_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
@@ -57,28 +58,33 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     navigatorKey: _rootKey,
-    initialLocation: '/login',
+    initialLocation: '/splash',
     refreshListenable: refreshNotifier,
     redirect: (context, state) {
       final authState = ref.read(authNotifierProvider);
       final profile = authState.valueOrNull;
       final isLoggedIn = profile != null;
 
-      final authPaths = {'/login', '/signup', '/verify-otp', '/forgot-password'};
+      final authPaths = {'/splash', '/login', '/signup', '/verify-otp', '/forgot-password'};
       final isOnAuth = authPaths.any((p) => state.matchedLocation.startsWith(p));
 
-      // Still loading — don't redirect
-      if (authState.isLoading) return null;
+      // Still loading auth state — stay on splash screen
+      if (authState.isLoading) {
+        if (state.matchedLocation == '/splash') return null;
+        return '/splash';
+      }
 
       // Pending email OTP verification — keep the user on the OTP screen.
-      // Prevents skipping email verification after signup.
       final pendingOtp = ref.read(authNotifierProvider.notifier).pendingOtpEmail;
       if (pendingOtp != null && state.matchedLocation != '/verify-otp') {
         return '/verify-otp';
       }
 
       // Not logged in → must be on auth screen
-      if (!isLoggedIn && !isOnAuth) return '/login';
+      if (!isLoggedIn) {
+        if (isOnAuth && state.matchedLocation != '/splash') return null;
+        return '/login';
+      }
 
       // Logged in → handle redirection based on role and approval status
       if (isLoggedIn) {
@@ -101,7 +107,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return null; // Already on onboarding
         }
 
-        // Otherwise, if they are on an auth screen, redirect to their dashboard
+        // Otherwise, if they are on an auth screen or splash, redirect to their dashboard
         if (isOnAuth) {
           return _dashboardPath(profile.role);
         }
@@ -126,13 +132,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             state.matchedLocation == '/student/onboarding') {
           return '/student';
         }
-
-
       }
 
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/splash',
+        name: 'splash',
+        builder: (_, __) => const SplashScreen(),
+      ),
       GoRoute(
         path: '/login',
         name: 'login',

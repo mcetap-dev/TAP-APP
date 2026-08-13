@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../presentation/providers/auth_provider.dart';
+import '../../../../shared/presentation/widgets/app_logo.dart';
 
 class PendingApprovalScreen extends ConsumerWidget {
   const PendingApprovalScreen({super.key});
@@ -28,11 +29,7 @@ class PendingApprovalScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.hourglass_empty_rounded,
-                size: 80,
-                color: theme.colorScheme.primary,
-              ),
+              const AppLogo(size: 84, showGlow: true),
               const SizedBox(height: 24),
               Text(
                 'Awaiting Faculty Approval',

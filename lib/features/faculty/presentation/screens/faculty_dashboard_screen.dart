@@ -13,6 +13,7 @@ import '../../../../shared/presentation/widgets/skeleton_loader.dart';
 import '../../../../shared/presentation/widgets/state_block_widget.dart';
 import '../../../../shared/presentation/widgets/status_thread_widget.dart';
 import '../../../../shared/presentation/widgets/subtle_divider.dart';
+import '../../../../shared/presentation/widgets/app_logo.dart';
 import '../../../student/domain/entities/drive.dart';
 import '../../../tpo/presentation/providers/tpo_provider.dart';
 import 'student_approval_queue_screen.dart';
@@ -135,6 +136,8 @@ class _FacultyDashboardScreenState extends ConsumerState<FacultyDashboardScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              const AppLogo(size: 42, showGlow: true),
+              const SizedBox(width: AppSpacing.sp3),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
