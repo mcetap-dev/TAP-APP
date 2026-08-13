@@ -79,8 +79,14 @@ dev_dependencies:
   riverpod_generator: ^2.3.9
   drift_dev: ^2.14.1
   mocktail: ^1.0.5
+  flutter_launcher_icons: ^0.14.4
 
 flutter:
   uses-material-design: true
   assets:
     - assets/images/
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/mce_logo.jpg"

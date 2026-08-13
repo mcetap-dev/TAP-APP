@@ -3,11 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/theme_extensions.dart';
-import '../../../../core/theme/app_spacing.dart';
+import '../../../../core/services/email_notification_service.dart';
+import '../../../../shared/presentation/widgets/subtle_divider.dart';
 import '../../../student/domain/entities/drive.dart';
 import '../../../student/domain/entities/application.dart';
+import '../../domain/entities/drive_round.dart';
 import '../providers/tpo_provider.dart';
-import '../../../../core/services/email_notification_service.dart';
 
 class RoundManagementScreen extends ConsumerStatefulWidget {
   final Drive drive;
@@ -20,261 +21,11 @@ class RoundManagementScreen extends ConsumerStatefulWidget {
 
 class _RoundManagementScreenState
     extends ConsumerState<RoundManagementScreen> {
-  int? _selectedRoundIndex;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final brandTheme = theme.extension<AppBrandTheme>()!;
-    final roundsAsync = ref.watch(driveRoundsProvider(widget.drive.id));
-
-    return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
-      appBar: AppBar(
-        title: Text('Manage Recruitment',
-            style: GoogleFonts.fraunces(fontWeight: FontWeight.w600)),
-        backgroundColor: theme.colorScheme.surface,
-        foregroundColor: theme.colorScheme.onSurface,
-        elevation: 0,
-      ),
-      body: roundsAsync.when(
-        data: (rounds) {
-          if (rounds.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.hourglass_empty_rounded,
-                      size: 48, color: brandTheme.textMuted),
-                  const SizedBox(height: 12),
-                  Text('No recruitment rounds configured',
-                      style: GoogleFonts.inter(
-                          fontSize: 16, color: brandTheme.textMuted)),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Edit this drive to add recruitment rounds.\nStudents will progress through each round you configure.',
-                    style: GoogleFonts.inter(
-                        fontSize: 13, color: brandTheme.textMuted),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header info
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(
-                    AppSpacing.sp5, 0, AppSpacing.sp5, AppSpacing.sp3),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: brandTheme.brassPrimary.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                      color:
-                          brandTheme.brassPrimary.withValues(alpha: 0.15)),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.info_outline_rounded,
-                        size: 18, color: brandTheme.brassPrimary),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Select a round to view and manage students.',
-                            style: GoogleFonts.inter(
-                                fontSize: 12, color: brandTheme.textMuted),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Shortlist, reject, mark absent, or add remarks from here.',
-                            style: GoogleFonts.inter(
-                                fontSize: 11, color: brandTheme.textMuted),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Rounds list
-              Expanded(
-                child: ListView.builder(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: AppSpacing.sp5),
-                  itemCount: rounds.length,
-                  itemBuilder: (_, i) {
-                    final round = rounds[i];
-                    final isSelected = _selectedRoundIndex == i;
-                    final isLastRound = i == rounds.length - 1;
-                    final statusLower =
-                        widget.drive.status.toLowerCase();
-                    final isActive = statusLower == 'active' ||
-                        statusLower == 'ongoing';
-                    final isCompleted = statusLower == 'completed' ||
-                        statusLower == 'closed';
-
-                    return Container(
-                      margin:
-                          const EdgeInsets.only(bottom: AppSpacing.sp3),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSelected
-                              ? brandTheme.brassPrimary
-                              : brandTheme.cardBorder,
-                          width: isSelected ? 2 : 1,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          InkWell(
-                            onTap: () {
-                              setState(() => _selectedRoundIndex =
-                                  isSelected ? null : i);
-                            },
-                            borderRadius: BorderRadius.circular(16),
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    width: 40,
-                                    height: 40,
-                                    decoration: BoxDecoration(
-                                      color: isActive
-                                          ? brandTheme.brassPrimary
-                                              .withValues(alpha: 0.15)
-                                          : isCompleted
-                                              ? brandTheme
-                                                  .statusShortlisted
-                                                  .withValues(alpha: 0.15)
-                                              : brandTheme.cardBorder,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Center(
-                                      child: Text(
-                                        '${round.roundNumber}',
-                                        style: GoogleFonts.fraunces(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w600,
-                                          color: isActive
-                                              ? brandTheme.brassPrimary
-                                              : isCompleted
-                                                  ? brandTheme
-                                                      .statusShortlisted
-                                                  : brandTheme.textMuted,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          round.roundName,
-                                          style: GoogleFonts.inter(
-                                            fontSize: 15,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        if (round.scheduledDate !=
-                                            null) ...[
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            '${round.scheduledDate!.day}/${round.scheduledDate!.month}/${round.scheduledDate!.year}',
-                                            style:
-                                                GoogleFonts.ibmPlexMono(
-                                                    fontSize: 12,
-                                                    color: brandTheme
-                                                        .textMuted),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                  AnimatedRotation(
-                                    turns: isSelected ? 0.5 : 0,
-                                    duration: const Duration(
-                                        milliseconds: 200),
-                                    child: Icon(
-                                      Icons
-                                          .keyboard_arrow_down_rounded,
-                                      color: brandTheme.textMuted,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          if (isSelected) ...[
-                            const Divider(height: 1),
-                            _RoundExpandedSection(
-                              drive: widget.drive,
-                              roundNumber: round.roundNumber,
-                              roundName: round.roundName,
-                              isLastRound: isLastRound,
-                              totalRounds: rounds.length,
-                            ),
-                          ],
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          );
-        },
-        loading: () =>
-            const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Expanded Section — Stats + Search/Filter + Student List
-// =============================================================================
-
-class _RoundExpandedSection extends ConsumerStatefulWidget {
-  final Drive drive;
-  final int roundNumber;
-  final String roundName;
-  final bool isLastRound;
-  final int totalRounds;
-
-  const _RoundExpandedSection({
-    required this.drive,
-    required this.roundNumber,
-    required this.roundName,
-    required this.isLastRound,
-    required this.totalRounds,
-  });
-
-  @override
-  ConsumerState<_RoundExpandedSection> createState() =>
-      _RoundExpandedSectionState();
-}
-
-class _RoundExpandedSectionState
-    extends ConsumerState<_RoundExpandedSection> {
-  final Set<String> _selectedIds = {};
-  final _searchController = TextEditingController();
+  int? _selectedRoundNumber;
   String _searchQuery = '';
-  String _filterStatus = 'all';
+  String _filterStatus = 'all'; // 'all', 'current', 'completed', 'offered', 'rejected', 'absent'
+  final Set<String> _selectedAppIds = {};
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void dispose() {
@@ -286,182 +37,1368 @@ class _RoundExpandedSectionState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final brandTheme = theme.extension<AppBrandTheme>()!;
+    final roundsAsync = ref.watch(driveRoundsProvider(widget.drive.id));
+
+    return Scaffold(
+      backgroundColor: theme.scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Manage Recruitment',
+              style: GoogleFonts.fraunces(fontWeight: FontWeight.w600, fontSize: 18),
+            ),
+            Text(
+              '${widget.drive.companyName} · ${widget.drive.roleTitle}',
+              style: GoogleFonts.inter(fontSize: 11, color: brandTheme.textMuted),
+            ),
+          ],
+        ),
+        backgroundColor: theme.colorScheme.surface,
+        foregroundColor: theme.colorScheme.onSurface,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded, size: 20),
+            onPressed: () {
+              ref.invalidate(driveRoundsProvider(widget.drive.id));
+              if (_selectedRoundNumber != null) {
+                ref.invalidate(roundStudentsProvider((
+                  driveId: widget.drive.id,
+                  roundNumber: _selectedRoundNumber!,
+                )));
+              }
+            },
+            tooltip: 'Refresh Pipeline',
+          ),
+        ],
+      ),
+      body: roundsAsync.when(
+        data: (rounds) {
+          if (rounds.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.hourglass_empty_rounded, size: 48, color: brandTheme.textMuted),
+                  const SizedBox(height: 12),
+                  Text('No recruitment rounds configured',
+                      style: GoogleFonts.inter(fontSize: 16, color: brandTheme.textMuted)),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Edit this drive to add recruitment rounds.\nStudents will progress through each stage you configure.',
+                    style: GoogleFonts.inter(fontSize: 13, color: brandTheme.textMuted),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            );
+          }
+
+          // Default selected round to Round 1 if not set
+          _selectedRoundNumber ??= rounds.first.roundNumber;
+          final activeRoundObj = rounds.firstWhere(
+            (r) => r.roundNumber == _selectedRoundNumber,
+            orElse: () => rounds.first,
+          );
+
+          final isLastRound = activeRoundObj.roundNumber == rounds.last.roundNumber;
+
+          return Stack(
+            children: [
+              Column(
+                children: [
+                  // ── Top Visual Pipeline Stepper ─────────────────────────
+                  _buildPipelineStepper(rounds, theme, brandTheme),
+
+                  const SubtleDivider(height: 1),
+
+                  // ── Search & Filter Controls ────────────────────────────
+                  _buildSearchAndFilters(theme, brandTheme, isLastRound: isLastRound),
+
+                  // ── Active Stage Student List ───────────────────────────
+                  Expanded(
+                    child: _buildStudentStageList(
+                      rounds: rounds,
+                      activeRound: activeRoundObj,
+                      isLastRound: isLastRound,
+                      theme: theme,
+                      brandTheme: brandTheme,
+                    ),
+                  ),
+                ],
+              ),
+
+              // ── Floating Batch Action Bar ─────────────────────────────
+              if (_selectedAppIds.isNotEmpty)
+                _buildBatchActionBar(activeRoundObj, isLastRound, theme, brandTheme),
+            ],
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => Center(child: Text('Error: $e', style: GoogleFonts.inter(color: Colors.red))),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 1. Top Visual Recruitment Pipeline Stepper
+  // ---------------------------------------------------------------------------
+  Widget _buildPipelineStepper(
+    List<DriveRound> rounds,
+    ThemeData theme,
+    AppBrandTheme brandTheme,
+  ) {
+    return Container(
+      color: theme.colorScheme.surface,
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: List.generate(rounds.length, (index) {
+            final roundNum = rounds[index].roundNumber;
+            final roundName = rounds[index].roundName;
+            final isSelected = _selectedRoundNumber == roundNum;
+
+            final params = (driveId: widget.drive.id, roundNumber: roundNum);
+            final studentsAsync = ref.watch(roundStudentsProvider(params));
+            final candidateCount = studentsAsync.valueOrNull?.length ?? 0;
+
+            return Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedRoundNumber = roundNum;
+                      _selectedAppIds.clear();
+                    });
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? brandTheme.brassPrimary.withValues(alpha: 0.15)
+                          : theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: isSelected
+                            ? brandTheme.brassPrimary
+                            : brandTheme.cardBorder,
+                        width: isSelected ? 2.0 : 1.0,
+                      ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: brandTheme.brassPrimary.withValues(alpha: 0.25),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ]
+                          : null,
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 26,
+                          height: 26,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: isSelected
+                                ? brandTheme.brassPrimary
+                                : brandTheme.cardBorder,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '$roundNum',
+                              style: GoogleFonts.ibmPlexMono(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isSelected ? brandTheme.onBrass : brandTheme.textMuted,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              roundName,
+                              style: GoogleFonts.inter(
+                                fontSize: 13,
+                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                                color: isSelected
+                                    ? brandTheme.brassPrimary
+                                    : theme.colorScheme.onSurface,
+                              ),
+                            ),
+                            Text(
+                              '$candidateCount Candidates',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                color: brandTheme.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                if (index < rounds.length - 1)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: brandTheme.textMuted.withValues(alpha: 0.5),
+                    ),
+                  ),
+              ],
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 2. Search & Filter Bar
+  // ---------------------------------------------------------------------------
+  // Filter definitions: (value, label, icon, color, description)
+  // 'offered' is only shown on the last stage
+  static const _allFilters = [
+    ('all',      'All',         Icons.people_alt_rounded,      Colors.white,  'Everyone who appeared in this stage'),
+    ('pending',  'Awaiting',    Icons.hourglass_top_rounded,   Colors.amber,  'Currently in this stage, result not yet decided'),
+    ('cleared',  'Cleared ✓',   Icons.check_circle_rounded,    Colors.green,  'Passed this stage and moved to the next'),
+    ('offered',  'Offered 🏆',  Icons.emoji_events_rounded,    Colors.green,  'Received a job offer (final stage only)'),
+    ('rejected', 'Rejected',    Icons.cancel_rounded,          Colors.red,    'Did not qualify at this stage'),
+  ];
+
+  Widget _buildSearchAndFilters(ThemeData theme, AppBrandTheme brandTheme, {required bool isLastRound}) {
+    // Hide 'offered' filter on non-last stages
+    final visibleFilters = _allFilters.where((f) => f.$1 != 'offered' || isLastRound).toList();
+    // Reset to 'all' if current filter is 'offered' and we switched to non-last stage
+    if (_filterStatus == 'offered' && !isLastRound) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _filterStatus = 'all');
+      });
+    }
+    final activeFilter = visibleFilters.firstWhere((f) => f.$1 == _filterStatus, orElse: () => visibleFilters.first);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Search Bar
+          Container(
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFF141519),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                Icon(Icons.search_rounded, size: 18, color: Colors.white.withValues(alpha: 0.5)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    style: GoogleFonts.inter(fontSize: 13, color: Colors.white),
+                    cursorColor: brandTheme.brassPrimary,
+                    decoration: InputDecoration(
+                      hintText: 'Search by name, USN, department or email…',
+                      hintStyle: GoogleFonts.inter(fontSize: 12, color: Colors.white38),
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                      filled: true,
+                      fillColor: Colors.transparent,
+                      hoverColor: Colors.transparent,
+                      focusColor: Colors.transparent,
+                    ),
+                    onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
+                  ),
+                ),
+                if (_searchQuery.isNotEmpty)
+                  GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _searchQuery = '';
+                        _searchController.clear();
+                      });
+                    },
+                    child: const Icon(Icons.clear_rounded, size: 16, color: Colors.white54),
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Filter Label
+          Padding(
+            padding: const EdgeInsets.only(left: 2, bottom: 6),
+            child: Text(
+              'FILTER BY STAGE RESULT',
+              style: GoogleFonts.ibmPlexMono(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+                color: Colors.white38,
+              ),
+            ),
+          ),
+
+          // Filter Chips Row
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: visibleFilters.map((f) {
+                final isActive = _filterStatus == f.$1;
+                final chipColor = f.$4 == Colors.white
+                    ? brandTheme.brassPrimary
+                    : f.$4 as Color;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: GestureDetector(
+                    onTap: () => setState(() => _filterStatus = f.$1),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 180),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? chipColor.withValues(alpha: 0.18)
+                            : Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(100),
+                        border: Border.all(
+                          color: isActive ? chipColor : Colors.white.withValues(alpha: 0.1),
+                          width: isActive ? 1.5 : 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            f.$3 as IconData,
+                            size: 12,
+                            color: isActive ? chipColor : Colors.white38,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            f.$2,
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                              color: isActive ? chipColor : Colors.white54,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+
+          // Active filter description
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 6, bottom: 2),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline_rounded, size: 11, color: Colors.white24),
+                const SizedBox(width: 4),
+                Text(
+                  activeFilter.$5,
+                  style: GoogleFonts.inter(fontSize: 11, color: Colors.white30, fontStyle: FontStyle.italic),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 3. Active Stage Student List View
+  // ---------------------------------------------------------------------------
+  Widget _buildStudentStageList({
+    required List<DriveRound> rounds,
+    required DriveRound activeRound,
+    required bool isLastRound,
+    required ThemeData theme,
+    required AppBrandTheme brandTheme,
+  }) {
     final params = (
       driveId: widget.drive.id,
-      roundNumber: widget.roundNumber,
+      roundNumber: activeRound.roundNumber,
     );
     final studentsAsync = ref.watch(roundStudentsProvider(params));
 
     return studentsAsync.when(
       data: (students) {
-        // Compute stats
-        final total = students.length;
-        final shortlisted =
-            students.where((s) => s['status'] == 'shortlisted').length;
-        final rejected =
-            students.where((s) => s['status'] == 'rejected').length;
-        final absentCount = students
-            .where((s) => s['attendance_status'] == 'absent')
-            .length;
-        final pending = total - shortlisted - rejected - absentCount;
-        final progress =
-            total > 0 ? ((shortlisted / total) * 100).round() : 0;
+        // Filter by Search & Status
+        final filteredStudents = students.where((s) {
+          final student = s['student'] as Map<String, dynamic>? ?? {};
+          final name = (student['name'] as String? ?? '').toLowerCase();
+          final usn = (student['usn'] as String? ?? '').toLowerCase();
+          final email = (student['email'] as String? ?? '').toLowerCase();
+          final dept = (student['department'] as String? ?? '').toLowerCase();
 
-        // Apply filters
-        final filtered = students.where((s) {
-          final student =
-              s['student'] as Map<String, dynamic>? ?? {};
-          final name =
-              (student['name'] as String? ?? '').toLowerCase();
-          final usn =
-              (student['usn'] as String? ?? '').toLowerCase();
           final matchesSearch = _searchQuery.isEmpty ||
-              name.contains(_searchQuery.toLowerCase()) ||
-              usn.contains(_searchQuery.toLowerCase());
+              name.contains(_searchQuery) ||
+              usn.contains(_searchQuery) ||
+              email.contains(_searchQuery) ||
+              dept.contains(_searchQuery);
 
+          final status = s['status'] as String? ?? 'applied';          // global app status
+          final roundResult = s['round_result'] as String? ?? 'pending'; // per-stage result from application_round_status
+          final appCurrentRound = s['current_round'] as int? ?? 1;
+
+          // ── Filter logic — based on per-stage round_result ──────────────────
+          // 'pending'  = in this stage, no verdict yet
+          // 'cleared'  = passed this stage, promoted to next
+          // 'rejected' = eliminated at this stage
+          // 'offered'  = selected (last stage)
           bool matchesFilter = true;
           if (_filterStatus == 'pending') {
-            matchesFilter = s['status'] == 'applied';
-          } else if (_filterStatus == 'shortlisted') {
-            matchesFilter = s['status'] == 'shortlisted';
+            matchesFilter = roundResult == 'pending' && status != 'rejected' && status != 'selected';
+          } else if (_filterStatus == 'cleared') {
+            matchesFilter = roundResult == 'cleared' || appCurrentRound > activeRound.roundNumber;
+          } else if (_filterStatus == 'offered') {
+            matchesFilter = status == 'selected' || status == 'offered';
           } else if (_filterStatus == 'rejected') {
-            matchesFilter = s['status'] == 'rejected';
-          } else if (_filterStatus == 'absent') {
-            matchesFilter = s['attendance_status'] == 'absent';
+            matchesFilter = roundResult == 'rejected' || status == 'rejected';
           }
 
           return matchesSearch && matchesFilter;
         }).toList();
 
-        return Column(
+        if (filteredStudents.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _searchQuery.isNotEmpty ? Icons.search_off_rounded : Icons.person_off_rounded,
+                  size: 44,
+                  color: brandTheme.textMuted,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _searchQuery.isNotEmpty ? 'No candidates match search' : 'No candidates in this stage filter',
+                  style: GoogleFonts.fraunces(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Try selecting a different filter or search term.',
+                  style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.separated(
+          padding: const EdgeInsets.only(left: 14, right: 14, top: 4, bottom: 90),
+          itemCount: filteredStudents.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 10),
+          itemBuilder: (context, index) {
+            final app = filteredStudents[index];
+            return _buildStudentCard(
+              app: app,
+              rounds: rounds,
+              activeRound: activeRound,
+              isLastRound: isLastRound,
+              theme: theme,
+              brandTheme: brandTheme,
+            );
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error loading candidates: $e', style: GoogleFonts.inter(color: Colors.red))),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 4. Student Card Item with Mini-Timeline Stepper
+  // ---------------------------------------------------------------------------
+  Widget _buildStudentCard({
+    required Map<String, dynamic> app,
+    required List<DriveRound> rounds,
+    required DriveRound activeRound,
+    required bool isLastRound,
+    required ThemeData theme,
+    required AppBrandTheme brandTheme,
+  }) {
+    final student = app['student'] as Map<String, dynamic>? ?? {};
+    final name = student['name'] as String? ?? 'Student';
+    final usn = student['usn'] as String? ?? 'N/A';
+    final dept = student['department'] as String? ?? 'N/A';
+    final cgpa = student['cgpa']?.toString() ?? 'N/A';
+    final photoUrl = student['photo_url'] as String?;
+    final appId = app['id'] as String;
+    final isSelected = _selectedAppIds.contains(appId);
+    final status = app['status'] as String? ?? 'applied';
+    final roundResult = app['round_result'] as String? ?? 'pending'; // per-stage result
+    final attendanceStatus = app['attendance_status'] as String?;
+    final appCurrentRound = app['current_round'] as int? ?? 1;
+
+    // Status badge — reflect the per-stage outcome, not the global app status
+    Color statusColor;
+    String statusLabel;
+    IconData statusIcon;
+
+    if (status == 'selected' || status == 'offered') {
+      statusColor = Colors.green.shade400;
+      statusLabel = 'Offered 🏆';
+      statusIcon = Icons.emoji_events_rounded;
+    } else if (roundResult == 'cleared' || appCurrentRound > activeRound.roundNumber) {
+      statusColor = brandTheme.brassPrimary;
+      statusLabel = 'Cleared ✓';
+      statusIcon = Icons.check_circle_rounded;
+    } else if (roundResult == 'rejected' || status == 'rejected') {
+      statusColor = Colors.red.shade400;
+      statusLabel = 'Rejected';
+      statusIcon = Icons.cancel_rounded;
+    } else {
+      // pending — still in this stage
+      statusColor = Colors.amber.shade400;
+      statusLabel = 'Awaiting';
+      statusIcon = Icons.hourglass_top_rounded;
+    }
+
+    return InkWell(
+      onTap: () => _showStudentTimelineSheet(
+        app: app,
+        student: student,
+        rounds: rounds,
+        activeRound: activeRound,
+        isLastRound: isLastRound,
+        theme: theme,
+        brandTheme: brandTheme,
+      ),
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? brandTheme.brassPrimary.withValues(alpha: 0.1)
+              : theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected
+                ? brandTheme.brassPrimary
+                : brandTheme.cardBorder,
+            width: isSelected ? 1.5 : 1.0,
+          ),
+        ),
+        padding: const EdgeInsets.all(14),
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Stats Bar ──────────────────────────────────────────
-            if (total > 0)
-              Container(
-                margin: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: brandTheme.surfaceAlt.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: brandTheme.cardBorder),
+            // Top Row: Checkbox, Avatar, Name & Overall Status
+            Row(
+              children: [
+                SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: Checkbox(
+                    value: isSelected,
+                    activeColor: brandTheme.brassPrimary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    onChanged: (val) {
+                      setState(() {
+                        if (val == true) {
+                          _selectedAppIds.add(appId);
+                        } else {
+                          _selectedAppIds.remove(appId);
+                        }
+                      });
+                    },
+                  ),
                 ),
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
+                const SizedBox(width: 8),
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: brandTheme.brassPrimary.withValues(alpha: 0.15),
+                  backgroundImage: photoUrl != null && photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                  child: photoUrl == null || photoUrl.isEmpty
+                      ? Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : 'S',
+                          style: GoogleFonts.fraunces(
+                            fontWeight: FontWeight.bold,
+                            color: brandTheme.brassPrimary,
+                            fontSize: 14,
+                          ),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _statBadge('Total', '$total', brandTheme.textMuted),
-                      const SizedBox(width: 12),
-                      _statBadge('Pending', '$pending', Colors.orange.shade300),
-                      const SizedBox(width: 12),
-                      _statBadge('Shortlisted', '$shortlisted', brandTheme.statusShortlisted),
-                      const SizedBox(width: 12),
-                      _statBadge('Rejected', '$rejected', brandTheme.statusRejected),
-                      const SizedBox(width: 12),
-                      _statBadge('Absent', '$absentCount', brandTheme.statusPending),
-                      const SizedBox(width: 12),
-                      _statBadge('Progress', '$progress%', brandTheme.brassPrimary),
+                      Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+                      ),
+                      Text(
+                        '$usn · $dept · CGPA: $cgpa',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(fontSize: 11, color: brandTheme.textMuted),
+                      ),
                     ],
                   ),
                 ),
-              ),
-
-            // ── Search & Filter ────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-              child: Column(
-                children: [
-                  TextField(
-                    controller: _searchController,
-                    onChanged: (v) =>
-                        setState(() => _searchQuery = v),
-                    decoration: InputDecoration(
-                      hintText: 'Search by name or USN...',
-                      hintStyle: GoogleFonts.inter(
-                          fontSize: 13, color: brandTheme.textMuted),
-                      prefixIcon: Icon(Icons.search_rounded,
-                          size: 18, color: brandTheme.textMuted),
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            BorderSide(color: brandTheme.cardBorder),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide:
-                            BorderSide(color: brandTheme.cardBorder),
-                      ),
-                    ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(100),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                   ),
-                  const SizedBox(height: 8),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _filterChip('All', 'all', brandTheme),
-                        const SizedBox(width: 6),
-                        _filterChip('Pending', 'pending', brandTheme),
-                        const SizedBox(width: 6),
-                        _filterChip(
-                            'Shortlisted', 'shortlisted', brandTheme),
-                        const SizedBox(width: 6),
-                        _filterChip(
-                            'Rejected', 'rejected', brandTheme),
-                        const SizedBox(width: 6),
-                        _filterChip(
-                            'Absent', 'absent', brandTheme),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(statusIcon, size: 12, color: statusColor),
+                      const SizedBox(width: 4),
+                      Text(
+                        statusLabel,
+                        style: GoogleFonts.inter(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Visual Mini-Timeline Stepper for EVERY Candidate
+            _buildCandidateMiniTimeline(
+              rounds: rounds,
+              appCurrentRound: appCurrentRound,
+              status: status,
+              brandTheme: brandTheme,
+            ),
+
+            const SizedBox(height: 10),
+
+            // Bottom Actions & Timestamp Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                if (app['attended_at'] != null)
+                  Row(
+                    children: [
+                      Icon(Icons.qr_code_scanner_rounded, size: 12, color: brandTheme.brassPrimary),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Scanned at ${_formatTime(app['attended_at'] as String)}',
+                        style: GoogleFonts.ibmPlexMono(fontSize: 10, color: brandTheme.brassPrimary),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    'Tap card for complete timeline',
+                    style: GoogleFonts.inter(fontSize: 11, color: brandTheme.textMuted, fontStyle: FontStyle.italic),
+                  ),
+                Row(
+                  children: [
+                    if (!isLastRound && status != 'rejected')
+                      TextButton.icon(
+                        onPressed: () => _moveToNextRound([appId]),
+                        icon: const Icon(Icons.arrow_forward_rounded, size: 14),
+                        label: Text('Promote', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold)),
+                        style: TextButton.styleFrom(
+                          foregroundColor: brandTheme.brassPrimary,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      )
+                    else if (isLastRound && status != 'rejected' && status != 'selected')
+                      TextButton.icon(
+                        onPressed: () => _offerSelected([appId]),
+                        icon: const Icon(Icons.emoji_events_rounded, size: 14),
+                        label: Text('Offer', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold)),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.green.shade400,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert_rounded, size: 18, color: brandTheme.textMuted),
+                      onSelected: (act) => _handleAction(act, app),
+                      itemBuilder: (_) => [
+                        if (!isLastRound && status != 'rejected')
+                          PopupMenuItem(
+                            value: 'move',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.arrow_forward_rounded, size: 16, color: Colors.amber),
+                                const SizedBox(width: 8),
+                                Text('Move to Next Round', style: GoogleFonts.inter(fontSize: 12)),
+                              ],
+                            ),
+                          )
+                        else if (isLastRound && status != 'selected')
+                          PopupMenuItem(
+                            value: 'offer',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.emoji_events_rounded, size: 16, color: Colors.green),
+                                const SizedBox(width: 8),
+                                Text('Offer Selection', style: GoogleFonts.inter(fontSize: 12, color: Colors.green)),
+                              ],
+                            ),
+                          ),
+                        PopupMenuItem(
+                          value: 'remarks',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.comment_rounded, size: 16, color: Colors.blue),
+                              const SizedBox(width: 8),
+                              Text('Add Remarks', style: GoogleFonts.inter(fontSize: 12)),
+                            ],
+                          ),
+                        ),
+                        if (status != 'rejected')
+                          PopupMenuItem(
+                            value: 'reject',
+                            child: Row(
+                              children: [
+                                const Icon(Icons.close_rounded, size: 16, color: Colors.red),
+                                const SizedBox(width: 8),
+                                Text('Reject Candidate', style: GoogleFonts.inter(fontSize: 12, color: Colors.red)),
+                              ],
+                            ),
+                          ),
+                        PopupMenuItem(
+                          value: 'absent',
+                          child: Row(
+                            children: [
+                              const Icon(Icons.event_busy_rounded, size: 16, color: Colors.orange),
+                              const SizedBox(width: 8),
+                              Text('Mark Absent', style: GoogleFonts.inter(fontSize: 12, color: Colors.orange)),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Candidate Mini-Timeline Progress Bar
+  // ---------------------------------------------------------------------------
+  Widget _buildCandidateMiniTimeline({
+    required List<DriveRound> rounds,
+    required int appCurrentRound,
+    required String status,
+    required AppBrandTheme brandTheme,
+  }) {
+    final isOffered = status == 'selected' || status == 'offered';
+    final isRejected = status == 'rejected';
+    final totalStages = rounds.length + 1; // +1 for Offer stage
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: List.generate(totalStages, (index) {
+          final isOfferStage = index == rounds.length;
+          final stageNum = index + 1; // 1-based for comparison with appCurrentRound
+          final roundName = isOfferStage ? 'Offer' : rounds[index].roundName;
+
+          // ── Compute state ───────────────────────────────────────
+          bool isCompleted = false;
+          bool isCurrent = false;
+          bool isStageRejected = false;
+          bool isPending = false;
+
+          if (isOfferStage) {
+            // Offer node is completed only if student is offered/selected
+            isCompleted = isOffered;
+          } else if (isOffered) {
+            // All rounds completed if offered
+            isCompleted = true;
+          } else if (isRejected) {
+            if (stageNum < appCurrentRound) isCompleted = true;
+            else if (stageNum == appCurrentRound) isStageRejected = true;
+            else isPending = true;
+          } else {
+            if (stageNum < appCurrentRound) isCompleted = true;
+            else if (stageNum == appCurrentRound) isCurrent = true;
+            else isPending = true;
+          }
+
+          // ── Colors & icon ───────────────────────────────────────
+          Color nodeColor;
+          Color labelColor;
+          Widget nodeIcon;
+          Color connectorColor;
+
+          if (isCompleted) {
+            nodeColor = const Color(0xFF22C55E); // vivid green
+            labelColor = const Color(0xFF4ADE80);
+            nodeIcon = const Icon(Icons.check_rounded, size: 12, color: Colors.white);
+            connectorColor = const Color(0xFF22C55E);
+          } else if (isStageRejected) {
+            nodeColor = const Color(0xFFEF4444);
+            labelColor = const Color(0xFFFCA5A5);
+            nodeIcon = const Icon(Icons.close_rounded, size: 12, color: Colors.white);
+            connectorColor = Colors.grey.shade800;
+          } else if (isCurrent) {
+            nodeColor = brandTheme.brassPrimary;
+            labelColor = brandTheme.brassPrimary;
+            nodeIcon = Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: brandTheme.onBrass,
+                shape: BoxShape.circle,
+              ),
+            );
+            connectorColor = Colors.grey.shade800;
+          } else {
+            // pending
+            nodeColor = Colors.grey.shade800;
+            labelColor = Colors.grey.shade600;
+            nodeIcon = const SizedBox.shrink();
+            connectorColor = Colors.grey.shade800;
+          }
+
+          final isLast = index == totalStages - 1;
+          const nodeSize = 24.0;
+          const connectorH = 2.0;
+          const connectorW = 24.0;
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Stage node + label
+              SizedBox(
+                width: 60,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Circle node
+                    Container(
+                      width: nodeSize,
+                      height: nodeSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: nodeColor,
+                        boxShadow: isCurrent
+                            ? [
+                                BoxShadow(
+                                  color: brandTheme.brassPrimary.withValues(alpha: 0.6),
+                                  blurRadius: 8,
+                                  spreadRadius: 1,
+                                ),
+                              ]
+                            : isCompleted
+                                ? [
+                                    BoxShadow(
+                                      color: const Color(0xFF22C55E).withValues(alpha: 0.4),
+                                      blurRadius: 6,
+                                    ),
+                                  ]
+                                : null,
+                        border: isCurrent
+                            ? Border.all(color: brandTheme.brassPrimary, width: 2)
+                            : null,
+                      ),
+                      child: Center(child: nodeIcon),
+                    ),
+                    const SizedBox(height: 4),
+                    // Round name below node
+                    Text(
+                      roundName,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 8.5,
+                        fontWeight: isCurrent || isCompleted ? FontWeight.w700 : FontWeight.w400,
+                        color: labelColor,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Connector line (skip on last)
+              if (!isLast)
+                Padding(
+                  padding: const EdgeInsets.only(top: nodeSize / 2 - connectorH / 2),
+                  child: Container(
+                    width: connectorW,
+                    height: connectorH,
+                    decoration: BoxDecoration(
+                      color: connectorColor,
+                      borderRadius: BorderRadius.circular(1),
+                    ),
                   ),
-                ],
+                ),
+            ],
+          );
+        }),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 5. Complete Student Recruitment Details Bottom Sheet
+  // ---------------------------------------------------------------------------
+  void _showStudentTimelineSheet({
+    required Map<String, dynamic> app,
+    required Map<String, dynamic> student,
+    required List<DriveRound> rounds,
+    required DriveRound activeRound,
+    required bool isLastRound,
+    required ThemeData theme,
+    required AppBrandTheme brandTheme,
+  }) {
+    final appId = app['id'] as String;
+    final name = student['name'] as String? ?? 'Student';
+    final usn = student['usn'] as String? ?? 'N/A';
+    final email = student['email'] as String? ?? 'N/A';
+    final dept = student['department'] as String? ?? 'N/A';
+    final cgpa = student['cgpa']?.toString() ?? 'N/A';
+    final phone = student['phone'] as String? ?? 'N/A';
+    final photoUrl = student['photo_url'] as String?;
+    final appCurrentRound = app['current_round'] as int? ?? 1;
+    final status = app['status'] as String? ?? 'applied';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Container(
+        height: MediaQuery.of(ctx).size.height * 0.85,
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          bottom: MediaQuery.of(ctx).padding.bottom + 16,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Header Profile Card
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 26,
+                  backgroundColor: brandTheme.brassPrimary.withValues(alpha: 0.15),
+                  backgroundImage: photoUrl != null && photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                  child: photoUrl == null || photoUrl.isEmpty
+                      ? Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : 'S',
+                          style: GoogleFonts.fraunces(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: brandTheme.brassPrimary,
+                          ),
+                        )
+                      : null,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name, style: GoogleFonts.fraunces(fontSize: 18, fontWeight: FontWeight.bold)),
+                      Text('$usn · $dept · $email', style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
+                      Text('CGPA: $cgpa · Phone: $phone', style: GoogleFonts.inter(fontSize: 11, color: brandTheme.textMuted)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 16),
+            const SubtleDivider(height: 1),
+            const SizedBox(height: 12),
+
+            Text(
+              'Recruitment Stage Progression',
+              style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.bold, color: brandTheme.brassPrimary),
+            ),
+            const SizedBox(height: 10),
+
+            // Full Vertical Recruitment Timeline
+            Expanded(
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final progressAsync = ref.watch(studentRoundProgressProvider(appId));
+
+                  return progressAsync.when(
+                    data: (progressList) {
+                      final progressMap = <String, Map<String, dynamic>>{};
+                      for (final p in progressList) {
+                        if (p['round_id'] != null) {
+                          progressMap[p['round_id'] as String] = p;
+                        }
+                      }
+
+                      return ListView.builder(
+                        itemCount: rounds.length,
+                        itemBuilder: (context, index) {
+                          final round = rounds[index];
+                          final roundNum = round.roundNumber;
+                          final roundProgress = progressMap[round.id];
+                          final isSelected = status == 'selected' || status == 'offered';
+                          final isRejected = status == 'rejected';
+
+                          bool isCompleted = false;
+                          bool isCurrent = false;
+                          bool isStageRejected = false;
+
+                          if (isSelected) {
+                            isCompleted = true;
+                          } else if (isRejected) {
+                            if (roundNum < appCurrentRound) {
+                              isCompleted = true;
+                            } else if (roundNum == appCurrentRound) {
+                              isStageRejected = true;
+                            }
+                          } else {
+                            if (roundNum < appCurrentRound) {
+                              isCompleted = true;
+                            } else if (roundNum == appCurrentRound) {
+                              isCurrent = true;
+                            }
+                          }
+
+                          final resultStr = roundProgress?['result'] as String? ?? (isCompleted ? 'cleared' : (isStageRejected ? 'rejected' : 'pending'));
+                          final remarks = roundProgress?['remarks'] as String?;
+
+                          Color stageColor = Colors.grey.shade700;
+                          String stageStatusText = 'Pending Stage';
+
+                          if (resultStr == 'cleared' || isCompleted) {
+                            stageColor = Colors.green.shade500;
+                            stageStatusText = 'Completed ✓';
+                          } else if (resultStr == 'rejected' || isStageRejected) {
+                            stageColor = Colors.red.shade500;
+                            stageStatusText = 'Rejected';
+                          } else if (isCurrent) {
+                            stageColor = brandTheme.brassPrimary;
+                            stageStatusText = 'Current Stage';
+                          }
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF141519),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: stageColor.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: stageColor.withValues(alpha: 0.2),
+                                  child: Text(
+                                    '$roundNum',
+                                    style: GoogleFonts.ibmPlexMono(
+                                      fontWeight: FontWeight.bold,
+                                      color: stageColor,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            round.roundName,
+                                            style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 13),
+                                          ),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: stageColor.withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(100),
+                                            ),
+                                            child: Text(
+                                              stageStatusText,
+                                              style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold, color: stageColor),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      if (round.scheduledDate != null) ...[
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Scheduled: ${round.scheduledDate!.day}/${round.scheduledDate!.month}/${round.scheduledDate!.year}',
+                                          style: GoogleFonts.ibmPlexMono(fontSize: 10, color: brandTheme.textMuted),
+                                        ),
+                                      ],
+                                      if (remarks != null && remarks.isNotEmpty) ...[
+                                        const SizedBox(height: 6),
+                                        Container(
+                                          padding: const EdgeInsets.all(8),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withValues(alpha: 0.04),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.comment_outlined, size: 12, color: brandTheme.brassPrimary),
+                                              const SizedBox(width: 6),
+                                              Expanded(
+                                                child: Text(
+                                                  'Remarks: $remarks',
+                                                  style: GoogleFonts.inter(fontSize: 11, color: Colors.white70),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      );
+                    },
+                    loading: () => const Center(child: CircularProgressIndicator()),
+                    error: (e, _) => Center(child: Text('Error: $e')),
+                  );
+                },
               ),
             ),
 
-            // ── Bulk Actions ───────────────────────────────────────
-            if (_selectedIds.isNotEmpty)
-              Container(
-                margin: const EdgeInsets.symmetric(horizontal: 16),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color:
-                      brandTheme.brassPrimary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
+            const SizedBox(height: 12),
+
+            // Bottom Action Bar inside Modal
+            Row(
+              children: [
+                if (!isLastRound && status != 'rejected')
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _moveToNextRound([appId]);
+                      },
+                      icon: const Icon(Icons.arrow_forward_rounded, size: 16),
+                      label: Text('Promote to Round ${activeRound.roundNumber + 1}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      style: FilledButton.styleFrom(backgroundColor: brandTheme.brassPrimary, foregroundColor: brandTheme.onBrass),
+                    ),
+                  )
+                else if (isLastRound && status != 'rejected' && status != 'selected')
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _offerSelected([appId]);
+                      },
+                      icon: const Icon(Icons.emoji_events_rounded, size: 16),
+                      label: const Text('Offer Selection', style: TextStyle(fontWeight: FontWeight.bold)),
+                      style: FilledButton.styleFrom(backgroundColor: Colors.green.shade600),
+                    ),
+                  ),
+                if (status != 'rejected') ...[
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      _rejectStudents([appId]);
+                    },
+                    icon: const Icon(Icons.close_rounded, size: 16, color: Colors.red),
+                    label: const Text('Reject', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(side: BorderSide(color: Colors.red.shade300)),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 6. Floating Batch Action Bar
+  // ---------------------------------------------------------------------------
+  Widget _buildBatchActionBar(
+    DriveRound activeRound,
+    bool isLastRound,
+    ThemeData theme,
+    AppBrandTheme brandTheme,
+  ) {
+    return Positioned(
+      left: 16,
+      right: 16,
+      bottom: 20,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(color: brandTheme.brassPrimary.withValues(alpha: 0.4), width: 1.5),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 16,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: brandTheme.brassPrimary.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: Text(
+                '${_selectedAppIds.length} Selected',
+                style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: brandTheme.brassPrimary),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    Text(
-                      '${_selectedIds.length} sel',
-                      style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: brandTheme.brassPrimary),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
+                    if (!isLastRound)
+                      InkWell(
+                        onTap: _bulkMoveNext,
+                        borderRadius: BorderRadius.circular(100),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: brandTheme.brassPrimary,
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.arrow_forward_rounded, size: 14, color: brandTheme.onBrass),
+                              const SizedBox(width: 4),
+                              Text('Promote Selected', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: brandTheme.onBrass)),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      InkWell(
+                        onTap: () => _offerSelected(_selectedAppIds.toList()),
+                        borderRadius: BorderRadius.circular(100),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade600,
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.emoji_events_rounded, size: 14, color: Colors.white),
+                              const SizedBox(width: 4),
+                              Text('Offer Selected', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: _bulkReject,
+                      borderRadius: BorderRadius.circular(100),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade600,
+                          borderRadius: BorderRadius.circular(100),
+                        ),
                         child: Row(
                           children: [
-                            _bulkAction(
-                                'Next',
-                                Icons.arrow_forward_rounded,
-                                brandTheme.statusShortlisted,
-                                _bulkMoveNext),
+                            const Icon(Icons.close_rounded, size: 14, color: Colors.white),
                             const SizedBox(width: 4),
-                            _bulkAction(
-                                'Reject',
-                                Icons.close_rounded,
-                                brandTheme.statusRejected,
-                                _bulkReject),
+                            Text('Reject Selected', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: _bulkAbsent,
+                      borderRadius: BorderRadius.circular(100),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade700,
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.event_busy_rounded, size: 14, color: Colors.white),
                             const SizedBox(width: 4),
-                            _bulkAction(
-                                'Absent',
-                                Icons.event_busy_rounded,
-                                brandTheme.statusPending,
-                                _bulkAbsent),
+                            Text('Mark Absent', style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white)),
                           ],
                         ),
                       ),
@@ -469,346 +1406,9 @@ class _RoundExpandedSectionState
                   ],
                 ),
               ),
-
-            // ── Student List ───────────────────────────────────────
-            if (filtered.isEmpty)
-              Padding(
-                padding: const EdgeInsets.all(24),
-                child: Center(
-                  child: Text(
-                    students.isEmpty
-                        ? 'No students available in this round.'
-                        : 'No students match your filter.',
-                    style: GoogleFonts.inter(
-                        fontSize: 13, color: brandTheme.textMuted),
-                  ),
-                ),
-              )
-            else
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
-                itemCount: filtered.length,
-                itemBuilder: (context, index) =>
-                    _buildStudentCard(filtered[index], theme, brandTheme),
-              ),
-          ],
-        );
-      },
-      loading: () => const Padding(
-        padding: EdgeInsets.all(24),
-        child: Center(child: CircularProgressIndicator()),
-      ),
-      error: (e, _) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Center(child: Text('Error: $e')),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Stat badge
-  // ---------------------------------------------------------------------------
-  Widget _statBadge(String label, String value, Color color) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          value,
-          style: GoogleFonts.fraunces(
-              fontSize: 13, fontWeight: FontWeight.w700, color: color),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: GoogleFonts.inter(
-              fontSize: 9, color: color.withValues(alpha: 0.7)),
-          textAlign: TextAlign.center,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Filter chip
-  // ---------------------------------------------------------------------------
-  Widget _filterChip(String label, String value, AppBrandTheme brandTheme) {
-    final isSelected = _filterStatus == value;
-    return GestureDetector(
-      onTap: () => setState(() => _filterStatus = value),
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? brandTheme.brassPrimary.withValues(alpha: 0.15)
-              : brandTheme.cardBorder.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(100),
-        ),
-        child: Text(
-          label,
-          style: GoogleFonts.inter(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: isSelected
-                ? brandTheme.brassPrimary
-                : brandTheme.textMuted,
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Bulk action button
-  // ---------------------------------------------------------------------------
-  Widget _bulkAction(
-      String label, IconData icon, Color color, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 12, color: color),
-            const SizedBox(width: 3),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: color),
-              overflow: TextOverflow.ellipsis,
-              maxLines: 1,
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Student Card
-  // ---------------------------------------------------------------------------
-  Widget _buildStudentCard(
-      Map<String, dynamic> app, ThemeData theme, AppBrandTheme brandTheme) {
-    final student = app['student'] as Map<String, dynamic>? ?? {};
-    final name = student['name'] as String? ?? 'Student';
-    final usn = student['usn'] as String? ?? '';
-    final dept = student['department'] as String? ?? '';
-    final photoUrl = student['photo_url'] as String?;
-    final appId = app['id'] as String;
-    final isSelected = _selectedIds.contains(appId);
-    final status = app['status'] as String? ?? 'applied';
-    final attendedAt = app['attended_at'] as String?;
-    final attendanceStatus = app['attendance_status'] as String?;
-
-    // Status chip color
-    Color chipColor;
-    String chipLabel;
-    switch (status) {
-      case 'selected':
-      case 'offered':
-        chipColor = brandTheme.statusShortlisted;
-        chipLabel = 'Offered';
-        break;
-      case 'shortlisted':
-        chipColor = brandTheme.statusShortlisted;
-        chipLabel = widget.isLastRound ? 'Offered' : 'Shortlisted';
-        break;
-      case 'rejected':
-        chipColor = brandTheme.statusRejected;
-        chipLabel = 'Rejected';
-        break;
-      default:
-        if (attendanceStatus == 'absent') {
-          chipColor = brandTheme.statusPending;
-          chipLabel = 'Absent';
-        } else {
-          chipColor = brandTheme.statusApplied;
-          chipLabel = 'Pending';
-        }
-    }
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? brandTheme.brassPrimary.withValues(alpha: 0.08)
-            : theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isSelected
-              ? brandTheme.brassPrimary.withValues(alpha: 0.3)
-              : brandTheme.cardBorder,
-        ),
-      ),
-      child: Row(
-        children: [
-          // Checkbox
-          Checkbox(
-            value: isSelected,
-            onChanged: (v) {
-              setState(() {
-                if (v == true) {
-                  _selectedIds.add(appId);
-                } else {
-                  _selectedIds.remove(appId);
-                }
-              });
-            },
-            activeColor: brandTheme.brassPrimary,
-          ),
-
-          // Photo or Initial
-          _buildAvatar(photoUrl, name, brandTheme),
-          const SizedBox(width: 8),
-
-          // Name + USN + Dept + Attendance time
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(name,
-                    style: GoogleFonts.inter(
-                        fontSize: 13, fontWeight: FontWeight.w600)),
-                const SizedBox(height: 2),
-                Text(
-                  [if (usn.isNotEmpty) usn, if (dept.isNotEmpty) dept]
-                      .join(' · '),
-                  style: GoogleFonts.inter(
-                      fontSize: 11, color: brandTheme.textMuted),
-                ),
-                if (attendedAt != null) ...[
-                  const SizedBox(height: 3),
-                  Text(
-                    'Scanned at ${_formatTime(attendedAt)}',
-                    style: GoogleFonts.ibmPlexMono(
-                        fontSize: 10,
-                        color: brandTheme.brassPrimary.withValues(alpha: 0.7)),
-                  ),
-                ],
-              ],
-            ),
-          ),
-
-          // Status chip + Actions
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                // Status chip
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: chipColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: Text(
-                    chipLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                        color: chipColor),
-                  ),
-                ),
-                const SizedBox(height: 6),
-
-              // Actions popup
-              PopupMenuButton<String>(
-                icon: Icon(Icons.more_vert_rounded,
-                    size: 18, color: brandTheme.textMuted),
-                onSelected: (action) => _handleAction(action, app),
-                itemBuilder: (_) {
-                  final items = <PopupMenuItem<String>>[
-                    PopupMenuItem(
-                        value: 'remarks',
-                        child: Text('Add Remarks',
-                            style: GoogleFonts.inter(fontSize: 13))),
-                  ];
-
-                  if (!widget.isLastRound) {
-                    items.insert(
-                      0,
-                      PopupMenuItem(
-                          value: 'move',
-                          child: Text('Move to Next Round',
-                              style: GoogleFonts.inter(fontSize: 13))),
-                    );
-                  } else {
-                    items.insert(
-                      0,
-                      PopupMenuItem(
-                          value: 'offer',
-                          child: Text('Offer Selected',
-                              style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  color: brandTheme.statusShortlisted))),
-                    );
-                  }
-
-                  items.addAll([
-                    PopupMenuItem(
-                        value: 'reject',
-                        child: Text('Reject',
-                            style: GoogleFonts.inter(
-                                fontSize: 13,
-                                color: brandTheme.statusRejected))),
-                    PopupMenuItem(
-                        value: 'absent',
-                        child: Text('Mark Absent',
-                            style: GoogleFonts.inter(
-                                fontSize: 13,
-                                color: brandTheme.statusPending))),
-                  ]);
-
-                  return items;
-                },
-              ),
-            ],
-          ),
-        ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Avatar
-  // ---------------------------------------------------------------------------
-  Widget _buildAvatar(
-      String? photoUrl, String name, AppBrandTheme brandTheme) {
-    if (photoUrl != null && photoUrl.isNotEmpty) {
-      return CircleAvatar(
-        radius: 18,
-        backgroundColor: brandTheme.brassSoft,
-        backgroundImage: NetworkImage(photoUrl),
-        onBackgroundImageError: (_, __) {},
-        child: null,
-      );
-    }
-    return CircleAvatar(
-      radius: 18,
-      backgroundColor: brandTheme.brassSoft,
-      child: Text(
-        name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?',
-        style: GoogleFonts.fraunces(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: brandTheme.brassPrimary),
       ),
     );
   }
@@ -829,7 +1429,7 @@ class _RoundExpandedSectionState
   }
 
   // ---------------------------------------------------------------------------
-  // Action handlers
+  // Action Handlers
   // ---------------------------------------------------------------------------
   void _handleAction(String action, Map<String, dynamic> app) {
     switch (action) {
@@ -852,18 +1452,18 @@ class _RoundExpandedSectionState
   }
 
   Future<void> _bulkMoveNext() async {
-    await _moveToNextRound(_selectedIds.toList());
-    setState(() => _selectedIds.clear());
+    await _moveToNextRound(_selectedAppIds.toList());
+    setState(() => _selectedAppIds.clear());
   }
 
   Future<void> _bulkReject() async {
-    await _rejectStudents(_selectedIds.toList());
-    setState(() => _selectedIds.clear());
+    await _rejectStudents(_selectedAppIds.toList());
+    setState(() => _selectedAppIds.clear());
   }
 
   Future<void> _bulkAbsent() async {
-    await _markAbsent(_selectedIds.toList());
-    setState(() => _selectedIds.clear());
+    await _markAbsent(_selectedAppIds.toList());
+    setState(() => _selectedAppIds.clear());
   }
 
   Future<void> _moveToNextRound(List<String> appIds) async {
@@ -871,17 +1471,15 @@ class _RoundExpandedSectionState
     final user = Supabase.instance.client.auth.currentUser;
     await repo.moveStudentsToNextRound(
       driveId: widget.drive.id,
-      currentRoundNumber: widget.roundNumber,
+      currentRoundNumber: _selectedRoundNumber ?? 1,
       applicationIds: appIds,
       performedBy: user?.id ?? '',
     );
     if (!mounted) return;
-    ref.invalidate(roundStudentsProvider(
-        (driveId: widget.drive.id, roundNumber: widget.roundNumber)));
-    // Also invalidate next round so it picks up promoted students
-    ref.invalidate(roundStudentsProvider(
-        (driveId: widget.drive.id, roundNumber: widget.roundNumber + 1)));
-    // Dispatch Round Qualified Emails & Push Notifications to promoted students
+    ref.invalidate(roundStudentsProvider((driveId: widget.drive.id, roundNumber: _selectedRoundNumber ?? 1)));
+    ref.invalidate(roundStudentsProvider((driveId: widget.drive.id, roundNumber: (_selectedRoundNumber ?? 1) + 1)));
+
+    // Send notifications & emails
     try {
       final emailService = ref.read(emailNotificationServiceProvider);
       for (final appId in appIds) {
@@ -890,27 +1488,36 @@ class _RoundExpandedSectionState
             .select('student_id, current_round, student:profiles(email, name)')
             .eq('id', appId)
             .maybeSingle();
-        if (appData != null && (appData['current_round'] as int? ?? 0) == widget.roundNumber + 1) {
+        if (appData != null && (appData['current_round'] as int? ?? 0) == (_selectedRoundNumber ?? 1) + 1) {
           final studentId = appData['student_id'] as String?;
           final student = appData['student'] as Map<String, dynamic>?;
           final email = student?['email'] as String?;
           final name = (student?['name'] as String?) ?? 'Student';
 
           if (email != null && email.contains('@')) {
+            // Look up real round names from cached data
+            final rounds = ref.read(driveRoundsProvider(widget.drive.id)).valueOrNull ?? [];
+            final currentRound = rounds.firstWhere(
+              (r) => r.roundNumber == (_selectedRoundNumber ?? 1),
+              orElse: () => rounds.isNotEmpty ? rounds.first : throw Exception('no round'),
+            );
+            final nextRoundIndex = rounds.indexWhere((r) => r.roundNumber == (_selectedRoundNumber ?? 1)) + 1;
+            final nextRoundName = nextRoundIndex < rounds.length ? rounds[nextRoundIndex].roundName : 'Final Selection';
+
             emailService.sendRoundQualifiedEmail(
               recipientEmail: email,
               studentName: name,
               companyName: widget.drive.companyName,
-              qualifiedRound: widget.roundName,
-              nextRoundName: 'Round ${widget.roundNumber + 1}',
+              qualifiedRound: currentRound.roundName,
+              nextRoundName: nextRoundName,
             );
           }
 
           if (studentId != null && studentId.isNotEmpty) {
             repo.sendNotification(
               userId: studentId,
-              title: 'Congratulations! You Cleared ${widget.roundName}',
-              body: 'You cleared ${widget.roundName} for ${widget.drive.companyName} and qualified for Round ${widget.roundNumber + 1}!',
+              title: 'Congratulations! Stage Cleared',
+              body: 'You cleared Stage ${_selectedRoundNumber ?? 1} for ${widget.drive.companyName}!',
               type: 'round_clear',
               driveId: widget.drive.id,
               applicationId: appId,
@@ -922,9 +1529,7 @@ class _RoundExpandedSectionState
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content:
-                Text('${appIds.length} student(s) moved to next round')),
+        SnackBar(content: Text('✅ ${appIds.length} candidate(s) promoted to next stage!')),
       );
     }
   }
@@ -937,9 +1542,8 @@ class _RoundExpandedSectionState
         applicationId: appId,
         status: ApplicationStatus.selected,
       );
-      // Update round status
       final roundData = await ref.read(tpoRepositoryProvider).getDriveRounds(widget.drive.id);
-      final currentRound = roundData.where((r) => r.roundNumber == widget.roundNumber);
+      final currentRound = roundData.where((r) => r.roundNumber == (_selectedRoundNumber ?? 1));
       if (currentRound.isNotEmpty) {
         await repo.addRoundRemarks(
           applicationId: appId,
@@ -949,9 +1553,8 @@ class _RoundExpandedSectionState
         );
       }
     }
-    ref.invalidate(roundStudentsProvider(
-        (driveId: widget.drive.id, roundNumber: widget.roundNumber)));
-    // Dispatch Offer Emails
+    ref.invalidate(roundStudentsProvider((driveId: widget.drive.id, roundNumber: _selectedRoundNumber ?? 1)));
+
     try {
       final emailService = ref.read(emailNotificationServiceProvider);
       for (final appId in appIds) {
@@ -973,27 +1576,13 @@ class _RoundExpandedSectionState
               package: widget.drive.ctcOrStipend,
             );
           }
-          // Push notification to the offered student
-          try {
-            await Supabase.instance.client.functions.invoke('send-fcm-push', body: {
-              'user_ids': [appData['student_id']],
-              'drive_id': widget.drive.id,
-              'application_id': appId,
-              'title': 'Offer Released',
-              'body': 'Congratulations! You have been offered for ${widget.drive.companyName} - ${widget.drive.roleTitle}. Check your offers.',
-            });
-          } catch (pushErr) {
-            debugPrint('[RoundManagement] Offer push warning: $pushErr');
-          }
         }
       }
     } catch (_) {}
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content:
-                Text('${appIds.length} student(s) offered selection')),
+        SnackBar(content: Text('🏆 ${appIds.length} candidate(s) offered selection!')),
       );
     }
   }
@@ -1003,13 +1592,12 @@ class _RoundExpandedSectionState
     final user = Supabase.instance.client.auth.currentUser;
     await repo.rejectStudents(
       driveId: widget.drive.id,
-      currentRoundNumber: widget.roundNumber,
+      currentRoundNumber: _selectedRoundNumber ?? 1,
       applicationIds: appIds,
       performedBy: user?.id ?? '',
     );
-    ref.invalidate(roundStudentsProvider(
-        (driveId: widget.drive.id, roundNumber: widget.roundNumber)));
-    // Dispatch Rejection Emails
+    ref.invalidate(roundStudentsProvider((driveId: widget.drive.id, roundNumber: _selectedRoundNumber ?? 1)));
+
     try {
       final emailService = ref.read(emailNotificationServiceProvider);
       for (final appId in appIds) {
@@ -1027,7 +1615,7 @@ class _RoundExpandedSectionState
               recipientEmail: email,
               studentName: name,
               companyName: widget.drive.companyName,
-              rejectedRound: widget.roundName,
+              rejectedRound: 'Stage ${_selectedRoundNumber ?? 1}',
             );
           }
         }
@@ -1036,9 +1624,7 @@ class _RoundExpandedSectionState
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content:
-                Text('${appIds.length} student(s) rejected')),
+        SnackBar(content: Text('❌ ${appIds.length} candidate(s) rejected')),
       );
     }
   }
@@ -1048,17 +1634,15 @@ class _RoundExpandedSectionState
     final user = Supabase.instance.client.auth.currentUser;
     await repo.markStudentsAbsent(
       driveId: widget.drive.id,
-      currentRoundNumber: widget.roundNumber,
+      currentRoundNumber: _selectedRoundNumber ?? 1,
       applicationIds: appIds,
       performedBy: user?.id ?? '',
     );
-    ref.invalidate(roundStudentsProvider(
-        (driveId: widget.drive.id, roundNumber: widget.roundNumber)));
+    ref.invalidate(roundStudentsProvider((driveId: widget.drive.id, roundNumber: _selectedRoundNumber ?? 1)));
+
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-            content:
-                Text('${appIds.length} student(s) marked absent')),
+        SnackBar(content: Text('⚪ ${appIds.length} candidate(s) marked absent')),
       );
     }
   }
@@ -1068,29 +1652,20 @@ class _RoundExpandedSectionState
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Add Remarks',
-            style:
-                GoogleFonts.fraunces(fontWeight: FontWeight.w600)),
+        title: Text('Add Remarks', style: GoogleFonts.fraunces(fontWeight: FontWeight.w600)),
         content: TextField(
           controller: remarksController,
           maxLines: 3,
-          decoration:
-              const InputDecoration(hintText: 'Enter remarks...'),
+          decoration: const InputDecoration(hintText: 'Enter remarks...'),
         ),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
               final repo = ref.read(tpoRepositoryProvider);
-              final user =
-                  Supabase.instance.client.auth.currentUser;
-              final roundData = await ref
-                  .read(tpoRepositoryProvider)
-                  .getDriveRounds(widget.drive.id);
-              final currentRound = roundData.firstWhere(
-                  (r) => r.roundNumber == widget.roundNumber);
+              final user = Supabase.instance.client.auth.currentUser;
+              final roundData = await ref.read(tpoRepositoryProvider).getDriveRounds(widget.drive.id);
+              final currentRound = roundData.firstWhere((r) => r.roundNumber == (_selectedRoundNumber ?? 1));
               await repo.addRoundRemarks(
                 applicationId: applicationId,
                 roundId: currentRound.id,

@@ -531,10 +531,16 @@ class TpoRepositoryImpl implements TpoRepository {
     required String driveId,
     required int roundNumber,
   }) async {
-    if (roundNumber == 1) {
-      // ── Round 1: attendance-based ───────────────────────────────────
-      // Primary data source is drive_attendance (students who scanned QR).
-      // Cross-reference with applications to ensure they also applied.
+    // Step 1: Get the round_id for this stage
+    final roundRow = await _supabase
+        .from('drive_rounds')
+        .select('id')
+        .eq('drive_id', driveId)
+        .eq('round_number', roundNumber)
+        .maybeSingle();
+
+    // Fallback for round 1 if no drive_rounds row yet: use attendance-based approach
+    if (roundRow == null && roundNumber == 1) {
       final attendanceResponse = await _supabase
           .from('drive_attendance')
           .select('student_id, scanned_at, status')
@@ -545,14 +551,13 @@ class TpoRepositoryImpl implements TpoRepository {
       final attendedStudentIds = <String>{};
       final attendedAtMap = <String, dynamic>{};
       final attendanceStatusMap = <String, dynamic>{};
-      for (final a in attendanceResponse as List) {
+      for (final a in attendanceResponse) {
         final sid = a['student_id'] as String;
         attendedStudentIds.add(sid);
         attendedAtMap[sid] = a['scanned_at'];
         attendanceStatusMap[sid] = a['status'];
       }
 
-      // Get all applications for this drive
       final appsResponse = await _supabase
           .from('applications')
           .select(
@@ -561,33 +566,66 @@ class TpoRepositoryImpl implements TpoRepository {
           .eq('drive_id', driveId)
           .order('applied_at', ascending: false);
 
-      // Keep only students who both attended AND applied (exclude rejected)
       final results = <Map<String, dynamic>>[];
       for (final app in appsResponse as List) {
         final sid = app['student_id'] as String;
-        final appStatus = (app['status'] as String?) ?? '';
         if (!attendedStudentIds.contains(sid)) continue;
-        if (appStatus == 'rejected') continue;
         results.add({
           ...app as Map<String, dynamic>,
           'attended_at': attendedAtMap[sid],
           'attendance_status': attendanceStatusMap[sid],
+          'round_result': 'pending', // will be enriched below if possible
         });
       }
       return results;
     }
 
-    // ── Round N (N > 1): application current_round matches ──────────
-    final response = await _supabase
+    if (roundRow == null) return [];
+    final roundId = roundRow['id'] as String;
+
+    // Step 2: Fetch ALL application_round_status records for this round
+    // This gives us every student who was ever in this stage — including those who cleared and moved on.
+    final statusRows = await _supabase
+        .from('application_round_status')
+        .select('application_id, result, attended, updated_at')
+        .eq('round_id', roundId);
+
+    if ((statusRows as List).isEmpty) return [];
+
+    // Step 3: Collect application IDs
+    final appIds = (statusRows as List).map((r) => r['application_id'] as String).toList();
+    final resultMap = <String, Map<String, dynamic>>{};
+    for (final r in statusRows) {
+      resultMap[r['application_id'] as String] = {
+        'round_result': r['result'] as String? ?? 'pending',
+        'attended': r['attended'] as bool? ?? false,
+        'round_updated_at': r['updated_at'],
+      };
+    }
+
+    // Step 4: Fetch full application + student info for those IDs
+    final appsResponse = await _supabase
         .from('applications')
         .select(
             'id, status, applied_at, student_id, current_round, updated_by, '
             'student:profiles!applications_student_id_fkey(name, email, usn, department, cgpa, semester, photo_url)')
-        .eq('drive_id', driveId)
-        .eq('current_round', roundNumber)
+        .inFilter('id', appIds)
         .order('applied_at', ascending: false);
 
-    return (response as List).cast<Map<String, dynamic>>();
+    // Step 5: Merge — attach the per-stage result to each application row
+    final results = <Map<String, dynamic>>[];
+    for (final app in appsResponse as List) {
+      final appId = app['id'] as String;
+      final stageInfo = resultMap[appId] ?? {};
+      results.add({
+        ...app as Map<String, dynamic>,
+        'round_result': stageInfo['round_result'] ?? 'pending',
+        'attended': stageInfo['attended'] ?? false,
+        'attended_at': stageInfo['round_updated_at'],
+        'attendance_status': (stageInfo['attended'] == true) ? 'present' : null,
+      });
+    }
+    return results;
   }
 
   @override
@@ -598,14 +636,6 @@ class TpoRepositoryImpl implements TpoRepository {
     required String performedBy,
   }) async {
     final nextRound = currentRoundNumber + 1;
-
-    // Get current round_id
-    final currentRoundData = await _supabase
-        .from('drive_rounds')
-        .select('id')
-        .eq('drive_id', driveId)
-        .eq('round_number', currentRoundNumber)
-        .maybeSingle();
 
     for (final appId in applicationIds) {
       // Get application details to check current round
@@ -625,11 +655,18 @@ class TpoRepositoryImpl implements TpoRepository {
         continue;
       }
 
-      // Mark current round as cleared
-      if (currentRoundData != null) {
+      // AUTOMATIC PREREQUISITE STAGE COMPLETION:
+      // Mark current and all previous rounds (<= currentRoundNumber) as completed/cleared
+      final prevRounds = await _supabase
+          .from('drive_rounds')
+          .select('id, round_number')
+          .eq('drive_id', driveId)
+          .lte('round_number', currentRoundNumber);
+
+      for (final r in prevRounds) {
         await _supabase.from('application_round_status').upsert({
           'application_id': appId,
-          'round_id': currentRoundData['id'],
+          'round_id': r['id'],
           'attended': true,
           'result': 'cleared',
           'updated_by': performedBy,
@@ -699,14 +736,31 @@ class TpoRepositoryImpl implements TpoRepository {
               .eq('id', driveId)
               .maybeSingle();
 
+          // Fetch real round names from drive_rounds
+          final currentRoundInfo = await _supabase
+              .from('drive_rounds')
+              .select('round_name')
+              .eq('drive_id', driveId)
+              .eq('round_number', currentRoundNumber)
+              .maybeSingle();
+          final nextRoundInfo = await _supabase
+              .from('drive_rounds')
+              .select('round_name')
+              .eq('drive_id', driveId)
+              .eq('round_number', nextRound)
+              .maybeSingle();
+
+          final currentRoundName = (currentRoundInfo?['round_name'] as String?) ?? 'Round $currentRoundNumber';
+          final nextRoundName = (nextRoundInfo?['round_name'] as String?) ?? 'Round $nextRound';
+
           if (studentProfile != null && studentProfile['email'] != null && driveInfo != null) {
             final compName = (driveInfo['company'] is Map ? (driveInfo['company'] as Map)['name'] : null) ?? 'Company';
             _emailService!.sendRoundQualifiedEmail(
               recipientEmail: studentProfile['email'] as String,
               studentName: (studentProfile['name'] as String?) ?? 'Student',
               companyName: compName,
-              qualifiedRound: 'Round $currentRoundNumber',
-              nextRoundName: 'Round $nextRound',
+              qualifiedRound: currentRoundName,
+              nextRoundName: nextRoundName,
             );
           }
         } catch (_) {}

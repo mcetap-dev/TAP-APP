@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../../../shared/presentation/widgets/app_logo.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 class FacultyWaitingScreen extends ConsumerStatefulWidget {
   const FacultyWaitingScreen({super.key});

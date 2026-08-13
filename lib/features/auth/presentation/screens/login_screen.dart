@@ -195,25 +195,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       body: SafeArea(
         child: Stack(
           children: [
-            // Top Glow Effect
-            Positioned(
-              top: -60,
-              left: MediaQuery.of(context).size.width / 2 - 140,
-              child: Container(
-                width: 280,
-                height: 280,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [
-                      brandTheme.brassSoft,
-                      Colors.transparent,
-                    ],
-                    stops: const [0.0, 0.7],
-                  ),
-                ),
-              ),
-            ),
+
             Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sp6),
@@ -222,27 +204,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   children: [
                     const SizedBox(height: AppSpacing.sp5),
 
-                    // Floating Orb Logo Container
-                    AnimatedBuilder(
-                      animation: _floatAnimCtrl,
-                      builder: (context, child) {
-                        final val = _floatAnimCtrl.value;
-                        final dy = -8 * (1 - (val - 0.5).abs() * 2);
-                        return Transform.translate(
-                          offset: Offset(0, dy),
-                          child: const AppLogo(
-                            size: 110,
-                            showGlow: true,
-                            borderRadius: BorderRadius.only(
-                              topLeft: Radius.circular(42),
-                              topRight: Radius.circular(68),
-                              bottomLeft: Radius.circular(68),
-                              bottomRight: Radius.circular(46),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
+                    const AppLogo(size: 110),
 
                     const SizedBox(height: AppSpacing.sp5),
 

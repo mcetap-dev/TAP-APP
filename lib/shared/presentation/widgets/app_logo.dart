@@ -17,26 +17,13 @@ class AppLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final effectiveRadius = borderRadius ?? BorderRadius.circular(size * 0.22);
-
     Widget content = Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        borderRadius: effectiveRadius,
-        boxShadow: showGlow
-            ? [
-                BoxShadow(
-                  color: const Color(0xFFD4AF37).withValues(alpha: 0.35),
-                  blurRadius: size * 0.35,
-                  spreadRadius: 2,
-                  offset: const Offset(0, 4),
-                ),
-              ]
-            : null,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
       ),
-      child: ClipRRect(
-        borderRadius: effectiveRadius,
+      child: ClipOval(
         child: Image.asset(
           'assets/images/mce_logo.jpg',
           width: size,
