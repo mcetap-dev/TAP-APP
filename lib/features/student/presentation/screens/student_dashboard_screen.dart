@@ -569,14 +569,29 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                 ),
               ],
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(drive.companyName, style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 2),
-                Text('${drive.roleTitle} · $deadlineText', style: GoogleFonts.inter(fontSize: 12, color: brandTheme.textMuted)),
-              ],
+            const SizedBox(height: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    drive.companyName,
+                    style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w700),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '${drive.roleTitle} · $deadlineText',
+                    style: GoogleFonts.inter(fontSize: 11, color: brandTheme.textMuted),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(height: 4),
             isApplied
                 ? Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
