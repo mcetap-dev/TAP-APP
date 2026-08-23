@@ -1,3 +1,7 @@
+import 'package:excel/excel.dart' as excel_pkg;
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -60,6 +64,11 @@ class _RoundManagementScreenState
         foregroundColor: theme.colorScheme.onSurface,
         elevation: 0,
         actions: [
+          IconButton(
+            icon: const Icon(Icons.description_outlined, size: 20),
+            onPressed: () => _exportDriveExcelReport(),
+            tooltip: 'Export Excel Report (All Stages & Final Conclusions)',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded, size: 20),
             onPressed: () {
@@ -1679,5 +1688,181 @@ class _RoundManagementScreenState
         ],
       ),
     );
+  }
+
+  Future<void> _exportDriveExcelReport() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Generating Comprehensive Drive Excel Report...')),
+    );
+
+    try {
+      final supabase = Supabase.instance.client;
+
+      // 1. Fetch rounds for this drive
+      final roundsData = await supabase
+          .from('drive_rounds')
+          .select()
+          .eq('drive_id', widget.drive.id)
+          .order('round_number', ascending: true);
+
+      final rounds = (roundsData as List).map((e) => DriveRound.fromJson(e)).toList();
+
+      // 2. Fetch all applications with student profiles
+      final appsData = await supabase
+          .from('applications')
+          .select('*, student:profiles(*)')
+          .eq('drive_id', widget.drive.id);
+
+      final applications = (appsData as List);
+
+      // 3. Fetch round evaluations / history
+      final evaluationsData = await supabase
+          .from('application_round_evaluations')
+          .select('*, round:drive_rounds(round_number, round_name)')
+          .in_('application_id', applications.map((a) => a['id'] as String).toList());
+
+      final evaluations = (evaluationsData as List);
+
+      // 4. Create Excel Workbook
+      final excel = excel_pkg.Excel.createExcel();
+
+      // Sheet 1: Final Summary & Conclusions
+      final summarySheet = excel['Final Conclusion'];
+      excel.setDefaultSheet('Final Conclusion');
+
+      summarySheet.appendRow([
+        excel_pkg.TextCellValue('Drive Summary & Final Conclusion Report'),
+      ]);
+      summarySheet.appendRow([
+        excel_pkg.TextCellValue('Company:'),
+        excel_pkg.TextCellValue(widget.drive.companyName),
+        excel_pkg.TextCellValue('Role:'),
+        excel_pkg.TextCellValue(widget.drive.roleTitle),
+      ]);
+      summarySheet.appendRow([
+        excel_pkg.TextCellValue('CTC:'),
+        excel_pkg.TextCellValue(widget.drive.ctcPackage),
+        excel_pkg.TextCellValue('Export Date:'),
+        excel_pkg.TextCellValue(DateTime.now().toString().split('.')[0]),
+      ]);
+      summarySheet.appendRow([]); // Empty spacer row
+
+      // Headers for Summary
+      summarySheet.appendRow([
+        excel_pkg.TextCellValue('USN / Roll No'),
+        excel_pkg.TextCellValue('Student Name'),
+        excel_pkg.TextCellValue('Department'),
+        excel_pkg.TextCellValue('Email'),
+        excel_pkg.TextCellValue('Phone'),
+        excel_pkg.TextCellValue('CGPA'),
+        excel_pkg.TextCellValue('Current Stage'),
+        excel_pkg.TextCellValue('Final Status / Conclusion'),
+        excel_pkg.TextCellValue('Offer Status'),
+      ]);
+
+      int offeredCount = 0;
+      int rejectedCount = 0;
+      int inProgressCount = 0;
+
+      for (final app in applications) {
+        final student = app['student'] as Map<String, dynamic>? ?? {};
+        final status = app['status'] as String? ?? 'applied';
+        final currentRoundNum = app['current_round_number'] as int? ?? 1;
+
+        String conclusion = 'In Selection Process';
+        if (status == 'offered') {
+          conclusion = 'FINAL SELECTED / OFFERED';
+          offeredCount++;
+        } else if (status == 'rejected') {
+          conclusion = 'REJECTED (Stage $currentRoundNum)';
+          rejectedCount++;
+        } else {
+          inProgressCount++;
+        }
+
+        summarySheet.appendRow([
+          excel_pkg.TextCellValue((student['usn'] as String?) ?? 'N/A'),
+          excel_pkg.TextCellValue((student['name'] as String?) ?? 'Student'),
+          excel_pkg.TextCellValue((student['department'] as String?) ?? 'N/A'),
+          excel_pkg.TextCellValue((student['email'] as String?) ?? ''),
+          excel_pkg.TextCellValue((student['phone'] as String?) ?? 'N/A'),
+          excel_pkg.TextCellValue(student['cgpa']?.toString() ?? 'N/A'),
+          excel_pkg.TextCellValue('Stage $currentRoundNum'),
+          excel_pkg.TextCellValue(conclusion),
+          excel_pkg.TextCellValue(status.toUpperCase()),
+        ]);
+      }
+
+      summarySheet.appendRow([]);
+      summarySheet.appendRow([excel_pkg.TextCellValue('--- OVERALL DRIVE METRICS ---')]);
+      summarySheet.appendRow([excel_pkg.TextCellValue('Total Applicants'), excel_pkg.IntCellValue(applications.length)]);
+      summarySheet.appendRow([excel_pkg.TextCellValue('Total Final Offers'), excel_pkg.IntCellValue(offeredCount)]);
+      summarySheet.appendRow([excel_pkg.TextCellValue('Total Rejected'), excel_pkg.IntCellValue(rejectedCount)]);
+      summarySheet.appendRow([excel_pkg.TextCellValue('In Progress'), excel_pkg.IntCellValue(inProgressCount)]);
+
+      // Sheet 2 to N: Individual Stage/Round Breakdown
+      for (final round in rounds) {
+        final sheetName = 'Stage ${round.roundNumber} - ${round.roundName.replaceAll(RegExp(r'[\[\]\*\/\\\?\:]'), '_')}';
+        final roundSheet = excel[sheetName];
+
+        roundSheet.appendRow([
+          excel_pkg.TextCellValue('Stage ${round.roundNumber}: ${round.roundName}'),
+          excel_pkg.TextCellValue('Type: ${round.roundType}'),
+        ]);
+        roundSheet.appendRow([]);
+
+        roundSheet.appendRow([
+          excel_pkg.TextCellValue('USN'),
+          excel_pkg.TextCellValue('Student Name'),
+          excel_pkg.TextCellValue('Department'),
+          excel_pkg.TextCellValue('Stage Status'),
+          excel_pkg.TextCellValue('Attendance'),
+          excel_pkg.TextCellValue('Remarks / Feedback'),
+        ]);
+
+        for (final app in applications) {
+          final appId = app['id'] as String;
+          final student = app['student'] as Map<String, dynamic>? ?? {};
+
+          final eval = evaluations.firstWhere(
+            (e) => e['application_id'] == appId && e['round']?['round_number'] == round.roundNumber,
+            orElse: () => <String, dynamic>{},
+          );
+
+          final stageStatus = eval['status'] as String? ?? (app['current_round_number'] >= round.roundNumber ? 'Qualified/Current' : 'N/A');
+          final attendance = eval['attendance'] as String? ?? 'Present';
+          final remarks = eval['remarks'] as String? ?? '';
+
+          roundSheet.appendRow([
+            excel_pkg.TextCellValue((student['usn'] as String?) ?? 'N/A'),
+            excel_pkg.TextCellValue((student['name'] as String?) ?? 'Student'),
+            excel_pkg.TextCellValue((student['department'] as String?) ?? 'N/A'),
+            excel_pkg.TextCellValue(stageStatus.toUpperCase()),
+            excel_pkg.TextCellValue(attendance),
+            excel_pkg.TextCellValue(remarks),
+          ]);
+        }
+      }
+
+      // Save & Share File
+      final fileBytes = excel.save();
+      if (fileBytes != null) {
+        final tempDir = await getTemporaryDirectory();
+        final fileName = '${widget.drive.companyName}_Drive_Report_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+        final file = File('${tempDir.path}/$fileName');
+        await file.writeAsBytes(fileBytes);
+
+        await Share.shareXFiles(
+          [XFile(file.path)],
+          text: 'Drive Stage & Final Conclusion Report for ${widget.drive.companyName}',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate Excel report: $e')),
+        );
+      }
+    }
   }
 }

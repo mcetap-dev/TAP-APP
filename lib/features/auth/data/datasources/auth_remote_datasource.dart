@@ -211,15 +211,12 @@ class AuthRemoteDatasource {
               'Refusing to auto-assign. Returning null.');
           return null;
         }
-      } else if (email.endsWith('@ms.mcehassan.ac.in')) {
-        role = UserRole.student;
       } else if (email.endsWith('@mcehassan.ac.in')) {
         // Faculty role — coordinator/TPO status is granted later by appointment
         role = UserRole.faculty;
       } else {
-        // Cannot determine role — return null so login fails visibly
-        debugPrint('[fetchProfile] Cannot determine role for $email. Profile not found in DB.');
-        return null;
+        // All other emails default to student role
+        role = UserRole.student;
       }
 
       return UserProfile(

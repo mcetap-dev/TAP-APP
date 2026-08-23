@@ -9,14 +9,12 @@ import '../../../../core/theme/theme_extensions.dart';
 import '../../../../core/utils/usn_parser.dart';
 
 /// Returns the role for a given email based on domain.
-/// - @ms.mcehassan.ac.in  → student
-/// - @mcehassan.ac.in      → faculty (TPO/Admin are appointed later by Admin)
-/// - anything else          → null (rejected)
-String? _roleFromEmail(String email) {
+/// - @mcehassan.ac.in → faculty (TPO/Admin are appointed later by Admin)
+/// - anything else     → student
+String _roleFromEmail(String email) {
   final lower = email.trim().toLowerCase();
-  if (lower.endsWith('@ms.mcehassan.ac.in')) return 'student';
   if (lower.endsWith('@mcehassan.ac.in')) return 'faculty';
-  return null; // All other emails are rejected
+  return 'student'; // All other emails (Gmail, Yahoo, custom, etc.) register as students
 }
 
 class SignupScreen extends ConsumerStatefulWidget {
@@ -36,7 +34,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   final _confirmCtrl = TextEditingController();
   bool _obscurePass = true;
   bool _obscureConfirm = true;
-  bool _isStudent = false;
+  bool _isStudent = true;
   bool _isLoading = false;
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
@@ -64,12 +62,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
   String? _validateEmail(String? v) {
     final base = AppValidators.email(v);
     if (base != null) return base;
-    final lower = (v ?? '').trim().toLowerCase();
-    if (lower.endsWith('@ms.mcehassan.ac.in')) return null; // valid student
-    if (lower.endsWith('@mcehassan.ac.in')) return null;    // valid faculty/staff
-    return 'Only MCE Hassan emails are allowed:\n'
-        '• Students: yourname@ms.mcehassan.ac.in\n'
-        '• Faculty/Staff: yourname@mcehassan.ac.in';
+    return null; // All valid email formats are allowed
   }
 
   String? _validateConfirm(String? v) {
@@ -165,7 +158,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Use your institutional college email to register',
+                    'Register with your email address',
                     style: GoogleFonts.inter(
                       color: brandTheme?.textMuted ?? theme.colorScheme.onSurface.withValues(alpha: 0.6),
                       fontSize: 14,
@@ -208,7 +201,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                           ),
                           const SizedBox(height: 16),
 
-                          _label('COLLEGE EMAIL', brandTheme, theme),
+                          _label('EMAIL ADDRESS', brandTheme, theme),
                           const SizedBox(height: 6),
                           TextFormField(
                             controller: _emailCtrl,
@@ -217,10 +210,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                             style: GoogleFonts.inter(color: theme.colorScheme.onSurface, fontSize: 14),
                             validator: _validateEmail,
                             onChanged: (v) {
-                              final isStudent = v.trim().toLowerCase().endsWith('@ms.mcehassan.ac.in');
+                              final isFaculty = v.trim().toLowerCase().endsWith('@mcehassan.ac.in');
+                              final isStudent = !isFaculty;
                               if (isStudent != _isStudent) setState(() => _isStudent = isStudent);
                             },
-                            decoration: const InputDecoration(hintText: 'you@ms.mcehassan.ac.in'),
+                            decoration: const InputDecoration(hintText: 'you@example.com'),
                           ),
                           const SizedBox(height: 16),
 
@@ -234,7 +228,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
                               style: GoogleFonts.inter(color: theme.colorScheme.onSurface, fontSize: 14),
                               onChanged: (_) => setState(() {}),
                               validator: (v) {
-                                if (_emailCtrl.text.trim().toLowerCase().endsWith('@ms.mcehassan.ac.in')) {
+                                if (_isStudent) {
                                   if (v == null || v.trim().isEmpty) {
                                     return 'Please enter your USN (e.g. 4MC22CS001)';
                                   }
