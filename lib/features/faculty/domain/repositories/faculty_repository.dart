@@ -20,6 +20,9 @@ abstract class FacultyRepository {
     required ApprovalStatus status,
     required String approvedBy,
     String? rejectionReason,
+    String? verifiedCourseId,
+    String? verifiedCourseCode,
+    String? verifiedCourseName,
   });
 
   Future<Map<String, dynamic>> getDepartmentPlacementStats({required String department});

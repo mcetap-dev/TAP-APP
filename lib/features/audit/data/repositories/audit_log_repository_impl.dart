@@ -73,7 +73,8 @@ class AuditLogRepositoryImpl implements AuditLogRepository {
       await _supabase.from('audit_logs').insert({
         'actor_id': userId,
         'action': formatAuditAction(action),
-        'target_table': targetTable,
+        'table_name': targetTable ?? 'profiles',
+        'target_table': targetTable ?? 'profiles',
         'target_id': targetId,
         'details': {'description': description},
       });

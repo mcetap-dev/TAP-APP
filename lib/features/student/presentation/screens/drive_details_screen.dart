@@ -92,17 +92,23 @@ class _DriveDetailsScreenState extends ConsumerState<DriveDetailsScreen> {
       ));
     }
 
-    // Department
-    if (_drive.eligibilityBranches.isNotEmpty && profile.department != null) {
-      final dept = profile.department!;
-      final deptShort = _departmentShortCode(dept);
-      final deptOk = _drive.eligibilityBranches.any((b) =>
-          b.toUpperCase() == deptShort.toUpperCase() ||
-          b.toUpperCase() == dept.toUpperCase());
+    // Department / Course Code Eligibility Check
+    if (_drive.eligibilityBranches.isNotEmpty) {
+      final studentCode = profile.effectiveCourseCode.toUpperCase();
+      final studentName = profile.effectiveCourseName;
+      final deptShort = _departmentShortCode(studentName);
+
+      final deptOk = _drive.eligibilityBranches.any((b) {
+        final cleanB = b.trim().toUpperCase();
+        return cleanB == studentCode ||
+            cleanB == deptShort.toUpperCase() ||
+            cleanB == studentName.toUpperCase();
+      });
+
       checks.add(_EligibilityCheck(
-        label: 'Department Eligible',
+        label: 'Course / Branch Eligible',
         passed: deptOk,
-        detail: deptOk ? null : 'Your dept: $dept. Required: ${_drive.eligibilityBranches.join(', ')}',
+        detail: deptOk ? null : 'Your branch: $studentName ($studentCode). Required: ${_drive.eligibilityBranches.join(', ')}',
       ));
     }
 

@@ -43,18 +43,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.dispose();
   }
 
-  UserRole _selectedRole = UserRole.student;
-
-  String _getDomainForRole(UserRole role) {
-    return role == UserRole.student ? '@ms.mcehassan.ac.in' : '@mcehassan.ac.in';
-  }
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
     final input = _emailCtrl.text.trim();
-    final domain = _getDomainForRole(_selectedRole);
-    final fullEmail = input.endsWith(domain) ? input : '$input$domain';
+    final fullEmail = input.contains('@')
+        ? input
+        : '$input@mcehassan.ac.in';
     try {
       await ref.read(authNotifierProvider.notifier).signInWithPassword(
             email: fullEmail,
@@ -62,10 +57,35 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           );
 
       if (mounted) {
-        final profile = ref.read(authNotifierProvider).valueOrNull;
-        if (profile != null) {
-          final target = _dashboardPath(profile.role);
-          context.go(target);
+        var profile = ref.read(authNotifierProvider).valueOrNull;
+        if (profile == null) {
+          final user = Supabase.instance.client.auth.currentUser;
+          if (user != null) {
+            final profData = await Supabase.instance.client
+                .from('profiles')
+                .select()
+                .eq('id', user.id)
+                .maybeSingle();
+            if (profData != null) {
+              profile = UserProfile.fromMap(profData);
+            }
+          }
+        }
+
+        if (profile != null && mounted) {
+          if (profile.role == UserRole.student) {
+            if (!profile.emailVerified) {
+              context.go('/verify-otp', extra: profile.email);
+            } else if (!profile.profileCompleted) {
+              context.go('/student/onboarding');
+            } else if (profile.approvalStatus == ApprovalStatus.pending) {
+              context.go('/pending-approval');
+            } else {
+              context.go('/student');
+            }
+          } else {
+            context.go(_dashboardPath(profile.role));
+          }
           return;
         }
       }
@@ -158,23 +178,57 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   void _fillPreset(String email, String password) {
-    if (email.endsWith('@ms.mcehassan.ac.in')) {
-      _selectedRole = UserRole.student;
-      _emailCtrl.text = email.replaceAll('@ms.mcehassan.ac.in', '');
-    } else if (email.endsWith('@mcehassan.ac.in')) {
-      if (email.startsWith('admin')) {
-        _selectedRole = UserRole.admin;
-      } else if (email.startsWith('tap')) {
-        _selectedRole = UserRole.tpo;
-      } else {
-        _selectedRole = UserRole.facultyCoordinator;
-      }
-      _emailCtrl.text = email.replaceAll('@mcehassan.ac.in', '');
-    } else {
-      _emailCtrl.text = email;
-    }
+    _emailCtrl.text = email;
     _passwordCtrl.text = password;
     setState(() {});
+  }
+
+  Widget _demoChip(String title, String roleKey, AppBrandTheme brandTheme) {
+    return GestureDetector(
+      onTap: () async {
+        setState(() => _isLoading = true);
+        try {
+          await ref.read(authNotifierProvider.notifier).demoLogin(roleKey);
+          if (mounted) {
+            final profile = ref.read(authNotifierProvider).valueOrNull;
+            if (profile != null) {
+              context.go(_dashboardPath(profile.role));
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Demo login error: $e')),
+            );
+          }
+        } finally {
+          if (mounted) setState(() => _isLoading = false);
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: brandTheme.brassSoft,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: brandTheme.brassPrimary.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.touch_app_rounded, size: 13, color: brandTheme.brassPrimary),
+            const SizedBox(width: 4),
+            Text(
+              title,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: brandTheme.brassPrimary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _friendlyError(String raw) {
@@ -188,7 +242,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final brandTheme = theme.extension<AppBrandTheme>()!;
-    final currentDomain = _getDomainForRole(_selectedRole);
 
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
@@ -251,57 +304,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
-                              'LOGIN ROLE',
-                              style: GoogleFonts.ibmPlexMono(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.8,
-                                color: brandTheme.textMuted,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            SegmentedButton<UserRole>(
-                              style: ButtonStyle(
-                                backgroundColor: WidgetStateProperty.resolveWith<Color?>((states) {
-                                  if (states.contains(WidgetState.selected)) {
-                                    return brandTheme.brassSoft;
-                                  }
-                                  return null;
-                                }),
-                                foregroundColor: WidgetStateProperty.resolveWith<Color?>((states) {
-                                  if (states.contains(WidgetState.selected)) {
-                                    return brandTheme.brassPrimary;
-                                  }
-                                  return brandTheme.textMuted;
-                                }),
-                              ),
-                              segments: const [
-                                ButtonSegment(
-                                  value: UserRole.student,
-                                  label: Text('Student'),
-                                  icon: Icon(Icons.school_outlined, size: 16),
-                                ),
-                                ButtonSegment(
-                                  value: UserRole.facultyCoordinator,
-                                  label: Text('Faculty'),
-                                  icon: Icon(Icons.badge_outlined, size: 16),
-                                ),
-                              ],
-                              selected: {
-                                _selectedRole == UserRole.student
-                                    ? UserRole.student
-                                    : UserRole.facultyCoordinator
-                              },
-                              onSelectionChanged: (newSelection) {
-                                setState(() {
-                                  _selectedRole = newSelection.first;
-                                });
-                              },
-                            ),
-                            const SizedBox(height: AppSpacing.sp4),
-
-                            Text(
-                              'EMAIL USERNAME',
+                              'EMAIL ADDRESS',
                               style: GoogleFonts.ibmPlexMono(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -320,22 +323,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                               ),
                               validator: (val) {
                                 if (val == null || val.trim().isEmpty) {
-                                  return 'Email username is required';
+                                  return 'Email address is required';
                                 }
                                 final input = val.trim();
-                                if (input.contains('@') && !input.endsWith(currentDomain)) {
-                                  return 'Please enter username only (suffix $currentDomain is auto-added)';
+                                if (!input.contains('@') || !input.contains('.')) {
+                                  return 'Please enter a valid email address';
                                 }
                                 return null;
                               },
-                              decoration: InputDecoration(
-                                hintText: _selectedRole == UserRole.student ? '4mc21cs001' : 'faculty_name',
-                                suffixText: currentDomain,
-                                suffixStyle: GoogleFonts.ibmPlexMono(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: brandTheme.brassPrimary,
-                                ),
+                              decoration: const InputDecoration(
+                                hintText: 'Enter your email',
                               ),
                             ),
                             const SizedBox(height: AppSpacing.sp4),
@@ -363,7 +360,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                                   ? 'Password is required'
                                   : null,
                               decoration: InputDecoration(
-                                hintText: '••••••••',
+                                hintText: 'Enter your password',
                                 suffixIcon: IconButton(
                                   icon: Icon(
                                     _obscurePassword
@@ -438,6 +435,67 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                       ),
                     ),
                     const SizedBox(height: AppSpacing.sp5),
+
+                    // Quick 1-Tap Demo Credentials
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacing.sp3),
+                      decoration: BoxDecoration(
+                        color: brandTheme.surfaceAlt,
+                        borderRadius: BorderRadius.circular(AppShapes.radiusStandard),
+                        border: Border.all(color: brandTheme.cardBorder),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.bolt_rounded, size: 16, color: brandTheme.brassPrimary),
+                              const SizedBox(width: 6),
+                              Text(
+                                'QUICK 1-TAP DEMO LOGIN',
+                                style: GoogleFonts.ibmPlexMono(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: brandTheme.brassPrimary,
+                                  letterSpacing: 1.0,
+                                ),
+                              ),
+                              const Spacer(),
+                              if (_isSeeding)
+                                const SizedBox(
+                                  width: 12,
+                                  height: 12,
+                                  child: CircularProgressIndicator(strokeWidth: 1.5),
+                                )
+                              else
+                                GestureDetector(
+                                  onTap: _seedDemoAccounts,
+                                  child: Text(
+                                    'Seed Accounts',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 10,
+                                      color: brandTheme.textMuted,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: AppSpacing.sp3),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              _demoChip('Admin', 'admin', brandTheme),
+                              _demoChip('TAP / TPO', 'tpo', brandTheme),
+                              _demoChip('ISE Faculty', 'faculty_ise', brandTheme),
+                              _demoChip('CSE Faculty', 'faculty_cse', brandTheme),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.sp4),
 
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,

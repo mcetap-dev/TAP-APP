@@ -1,3 +1,5 @@
+import '../../../../core/utils/usn_parser.dart';
+
 enum UserRole {
   admin,
   tpo,
@@ -122,9 +124,20 @@ class UserProfile {
   final String? section;
   final int? admissionYear;
   final int? graduationYear;
+  final bool emailVerified;
   final bool profileCompleted;
   final DateTime? dob;
   final String? gender;
+
+  // Centralized Course Tracking (USN detected vs Faculty verified)
+  final String? detectedCourseId;
+  final String? detectedCourseCode;
+  final String? detectedCourseName;
+  final String? verifiedCourseId;
+  final String? verifiedCourseCode;
+  final String? verifiedCourseName;
+  final String branchSource;
+  final bool branchVerified;
 
   final ConsentStatus consentStatus;
   final String? consentReason;
@@ -159,9 +172,18 @@ class UserProfile {
     this.section,
     this.admissionYear,
     this.graduationYear,
+    this.emailVerified = false,
     this.profileCompleted = false,
     this.dob,
     this.gender,
+    this.detectedCourseId,
+    this.detectedCourseCode,
+    this.detectedCourseName,
+    this.verifiedCourseId,
+    this.verifiedCourseCode,
+    this.verifiedCourseName,
+    this.branchSource = 'usn',
+    this.branchVerified = false,
     this.consentStatus = ConsentStatus.notSet,
     this.consentReason,
     this.approvalStatus = ApprovalStatus.pending,
@@ -174,8 +196,15 @@ class UserProfile {
 
   // Helper alias for existing UI code compatibility
   String get fullName => name;
-  bool get emailVerified => true;
   String? get rollNumber => usn;
+
+  /// Returns the effective authorized course code (verified preferred, fallback to detected or parsed USN).
+  String get effectiveCourseCode =>
+      verifiedCourseCode ?? detectedCourseCode ?? UsnParser.extractBranchCode(usn ?? '') ?? '';
+
+  /// Returns the effective display course name.
+  String get effectiveCourseName =>
+      verifiedCourseName ?? detectedCourseName ?? department ?? 'General Engineering';
 
   factory UserProfile.fromMap(Map<String, dynamic> map) {
     return UserProfile(
@@ -199,9 +228,18 @@ class UserProfile {
       section: map['section'] as String?,
       admissionYear: map['admission_year'] as int?,
       graduationYear: map['graduation_year'] as int?,
+      emailVerified: map['email_verified'] as bool? ?? false,
       profileCompleted: map['profile_completed'] as bool? ?? false,
       dob: map['dob'] != null ? DateTime.tryParse(map['dob'] as String) : null,
       gender: map['gender'] as String?,
+      detectedCourseId: map['detected_course_id'] as String?,
+      detectedCourseCode: map['detected_course_code'] as String?,
+      detectedCourseName: map['detected_course_name'] as String?,
+      verifiedCourseId: map['verified_course_id'] as String?,
+      verifiedCourseCode: map['verified_course_code'] as String?,
+      verifiedCourseName: map['verified_course_name'] as String?,
+      branchSource: (map['branch_source'] as String?) ?? 'usn',
+      branchVerified: (map['branch_verified'] as bool?) ?? false,
       consentStatus: ConsentStatus.fromString(map['consent_status'] as String?),
       consentReason: map['consent_reason'] as String?,
       approvalStatus: ApprovalStatus.fromString(map['approval_status'] as String?),
@@ -230,6 +268,14 @@ class UserProfile {
         'photo_url': photoUrl,
         'id_proof_url': idProofUrl,
         'skills': skills,
+        'detected_course_id': detectedCourseId,
+        'detected_course_code': detectedCourseCode,
+        'detected_course_name': detectedCourseName,
+        'verified_course_id': verifiedCourseId,
+        'verified_course_code': verifiedCourseCode,
+        'verified_course_name': verifiedCourseName,
+        'branch_source': branchSource,
+        'branch_verified': branchVerified,
         'consent_status': consentStatus.name,
         'consent_reason': consentReason,
         'approval_status': approvalStatus.name,

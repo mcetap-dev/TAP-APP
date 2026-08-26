@@ -35,6 +35,7 @@ class StudentOnboardingNotifier
   Future<bool> submit({
     required String userId,
     required StudentOnboardingData data,
+    bool refreshAuth = true,
   }) async {
     state = const AsyncValue.loading();
     try {
@@ -42,8 +43,10 @@ class StudentOnboardingNotifier
         userId: userId,
         data: data,
       );
-      // Invalidate auth provider so profileCompleted = true is picked up
-      _ref.invalidate(authNotifierProvider);
+      if (refreshAuth) {
+        // Invalidate auth provider so profileCompleted = true is picked up
+        _ref.invalidate(authNotifierProvider);
+      }
       state = const AsyncValue.data(null);
       return true;
     } catch (e, st) {

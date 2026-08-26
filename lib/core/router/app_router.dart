@@ -23,6 +23,7 @@ import '../../features/admin/presentation/screens/tpo_appointment_screen.dart';
 import '../../features/admin/presentation/screens/appoint_faculty_coordinator_screen.dart';
 import '../../features/admin/presentation/screens/audit_logs_screen.dart';
 import '../../features/admin/presentation/screens/system_settings_screen.dart';
+import '../../features/admin/presentation/screens/course_management_screen.dart';
 import '../../features/faculty/presentation/screens/faculty_dashboard_screen.dart';
 import '../../features/faculty/presentation/screens/student_approval_queue_screen.dart';
 import '../../features/faculty/presentation/screens/faculty_waiting_screen.dart';
@@ -88,23 +89,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       // Logged in → handle redirection based on role and approval status
       if (isLoggedIn) {
-        // If student is pending, force them to pending approval screen
-        if (profile.role == UserRole.student &&
-            profile.approvalStatus == ApprovalStatus.pending) {
-          if (state.matchedLocation != '/pending-approval') {
-            return '/pending-approval';
+        // 1. If student has not verified email OTP, keep them on verify-otp
+        if (profile.role == UserRole.student && !profile.emailVerified) {
+          if (state.matchedLocation != '/verify-otp') {
+            return '/verify-otp';
           }
-          return null; // Already on pending-approval
+          return null; // Already on verify-otp
         }
 
-        // ── Onboarding gate: approved students who haven't completed profile ──
-        if (profile.role == UserRole.student &&
-            profile.approvalStatus == ApprovalStatus.approved &&
-            !profile.profileCompleted) {
+        // 2. Student Profile Collection Gate (Must enter all details first)
+        if (profile.role == UserRole.student && !profile.profileCompleted) {
           if (state.matchedLocation != '/student/onboarding') {
             return '/student/onboarding';
           }
           return null; // Already on onboarding
+        }
+
+        // 3. Faculty Verification & Rejection Gate
+        if (profile.role == UserRole.student &&
+            (profile.approvalStatus == ApprovalStatus.pending ||
+             profile.approvalStatus == ApprovalStatus.rejected)) {
+          if (state.matchedLocation != '/pending-approval') {
+            return '/pending-approval';
+          }
+          return null; // Already on pending-approval
         }
 
         // Otherwise, if they are on an auth screen or splash, redirect to their dashboard
@@ -119,10 +127,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           return '/faculty/waiting';
         }
 
-        // If they are on pending-approval but are no longer pending, redirect to dashboard
+        // If they are on pending-approval but are approved, redirect to dashboard
         if (state.matchedLocation == '/pending-approval' &&
             (profile.role != UserRole.student ||
-                profile.approvalStatus != ApprovalStatus.pending)) {
+                (profile.approvalStatus != ApprovalStatus.pending &&
+                 profile.approvalStatus != ApprovalStatus.rejected))) {
           return _dashboardPath(profile.role);
         }
 
@@ -271,6 +280,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/admin/settings',
         name: 'admin-settings',
         builder: (_, __) => const SystemSettingsScreen(),
+      ),
+      GoRoute(
+        path: '/admin/courses',
+        name: 'admin-courses',
+        builder: (_, __) => const CourseManagementScreen(),
       ),
       // ── TPO routes ──────────────────────────────────────────────────────
       GoRoute(

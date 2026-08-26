@@ -1705,7 +1705,7 @@ class _RoundManagementScreenState
           .eq('drive_id', widget.drive.id)
           .order('round_number', ascending: true);
 
-      final rounds = (roundsData as List).map((e) => DriveRound.fromJson(e)).toList();
+      final rounds = (roundsData as List).map((e) => DriveRound.fromMap(e)).toList();
 
       // 2. Fetch all applications with student profiles
       final appsData = await supabase
@@ -1716,12 +1716,16 @@ class _RoundManagementScreenState
       final applications = (appsData as List);
 
       // 3. Fetch round evaluations / history
-      final evaluationsData = await supabase
-          .from('application_round_evaluations')
-          .select('*, round:drive_rounds(round_number, round_name)')
-          .in_('application_id', applications.map((a) => a['id'] as String).toList());
+      final appIds = applications.map((a) => a['id'] as String).toList();
+      List evaluations = [];
+      if (appIds.isNotEmpty) {
+        final evaluationsData = await supabase
+            .from('application_round_evaluations')
+            .select('*, round:drive_rounds(round_number, round_name)')
+            .filter('application_id', 'in', appIds);
 
-      final evaluations = (evaluationsData as List);
+        evaluations = (evaluationsData as List);
+      }
 
       // 4. Create Excel Workbook
       final excel = excel_pkg.Excel.createExcel();
@@ -1740,8 +1744,8 @@ class _RoundManagementScreenState
         excel_pkg.TextCellValue(widget.drive.roleTitle),
       ]);
       summarySheet.appendRow([
-        excel_pkg.TextCellValue('CTC:'),
-        excel_pkg.TextCellValue(widget.drive.ctcPackage),
+        excel_pkg.TextCellValue('CTC / Stipend:'),
+        excel_pkg.TextCellValue(widget.drive.ctcOrStipend),
         excel_pkg.TextCellValue('Export Date:'),
         excel_pkg.TextCellValue(DateTime.now().toString().split('.')[0]),
       ]);
@@ -1807,7 +1811,6 @@ class _RoundManagementScreenState
 
         roundSheet.appendRow([
           excel_pkg.TextCellValue('Stage ${round.roundNumber}: ${round.roundName}'),
-          excel_pkg.TextCellValue('Type: ${round.roundType}'),
         ]);
         roundSheet.appendRow([]);
 

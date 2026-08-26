@@ -16,10 +16,6 @@ class UserManagementRepositoryImpl implements UserManagementRepository {
     required String email,
     required String appointedBy,
   }) async {
-    if (email.toLowerCase().endsWith('@ms.mcehassan.ac.in')) {
-      throw Exception(
-          'Students cannot be appointed as TPO. Only faculty/staff emails (@mcehassan.ac.in) are allowed.');
-    }
 
     // 1. Find profile by email (case-insensitive)
     final response = await _supabase
@@ -89,10 +85,6 @@ class UserManagementRepositoryImpl implements UserManagementRepository {
     required String department,
     required String appointedBy,
   }) async {
-    if (email.toLowerCase().endsWith('@ms.mcehassan.ac.in')) {
-      throw Exception(
-          'Students cannot be appointed as Faculty Coordinator. Only faculty/staff emails (@mcehassan.ac.in) are allowed.');
-    }
 
     // 1. Find profile by email (case-insensitive)
     final response = await _supabase

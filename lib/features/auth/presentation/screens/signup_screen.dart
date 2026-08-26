@@ -88,7 +88,7 @@ class _SignupScreenState extends ConsumerState<SignupScreen>
           );
 
       if (mounted) {
-        context.push('/verify-otp', extra: email);
+        context.go('/verify-otp', extra: email);
       }
     } catch (e) {
       if (mounted) {

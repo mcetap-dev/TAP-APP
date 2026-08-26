@@ -41,33 +41,15 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
     final theme = Theme.of(context);
     final brandTheme = theme.extension<AppBrandTheme>()!;
 
+    final profile = profileAsync.valueOrNull;
+
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       body: Stack(
         children: [
           // Content layer with bottom padding for floating bar
           Positioned.fill(
-            child: profileAsync.when(
-              data: (profile) => _buildTabContent(_currentNavIndex, profile, brandTheme, theme),
-              loading: () => Padding(
-                padding: const EdgeInsets.only(top: 80, left: 16, right: 16),
-                child: Column(
-                  children: const [
-                    SkeletonCardRow(),
-                    SkeletonCardRow(),
-                    SkeletonCardRow(),
-                  ],
-                ),
-              ),
-              error: (e, _) => StateBlockWidget(
-                icon: Icons.error_outline_rounded,
-                title: "Couldn't load dashboard",
-                message: 'Connection dropped while fetching profile. Please retry.',
-                isError: true,
-                actionLabel: 'Retry',
-                onAction: () => ref.read(authNotifierProvider.notifier).refreshProfile(''),
-              ),
-            ),
+            child: _buildTabContent(_currentNavIndex, profile, brandTheme, theme),
           ),
 
           // Floating Pill Nav Bar
@@ -171,8 +153,9 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
           ),
           const SizedBox(height: AppSpacing.sp5),
 
-          appsAsync.when(
-            data: (apps) {
+          Builder(
+            builder: (context) {
+              final apps = appsAsync.valueOrNull ?? const <Application>[];
               final shortlistedCount = apps.where((a) => a.status == ApplicationStatus.shortlisted).length;
               final offersCount = apps.where((a) => a.status == ApplicationStatus.selected).length;
 
@@ -186,8 +169,8 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                       Expanded(
                         flex: 13,
                         child: Container(
-                          constraints: const BoxConstraints(minHeight: 160),
-                          padding: const EdgeInsets.all(AppSpacing.sp5),
+                          height: 140,
+                          padding: const EdgeInsets.all(AppSpacing.sp4),
                           decoration: ShapeDecoration(
                             color: theme.colorScheme.surface,
                             shape: ContinuousRectangleBorder(
@@ -203,7 +186,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                               Text(
                                 '${apps.length}',
                                 style: GoogleFonts.fraunces(
-                                  fontSize: 36,
+                                  fontSize: 34,
                                   fontWeight: FontWeight.w600,
                                   color: brandTheme.brassPrimary,
                                   height: 1.0,
@@ -221,13 +204,13 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                       Expanded(
                         flex: 10,
                         child: SizedBox(
-                          height: 160,
+                          height: 140,
                           child: Column(
                             children: [
                               Expanded(
                                 child: Container(
                                   width: double.infinity,
-                                  padding: const EdgeInsets.all(AppSpacing.sp3),
+                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sp3, vertical: AppSpacing.sp2),
                                   decoration: ShapeDecoration(
                                     color: theme.colorScheme.surface,
                                     shape: ContinuousRectangleBorder(
@@ -239,7 +222,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Text('$shortlistedCount', style: GoogleFonts.fraunces(fontSize: 22, fontWeight: FontWeight.w600)),
+                                      Text('$shortlistedCount', style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600)),
                                       Text('Shortlisted', style: GoogleFonts.inter(fontSize: 11, color: brandTheme.textMuted)),
                                     ],
                                   ),
@@ -249,7 +232,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                               Expanded(
                                 child: Container(
                                   width: double.infinity,
-                                  padding: const EdgeInsets.all(AppSpacing.sp3),
+                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sp3, vertical: AppSpacing.sp2),
                                   decoration: ShapeDecoration(
                                     color: theme.colorScheme.surface,
                                     shape: ContinuousRectangleBorder(
@@ -261,7 +244,7 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Text('$offersCount', style: GoogleFonts.fraunces(fontSize: 22, fontWeight: FontWeight.w600, color: brandTheme.statusShortlisted)),
+                                      Text('$offersCount', style: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, color: brandTheme.statusShortlisted)),
                                       Text('Offers', style: GoogleFonts.inter(fontSize: 11, color: brandTheme.textMuted)),
                                     ],
                                   ),
@@ -372,11 +355,6 @@ class _StudentDashboardScreenState extends ConsumerState<StudentDashboardScreen>
                 ],
               );
             },
-            loading: () => const Padding(
-              padding: EdgeInsets.only(top: 80),
-              child: Column(children: [SkeletonCardRow(), SkeletonCardRow()]),
-            ),
-            error: (_, __) => const SizedBox(),
           ),
         ],
       ),

@@ -8,13 +8,13 @@ class AppConstants {
   // ── Supabase ───────────────────────────────────────────────────────────────
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://twtnxdpvqkirdiqnyusi.supabase.co',
+    defaultValue: 'https://ilbgjkkvrgmdskuuqicz.supabase.co',
   );
 
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
     defaultValue:
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InR3dG54ZHB2cWtpcmRpcW55dXNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyOTQyOTksImV4cCI6MjEwMDg3MDI5OX0.I_qJ-14TVWMNS-G_On4eWKivsqtM_E7a1mOck8JCN_I',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlsYmdqa2t2cmdtZHNrdXVxaWN6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3MTYxNzQsImV4cCI6MjEwMzI5MjE3NH0.0KanbFM2VjN96V1I-yjdObfgRVwM-1p9VDSgiNP2cEQ',
   );
 
   // ── App metadata ───────────────────────────────────────────────────────────

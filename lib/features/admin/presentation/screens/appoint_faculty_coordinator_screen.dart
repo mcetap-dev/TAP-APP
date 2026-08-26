@@ -235,10 +235,7 @@ class _AppointFacultyCoordinatorScreenState
                     ),
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Please enter or select an email address';
-                      if (!v.contains('@')) return 'Please enter a valid email';
-                      if (v.trim().toLowerCase().endsWith('@ms.mcehassan.ac.in')) {
-                        return 'Students cannot be appointed as Faculty Coordinator';
-                      }
+                      if (!v.contains('@') || !v.contains('.')) return 'Please enter a valid email';
                       return null;
                     },
                   ),

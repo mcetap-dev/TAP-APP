@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../domain/entities/drive.dart';
 import '../../domain/entities/application.dart';
 import '../../data/repositories/student_drive_repository_impl.dart';
@@ -12,30 +13,29 @@ final studentDriveRepositoryProvider = Provider((ref) {
 });
 
 final studentEligibleDrivesProvider = FutureProvider<List<Drive>>((ref) async {
-  final timer = Stream.periodic(const Duration(milliseconds: 1500)).listen((_) {
-    ref.invalidateSelf();
-  });
-  ref.onDispose(() => timer.cancel());
-
   final repo = ref.watch(studentDriveRepositoryProvider);
-  return repo.getEligibleDrives();
+  try {
+    return await repo.getEligibleDrives();
+  } catch (e) {
+    return [];
+  }
 });
 
 final studentApplicationsProvider = FutureProvider<List<Application>>((ref) async {
-  final timer = Stream.periodic(const Duration(milliseconds: 1500)).listen((_) {
-    ref.invalidateSelf();
-  });
-  ref.onDispose(() => timer.cancel());
+  final authProfile = ref.watch(authNotifierProvider).valueOrNull;
+  final userId = Supabase.instance.client.auth.currentUser?.id ?? authProfile?.id;
+  if (userId == null || userId.isEmpty) return [];
 
-  final user = Supabase.instance.client.auth.currentUser;
-  if (user == null) return [];
+  try {
+    final response = await Supabase.instance.client
+        .from('applications')
+        .select('*, drive:drives(*, company:companies(*))')
+        .eq('student_id', userId);
 
-  final response = await Supabase.instance.client
-      .from('applications')
-      .select('*, drive:drives(*, company:companies(*))')
-      .eq('student_id', user.id);
-
-  return (response as List).map((map) => Application.fromMap(map)).toList();
+    return (response as List).map((map) => Application.fromMap(map)).toList();
+  } catch (e) {
+    return [];
+  }
 });
 
 /// Set of drive IDs the current student has applied to.

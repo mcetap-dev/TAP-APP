@@ -15,7 +15,11 @@ class StudentOnboardingData {
   /// Already-uploaded photo URL (when editing existing profile).
   final String? existingPhotoUrl;
 
-  // ── Step 2: Academic Information ─────────────────────────────────────────
+  // ── Step 2: Academic Information & Course Recognition ────────────────────
+  final String? usn;
+  final String? detectedCourseId;
+  final String? detectedCourseCode;
+  final String? detectedCourseName;
   final int? semester;
   final String? section;
   final int? admissionYear;
@@ -42,6 +46,10 @@ class StudentOnboardingData {
     this.photoBytes,
     this.photoFileName,
     this.existingPhotoUrl,
+    this.usn,
+    this.detectedCourseId,
+    this.detectedCourseCode,
+    this.detectedCourseName,
     this.semester,
     this.section,
     this.admissionYear,

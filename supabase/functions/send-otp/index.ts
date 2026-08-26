@@ -62,41 +62,11 @@ serve(async (req) => {
     if (!["signup", "password_reset"].includes(purpose)) {
       return json({ success: false, error: "Invalid purpose." }, 400);
     }
-    if (!email || !email.includes("@")) {
+    if (!email || !email.includes("@") || !email.includes(".")) {
       return json({ success: false, error: "A valid email is required." }, 400);
-    }
-    if (
-      !email.endsWith("@ms.mcehassan.ac.in") &&
-      !email.endsWith("@mcehassan.ac.in")
-    ) {
-      return json(
-        { success: false, error: "Only MCE Hassan institutional emails are allowed." },
-        400
-      );
     }
 
     if (action === "send") {
-      // Cooldown: reuse of an existing unused code within 60s is rejected.
-      const { data: existing } = await supabase
-        .from("otp_verifications")
-        .select("id, created_at")
-        .eq("email", email)
-        .eq("purpose", purpose)
-        .eq("used", false)
-        .order("created_at", { ascending: false })
-        .limit(1);
-
-      if (existing && existing.length > 0) {
-        const age = Date.now() - new Date(existing[0].created_at).getTime();
-        if (age < RESEND_COOLDOWN_MS) {
-          const wait = Math.ceil((RESEND_COOLDOWN_MS - age) / 1000);
-          return json(
-            { success: false, error: `Please wait ${wait}s before requesting a new code.` },
-            429
-          );
-        }
-      }
-
       const otp = generateOtp();
       const codeHash = await sha256Hex(otp);
       const expiresAt = new Date(Date.now() + OTP_TTL_MS).toISOString();
@@ -187,6 +157,29 @@ serve(async (req) => {
           { success: false, error: (result as any)?.error || "Verification failed." },
           400
         );
+      }
+
+      // Mark the student's email as confirmed in Supabase auth and profiles table
+      try {
+        // 1. Find user in auth.users by email
+        const { data: usersData } = await supabase.auth.admin.listUsers();
+        const authUser = usersData?.users?.find(
+          (u) => u.email?.toLowerCase() === email.toLowerCase()
+        );
+
+        if (authUser) {
+          await supabase.auth.admin.updateUserById(authUser.id, {
+            email_confirm: true,
+          });
+        }
+
+        // 2. Mark profile as verified
+        await supabase
+          .from("profiles")
+          .update({ email_verified: true, updated_at: new Date().toISOString() })
+          .eq("email", email);
+      } catch (err) {
+        console.error("[send-otp] Error setting email_verified in profiles/auth:", err);
       }
 
       console.log(`[send-otp] OTP verified for ${email} (purpose=${purpose})`);

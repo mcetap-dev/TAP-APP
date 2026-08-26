@@ -260,6 +260,72 @@ class EmailNotificationService {
     );
   }
 
+  void sendProfileApprovedEmail({
+    required String recipientEmail,
+    required String studentName,
+    required String usn,
+    required String verifiedCourse,
+  }) {
+    sendEmail(
+      recipientEmail: recipientEmail,
+      subject: 'Placement Connect — Student Profile Approved',
+      emailType: 'profile_approved',
+      metadata: {
+        'studentName': studentName,
+        'usn': usn,
+        'verifiedCourse': verifiedCourse,
+      },
+      htmlBody: _wrapTemplate(
+        'Profile Verification Approved',
+        '''
+        <h2>Student Profile Approved</h2>
+        <p>Dear <strong>$studentName</strong>,</p>
+        <p>Your student profile has been successfully verified and approved by the Placement Cell/Faculty Coordinator.</p>
+        <p>Your Placement Connect profile is now verified and you can access placement opportunities according to your eligibility.</p>
+        <table class="info-table">
+          <tr><td class="label">USN</td><td class="value">$usn</td></tr>
+          <tr><td class="label">Course</td><td class="value">$verifiedCourse</td></tr>
+          <tr><td class="label">Status</td><td class="value"><span class="badge badge-success">APPROVED</span></td></tr>
+        </table>
+        <p>You can now log in to Placement Connect.</p>
+        <p>Regards,<br><strong>Training & Placement Cell</strong><br>Malnad College of Engineering</p>
+        ''',
+      ),
+    );
+  }
+
+  void sendProfileRejectedEmail({
+    required String recipientEmail,
+    required String studentName,
+    required String reason,
+  }) {
+    sendEmail(
+      recipientEmail: recipientEmail,
+      subject: 'Placement Connect — Profile Verification Required',
+      emailType: 'profile_rejected',
+      metadata: {
+        'studentName': studentName,
+        'reason': reason,
+      },
+      htmlBody: _wrapTemplate(
+        'Profile Verification Required',
+        '''
+        <h2>Profile Verification Action Required</h2>
+        <p>Dear <strong>$studentName</strong>,</p>
+        <p>Your Placement Connect student profile could not be approved at this stage.</p>
+        <table class="info-table">
+          <tr><td class="label">Reason</td><td class="value"><strong style="color:#E57373;">$reason</strong></td></tr>
+          <tr><td class="label">Status</td><td class="value"><span class="badge badge-danger">REJECTED / ACTION REQUIRED</span></td></tr>
+        </table>
+        <p><strong>You are required to meet your Faculty Coordinator for verification and correction of your student details.</strong></p>
+        <p>Please contact/meet your Faculty Coordinator and get the required details corrected.</p>
+        <p>After the necessary corrections are completed, your profile will be reviewed again for approval.</p>
+        <p>Regards,<br><strong>Training & Placement Cell</strong><br>Malnad College of Engineering</p>
+        ''',
+      ),
+    );
+  }
+
   void sendWelcomeEmail({required String recipientEmail, required String studentName, required String role, required String department}) {
     sendEmail(
       recipientEmail: recipientEmail,

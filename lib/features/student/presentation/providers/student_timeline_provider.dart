@@ -121,32 +121,47 @@ class StudentTimelineNotifier extends AsyncNotifier<List<ApplicationTimelineData
 
   static Future<List<ApplicationTimelineData>> _fetchTimeline(String userId) async {
     // Execute independent parallel queries for instantaneous data fetching
-    final results = await Future.wait([
-      // [0] Fetch applications with nested drive + company + rounds
-      Supabase.instance.client
-          .from('applications')
-          .select('''
-            id, drive_id, status, current_round, resume_version_url, applied_at, updated_at,
-            drive:drives(
-              id, role, package_lpa,
-              end_date,
-              company:companies(name),
-              drive_rounds(id, round_number, round_name, instructions, scheduled_date, round_date, round_time, venue_or_link)
-            )
-          ''')
-          .eq('student_id', userId)
-          .order('applied_at', ascending: false),
+    List<Map<String, dynamic>> apps = [];
+    Map<String, dynamic>? profileResponse;
 
-      // [1] Fetch profile for resume
-      Supabase.instance.client
-          .from('profiles')
-          .select('resume_url')
-          .eq('id', userId)
-          .maybeSingle(),
-    ]);
+    try {
+      final results = await Future.wait([
+        Supabase.instance.client
+            .from('applications')
+            .select('''
+              id, drive_id, status, current_round, resume_version_url, applied_at, updated_at,
+              drive:drives(
+                id, role, package_lpa,
+                end_date,
+                company:companies(name),
+                drive_rounds(id, round_number, round_name, instructions, scheduled_date, round_date, round_time, venue_or_link)
+              )
+            ''')
+            .eq('student_id', userId)
+            .order('applied_at', ascending: false),
+        Supabase.instance.client
+            .from('profiles')
+            .select('resume_url')
+            .eq('id', userId)
+            .maybeSingle(),
+      ]);
 
-    final apps = (results[0] as List).cast<Map<String, dynamic>>();
-    final profileResponse = results[1] as Map<String, dynamic>?;
+      apps = (results[0] as List).cast<Map<String, dynamic>>();
+      profileResponse = results[1] as Map<String, dynamic>?;
+    } catch (e) {
+      // Fallback: Query applications without nested join if foreign key cache is refreshing
+      try {
+        final rawApps = await Supabase.instance.client
+            .from('applications')
+            .select()
+            .eq('student_id', userId)
+            .order('applied_at', ascending: false);
+        apps = (rawApps as List).cast<Map<String, dynamic>>();
+      } catch (_) {
+        return [];
+      }
+    }
+
     final resumeUrl = profileResponse?['resume_url'] as String? ?? '';
 
     if (apps.isEmpty) return [];

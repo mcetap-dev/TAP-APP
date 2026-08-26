@@ -6,9 +6,12 @@ import '../../data/repositories/faculty_repository_impl.dart';
 import '../../domain/repositories/faculty_repository.dart';
 import '../../../audit/domain/repositories/audit_log_repository.dart';
 
+import '../../../../core/services/email_notification_service.dart';
+
 final facultyRepositoryProvider = Provider<FacultyRepository>((ref) {
   final auditRepo = ref.watch(auditLogRepositoryProvider);
-  return FacultyRepositoryImpl(Supabase.instance.client, auditRepo);
+  final emailService = ref.watch(emailNotificationServiceProvider);
+  return FacultyRepositoryImpl(Supabase.instance.client, auditRepo, emailService);
 });
 
 /// Resolves faculty department with multi-layer fallback so the dashboard never renders blank.

@@ -64,7 +64,7 @@ class StudentProfileRemoteDatasource {
     String? resumeUrl,
     String? photoUrl,
   }) async {
-    await _client.from('profiles').update({
+    final updateMap = <String, dynamic>{
       'name': data.fullName,
       'phone': data.phone,
       'dob': data.dob?.toIso8601String().split('T').first,
@@ -81,6 +81,22 @@ class StudentProfileRemoteDatasource {
       'resume_url': resumeUrl,
       'profile_completed': true,
       'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', userId);
+    };
+
+    if (data.usn != null && data.usn!.isNotEmpty) {
+      updateMap['usn'] = data.usn;
+    }
+    if (data.detectedCourseId != null) {
+      updateMap['detected_course_id'] = data.detectedCourseId;
+    }
+    if (data.detectedCourseCode != null) {
+      updateMap['detected_course_code'] = data.detectedCourseCode;
+      updateMap['department'] = data.detectedCourseName;
+    }
+    if (data.detectedCourseName != null) {
+      updateMap['detected_course_name'] = data.detectedCourseName;
+    }
+
+    await _client.from('profiles').update(updateMap).eq('id', userId);
   }
 }

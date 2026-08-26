@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../auth/domain/entities/user_profile.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../audit/domain/entities/audit_log_entry.dart';
+import '../../../audit/domain/repositories/audit_log_repository.dart';
 import '../providers/faculty_provider.dart';
+import '../../../student/presentation/screens/profile_setup_screen.dart';
 import '../../../../core/theme/theme_extensions.dart';
 
 class StudentApprovalQueueScreen extends ConsumerStatefulWidget {
@@ -188,6 +192,8 @@ class _StudentApprovalQueueScreenState
                 final reason = reasonCtrl.text.trim();
                 if (reason.isEmpty) return;
 
+                final messenger = ScaffoldMessenger.of(context);
+                final theme = Theme.of(context);
                 Navigator.pop(context);
                 setState(() {
                   for (final s in selectedStudents) {
@@ -212,7 +218,7 @@ class _StudentApprovalQueueScreenState
                   ref.invalidate(rejectedStudentsProvider);
 
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       SnackBar(
                         content: Text('Rejected ${selectedStudents.length} students.'),
                         behavior: SnackBarBehavior.floating,
@@ -221,10 +227,10 @@ class _StudentApprovalQueueScreenState
                   }
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       SnackBar(
                         content: Text('❌ Error: $e'),
-                        backgroundColor: Theme.of(context).colorScheme.error,
+                        backgroundColor: theme.colorScheme.error,
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
@@ -283,6 +289,8 @@ class _StudentApprovalQueueScreenState
                 final reason = reasonCtrl.text.trim();
                 if (reason.isEmpty) return;
 
+                final messenger = ScaffoldMessenger.of(context);
+                final theme = Theme.of(context);
                 Navigator.pop(context);
                 setState(() => _processingIds[student.id] = true);
                 try {
@@ -300,7 +308,7 @@ class _StudentApprovalQueueScreenState
                   ref.invalidate(rejectedStudentsProvider);
 
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       SnackBar(
                         content: Text('Student ${student.name} rejected.'),
                         behavior: SnackBarBehavior.floating,
@@ -309,10 +317,10 @@ class _StudentApprovalQueueScreenState
                   }
                 } catch (e) {
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    messenger.showSnackBar(
                       SnackBar(
                         content: Text('❌ Error: $e'),
-                        backgroundColor: Theme.of(context).colorScheme.error,
+                        backgroundColor: theme.colorScheme.error,
                         behavior: SnackBarBehavior.floating,
                       ),
                     );
@@ -330,6 +338,21 @@ class _StudentApprovalQueueScreenState
   }
 
 
+
+  void _openFullStudentEditWizard(UserProfile student) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProfileSetupScreen(
+          isEditMode: true,
+          targetStudent: student,
+        ),
+      ),
+    ).then((_) {
+      ref.invalidate(pendingStudentsProvider);
+      ref.invalidate(verifiedStudentsProvider);
+      ref.invalidate(rejectedStudentsProvider);
+    });
+  }
 
   void _showStudentDetailsModal(UserProfile student, AppBrandTheme? brandTheme, ThemeData theme, bool isPending) {
     showModalBottomSheet(
@@ -436,10 +459,22 @@ class _StudentApprovalQueueScreenState
                       child: Column(
                         children: [
                           _detailItem(Icons.person_outlined, 'Full Name', student.name, brandTheme),
-                          _detailItem(Icons.apartment_rounded, 'Department', student.department ?? 'N/A', brandTheme),
+                          _detailItem(Icons.badge_outlined, 'USN', student.usn ?? 'N/A', brandTheme),
+                          _detailItem(
+                            Icons.school_outlined,
+                            'USN Detected Branch',
+                            '${student.detectedCourseName ?? student.department ?? 'N/A'} (${student.detectedCourseCode ?? '—'})',
+                            brandTheme,
+                          ),
+                          if (student.branchVerified)
+                            _detailItem(
+                              Icons.verified_outlined,
+                              'Verified Branch',
+                              '${student.verifiedCourseName ?? student.department ?? 'N/A'} (${student.verifiedCourseCode ?? '—'})',
+                              brandTheme,
+                            ),
                           _detailItem(Icons.email_outlined, 'Email', student.email, brandTheme),
                           _detailItem(Icons.phone_outlined, 'Phone', student.phone ?? 'N/A', brandTheme),
-                          _detailItem(Icons.badge_outlined, 'USN', student.usn ?? 'N/A', brandTheme),
                         ],
                       ),
                     ),
@@ -551,6 +586,25 @@ class _StudentApprovalQueueScreenState
               const SizedBox(height: 12),
               Row(
                 children: [
+                  // Show Edit Details button for Rejected or Pending students
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _openFullStudentEditWizard(student);
+                      },
+                      icon: const Icon(Icons.edit_note_rounded, size: 18, color: Colors.amber),
+                      label: const Text(
+                        'Edit Details',
+                        style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.amber, width: 1.2),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   // Show Reject button for Pending or Approved students
                   if (student.approvalStatus == ApprovalStatus.pending || student.approvalStatus == ApprovalStatus.approved) ...[
                     Expanded(
@@ -561,16 +615,16 @@ class _StudentApprovalQueueScreenState
                         },
                         icon: const Icon(Icons.close_rounded, color: Colors.red, size: 16),
                         label: Text(
-                          student.approvalStatus == ApprovalStatus.approved ? 'Reject Student' : 'Reject',
+                          student.approvalStatus == ApprovalStatus.approved ? 'Reject' : 'Reject',
                           style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                         ),
                         style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Colors.red.shade300, width: 1.5),
+                          side: BorderSide(color: Colors.red.shade300, width: 1.2),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
                     ),
-                    if (student.approvalStatus == ApprovalStatus.pending) const SizedBox(width: 12),
+                    const SizedBox(width: 8),
                   ],
                   // Show Approve button for Pending or Rejected students
                   if (student.approvalStatus == ApprovalStatus.pending || student.approvalStatus == ApprovalStatus.rejected) ...[
@@ -583,7 +637,7 @@ class _StudentApprovalQueueScreenState
                         icon: const Icon(Icons.check_rounded, size: 16),
                         label: Text(
                           student.approvalStatus == ApprovalStatus.rejected
-                              ? 'Re-Approve Student'
+                              ? 'Re-Approve'
                               : 'Approve',
                           style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
